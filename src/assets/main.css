@@ -1,0 +1,203 @@
+/* 全局样式 */
+:root {
+  --primary-color: #42b983;
+  --secondary-color: #2c3e50;
+  --accent-color: #f5a623;
+  --background-color: #f8f9fa;
+  --text-color: #333;
+  --light-gray: #e9ecef;
+  --border-radius: 8px;
+  --box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  line-height: 1.6;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* 布局样式 */
+.main-content {
+  display: flex;
+  flex: 1;
+}
+
+.sidebar {
+  width: 250px;
+  background-color: white;
+  box-shadow: var(--box-shadow);
+  padding: 20px;
+  height: calc(100vh - 60px);
+  position: fixed;
+  top: 60px;
+  left: 0;
+  overflow-y: auto;
+}
+
+.content-area {
+  flex: 1;
+  margin-left: 250px;
+  padding: 20px;
+}
+
+/* 卡片样式 */
+.card {
+  background-color: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 15px;
+  color: var(--secondary-color);
+}
+
+/* 按钮样式 */
+.btn {
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 8px 16px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #3a9e70;
+}
+
+.btn-secondary {
+  background-color: var(--light-gray);
+  color: var(--secondary-color);
+}
+
+.btn-secondary:hover {
+  background-color: #d5d9dd;
+}
+
+/* 植物相关样式 */
+.plant-container {
+  text-align: center;
+  position: relative;
+}
+
+.plant-image {
+  max-width: 300px;
+  height: 300px;
+  object-fit: contain;
+}
+
+.plant-info {
+  margin-top: 15px;
+}
+
+/* 任务列表样式 */
+.task-list {
+  list-style: none;
+}
+
+.task-item {
+  padding: 15px;
+  border-bottom: 1px solid var(--light-gray);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.task-item:last-child {
+  border-bottom: none;
+}
+
+.task-item.completed {
+  opacity: 0.7;
+}
+
+.task-title {
+  font-weight: 500;
+}
+
+.task-description {
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 5px;
+}
+
+/* 说说样式 */
+.post-item {
+  padding: 15px;
+  margin-bottom: 20px;
+  background-color: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+}
+
+.post-content {
+  margin-bottom: 10px;
+}
+
+.post-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.post-image {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.post-meta {
+  font-size: 0.8rem;
+  color: #666;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* 响应式设计 */
+@media screen and (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    top: 0;
+  }
+  
+  .content-area {
+    margin-left: 0;
+  }
+  
+  .main-content {
+    flex-direction: column;
+  }
+} 
