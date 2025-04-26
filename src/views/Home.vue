@@ -202,9 +202,10 @@
               <div class="plant-canvas-wrapper">
                 <WeatherCanvas :weather="weather" :width="450" :height="350" />
                 <div class="plant-emoji-container">
-                  <span class="plant-emoji" :class="plantState">
+                  <!---                  <span class="plant-emoji" :class="plantState">
                     {{ getPlantEmoji() }}
-                  </span>
+                  </span>-->
+                  <img src="@/../public/images/plant/test.png" alt="植物表情" class="plant-emoji">
                   
                   <PlantDialog 
                     :text="randomThought" 

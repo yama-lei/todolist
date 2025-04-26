@@ -10,7 +10,7 @@ export const usePlantStore = defineStore('plant', {
       state: 'growing', // growing, flowering, fruiting
       weather: 'sunny', // sunny, rainy, cloudy
       lastThoughtDate: null,
-      thoughts: []
+      thoughts: [],
     }))
   }),
   
