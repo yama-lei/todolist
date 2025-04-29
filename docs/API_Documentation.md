@@ -648,4 +648,184 @@ date=2023-10-15 (可选，指定周的结束日期)
     ]
   }
 }
+```
+
+## 日历系统接口
+
+### 1. 获取月度日历数据
+
+```
+GET /api/calendar/monthly
+```
+
+**请求头:**
+```
+Authorization: Bearer JWT令牌
+```
+
+**查询参数:**
+```
+year=2023
+month=10
+```
+
+**响应:**
+```json
+{
+  "success": true,
+  "year": 2023,
+  "month": 10,
+  "days": [
+    {
+      "date": "2023-10-01",
+      "tasks": [
+        {
+          "id": "任务ID",
+          "title": "项目讨论会",
+          "deadline": "2023-10-01T14:00:00Z",
+          "completed": false,
+          "important": true
+        }
+      ],
+      "posts": [
+        {
+          "id": "帖子ID",
+          "title": "今天去公园",
+          "type": "thought",
+          "mood": "happy",
+          "createdAt": "2023-10-01T20:30:00Z"
+        }
+      ],
+      "taskCount": {
+        "total": 3,
+        "completed": 1,
+        "pending": 2
+      }
+    }
+  ]
+}
+```
+
+### 2. 获取日详情
+
+```
+GET /api/calendar/day
+```
+
+**请求头:**
+```
+Authorization: Bearer JWT令牌
+```
+
+**查询参数:**
+```
+date=2023-10-15
+```
+
+**响应:**
+```json
+{
+  "success": true,
+  "date": "2023-10-15",
+  "dayOfWeek": "星期日",
+  "tasks": [
+    {
+      "id": "任务ID",
+      "title": "完成项目演示",
+      "description": "为团队准备项目演示PPT",
+      "deadline": "2023-10-15T17:00:00Z",
+      "completed": true,
+      "completedAt": "2023-10-15T16:30:00Z",
+      "important": true
+    }
+  ],
+  "systemTasks": [
+    {
+      "id": "系统任务ID",
+      "title": "每日植物浇水",
+      "completed": true,
+      "completedAt": "2023-10-15T08:30:00Z"
+    }
+  ],
+  "posts": [
+    {
+      "id": "帖子ID",
+      "title": "周末小记",
+      "content": "今天完成了一个重要项目，心情很好！",
+      "images": ["图片URL"],
+      "type": "diary",
+      "mood": "excited",
+      "weather": "sunny",
+      "createdAt": "2023-10-15T20:00:00Z"
+    }
+  ],
+  "plantThoughts": [
+    {
+      "id": "心声ID",
+      "content": "看到你今天完成了项目演示，真为你高兴！继续保持！",
+      "icon": "🌻",
+      "timestamp": "2023-10-15T19:30:00Z"
+    }
+  ],
+  "statistics": {
+    "completionRate": 100,
+    "totalTasks": 1,
+    "completedTasks": 1
+  }
+}
+```
+
+### 3. 获取日历视图统计数据
+
+```
+GET /api/calendar/statistics
+```
+
+**请求头:**
+```
+Authorization: Bearer JWT令牌
+```
+
+**查询参数:**
+```
+year=2023
+month=10
+```
+
+**响应:**
+```json
+{
+  "success": true,
+  "period": {
+    "year": 2023,
+    "month": 10
+  },
+  "statistics": {
+    "totalTasks": 45,
+    "completedTasks": 32,
+    "completionRate": 71.1,
+    "totalPosts": 15,
+    "postsByType": {
+      "diary": 8,
+      "thought": 7
+    },
+    "busyDays": ["2023-10-10", "2023-10-15", "2023-10-22"],
+    "freeDays": ["2023-10-05", "2023-10-06"]
+  },
+  "taskDistribution": {
+    "byWeekday": {
+      "monday": 8,
+      "tuesday": 7,
+      "wednesday": 10,
+      "thursday": 9,
+      "friday": 8,
+      "saturday": 2,
+      "sunday": 1
+    },
+    "byImportance": {
+      "important": 20,
+      "normal": 25
+    }
+  }
+}
 ``` 

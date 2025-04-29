@@ -169,6 +169,12 @@ export default {
 </script>
 
 <style scoped>
+.plant-voice-page {
+  background-color: var(--background-color);
+  min-height: 100vh;
+  padding: 20px 0;
+}
+
 .plant-voice-header {
   display: flex;
   align-items: center;

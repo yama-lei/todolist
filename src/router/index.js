@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import Calendar from '../components/Calendar.vue'
 
 const routes = [
   {
@@ -28,6 +29,11 @@ const routes = [
     meta: {
       title: '植物聊天'
     }
+  },
+  {
+    path: '/calendar',
+    name: 'Calendar',
+    component: Calendar
   }
 ]
 
