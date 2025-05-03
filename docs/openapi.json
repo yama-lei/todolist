@@ -1,0 +1,564 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Plantodo API",
+    "version": "1.0.0",
+    "description": "Plantodo 项目的前后端接口文档"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "本地开发服务器"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "Plant": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "植物ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "植物名称"
+          },
+          "type": {
+            "type": "string",
+            "description": "植物类型"
+          },
+          "emoji": {
+            "type": "string",
+            "description": "植物Emoji"
+          },
+          "level": {
+            "type": "integer",
+            "description": "植物等级"
+          },
+          "experience": {
+            "type": "integer",
+            "description": "植物经验"
+          },
+          "mood": {
+            "type": "string",
+            "description": "植物心情"
+          },
+          "state": {
+            "type": "string",
+            "description": "植物状态",
+            "enum": ["seedling", "growing", "mature"]
+          },
+          "growthStage": {
+            "type": "integer",
+            "description": "生长阶段 (1-3)",
+            "enum": [1, 2, 3]
+          },
+          "weather": {
+            "type": "string",
+            "description": "关联天气"
+          },
+          "isMainPlant": {
+            "type": "boolean",
+            "description": "是否是主植物"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "创建时间"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/plants": {
+      "post": {
+        "tags": ["植物"],
+        "summary": "创建新植物",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "植物名称"
+                  },
+                  "type": {
+                    "type": "string",
+                    "description": "植物类型"
+                  },
+                  "emoji": {
+                    "type": "string",
+                    "description": "植物emoji"
+                  },
+                  "isMainPlant": {
+                    "type": "boolean",
+                    "description": "是否设为主植物"
+                  }
+                },
+                "required": ["name", "type"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "plant": {
+                      "$ref": "#/components/schemas/Plant"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求错误（如缺少必填字段）",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/plants/{id}": {
+      "get": {
+        "tags": ["植物"],
+        "summary": "获取植物详情",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "植物ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取植物详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "plant": {
+                      "$ref": "#/components/schemas/Plant"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "植物未找到",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["植物"],
+        "summary": "更新植物信息",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "植物ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "植物名称"
+                  },
+                  "emoji": {
+                    "type": "string",
+                    "description": "植物emoji"
+                  },
+                  "isMainPlant": {
+                    "type": "boolean",
+                    "description": "是否设为主植物"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "plant": {
+                      "$ref": "#/components/schemas/Plant"
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "更新状态信息"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "植物未找到",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["植物"],
+        "summary": "删除植物",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "植物ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "成功信息"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求错误（如尝试删除主植物）",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "植物未找到",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/plants/{id}/experience": {
+      "put": {
+        "tags": ["植物"],
+        "summary": "增加植物经验",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "植物ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "integer",
+                    "description": "增加的经验值"
+                  }
+                },
+                "required": ["amount"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "经验增加成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "plant": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "level": {
+                          "type": "integer"
+                        },
+                        "experience": {
+                          "type": "integer"
+                        },
+                        "state": {
+                          "type": "string"
+                        },
+                        "growthStage": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "levelUp": {
+                      "type": "boolean",
+                      "description": "是否升级"
+                    },
+                    "stageChange": {
+                      "type": "boolean",
+                      "description": "是否生长阶段改变"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求错误（如无效的经验值）",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "植物未找到",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/plants/{id}/growth-stage": {
+      "put": {
+        "tags": ["植物"],
+        "summary": "更新植物生长阶段",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "植物ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "stage": {
+                    "type": "integer",
+                    "enum": [1, 2, 3],
+                    "description": "植物生长阶段 (1-幼苗, 2-成长中, 3-成熟)"
+                  }
+                },
+                "required": ["stage"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "生长阶段更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "plant": {
+                      "$ref": "#/components/schemas/Plant"
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "更新信息"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求错误（如无效的生长阶段）",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "植物未找到",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+} 

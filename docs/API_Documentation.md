@@ -316,15 +316,215 @@ Authorization: Bearer JWT令牌
       "experience": 120,
       "mood": "happy",
       "state": "growing",
+      "growthStage": 2,
       "weather": "sunny",
       "isMainPlant": true,
-      "createdAt": "创建时间"
+      "createdAt": "创建时间",
+      "lastInteraction": "最后交互时间",
+      "traits": ["友好", "活泼"]
     }
   ]
 }
 ```
 
-### 2. 增加植物经验
+### 2. 创建新植物
+
+```
+POST /api/plants
+```
+
+**请求头:**
+```
+Authorization: Bearer JWT令牌
+```
+
+**请求体参数说明:**
+| 参数名 | 类型 | 必填 | 描述 |
+| ------ | ---- | ---- | ---- |
+| name | string | 是 | 植物名称 |
+| type | string | 是 | 植物类型，如"向日葵"、"仙人掌"等 |
+| emoji | string | 否 | 植物表情符号，默认为"🌱" |
+| isMainPlant | boolean | 否 | 是否设为主植物，默认为false。如设为true，则其他植物自动变为非主植物 |
+
+**请求体示例:**
+```json
+{
+  "name": "小绿",
+  "type": "向日葵",
+  "emoji": "🌻",
+  "isMainPlant": true
+}
+```
+
+**响应:**
+```json
+{
+  "success": true,
+  "plant": {
+    "id": "植物ID",
+    "name": "小绿",
+    "type": "向日葵",
+    "emoji": "🌻",
+    "level": 1,
+    "experience": 0,
+    "mood": "neutral",
+    "state": "seedling",
+    "growthStage": 1,
+    "weather": "sunny",
+    "isMainPlant": true,
+    "createdAt": "2023-11-01T08:30:00Z",
+    "lastInteraction": "2023-11-01T08:30:00Z",
+    "traits": ["友好", "活泼"]
+  }
+}
+```
+
+**响应字段说明:**
+| 字段名 | 类型 | 描述 |
+| ------ | ---- | ---- |
+| id | string | 植物唯一ID |
+| name | string | 植物名称 |
+| type | string | 植物类型 |
+| emoji | string | 植物表情符号 |
+| level | number | 植物等级，初始为1 |
+| experience | number | 植物经验值，初始为0 |
+| mood | string | 植物心情状态，初始为"neutral" |
+| state | string | 植物生长状态，对应growthStage：seedling(幼苗)、growing(成长中)、mature(成熟) |
+| growthStage | number | 生长阶段(1-3)，对应1=幼苗期、2=成长期、3=成熟期 |
+| weather | string | 关联天气，默认为"sunny" |
+| isMainPlant | boolean | 是否为主植物 |
+| createdAt | string | 创建时间 |
+| lastInteraction | string | 最后交互时间 |
+| traits | array | 植物特性数组 |
+
+### 3. 获取植物详情
+
+```
+GET /api/plants/:id
+```
+
+**请求头:**
+```
+Authorization: Bearer JWT令牌
+```
+
+**请求参数:**
+| 参数名 | 位置 | 描述 |
+| ------ | ---- | ---- |
+| id | 路径 | 植物ID |
+
+**响应:**
+```json
+{
+  "success": true,
+  "plant": {
+    "id": "植物ID",
+    "name": "小绿",
+    "type": "向日葵",
+    "emoji": "🌻",
+    "level": 3,
+    "experience": 120,
+    "mood": "happy",
+    "state": "growing",
+    "growthStage": 2,
+    "weather": "sunny",
+    "isMainPlant": true,
+    "createdAt": "2023-11-01T08:30:00Z",
+    "lastInteraction": "2023-11-05T10:15:00Z",
+    "traits": ["友好", "活泼"]
+  }
+}
+```
+
+### 4. 更新植物信息
+
+```
+PUT /api/plants/:id
+```
+
+**请求头:**
+```
+Authorization: Bearer JWT令牌
+```
+
+**请求参数:**
+| 参数名 | 位置 | 描述 |
+| ------ | ---- | ---- |
+| id | 路径 | 植物ID |
+
+**请求体参数说明:**
+| 参数名 | 类型 | 必填 | 描述 |
+| ------ | ---- | ---- | ---- |
+| name | string | 否 | 新的植物名称 |
+| emoji | string | 否 | 新的表情符号 |
+| isMainPlant | boolean | 否 | 是否设为主植物 |
+
+**请求体示例:**
+```json
+{
+  "name": "新植物名称",
+  "emoji": "🌵",
+  "isMainPlant": true
+}
+```
+
+**响应:**
+```json
+{
+  "success": true,
+  "plant": {
+    "id": "植物ID",
+    "name": "新植物名称",
+    "type": "向日葵",
+    "emoji": "🌵",
+    "level": 3,
+    "experience": 120,
+    "mood": "happy",
+    "state": "growing",
+    "growthStage": 2,
+    "weather": "sunny",
+    "isMainPlant": true,
+    "createdAt": "2023-11-01T08:30:00Z",
+    "lastInteraction": "2023-11-06T15:20:00Z",
+    "traits": ["友好", "活泼"]
+  },
+  "message": "植物信息更新成功"
+}
+```
+
+### 5. 删除植物
+
+```
+DELETE /api/plants/:id
+```
+
+**请求头:**
+```
+Authorization: Bearer JWT令牌
+```
+
+**请求参数:**
+| 参数名 | 位置 | 描述 |
+| ------ | ---- | ---- |
+| id | 路径 | 植物ID |
+
+**响应:**
+```json
+{
+  "success": true,
+  "message": "植物已成功删除"
+}
+```
+
+**错误响应:**
+```json
+{
+  "success": false,
+  "message": "不能删除主植物，请先设置其他植物为主植物"
+}
+```
+
+### 6. 增加植物经验
 
 ```
 PUT /api/plants/:id/experience
@@ -335,10 +535,20 @@ PUT /api/plants/:id/experience
 Authorization: Bearer JWT令牌
 ```
 
-**请求体:**
+**请求参数:**
+| 参数名 | 位置 | 描述 |
+| ------ | ---- | ---- |
+| id | 路径 | 植物ID |
+
+**请求体参数说明:**
+| 参数名 | 类型 | 必填 | 描述 |
+| ------ | ---- | ---- | ---- |
+| amount | number | 是 | 要增加的经验值，必须为正数 |
+
+**请求体示例:**
 ```json
 {
-  "amount": 20
+  "amount": 25
 }
 ```
 
@@ -350,12 +560,86 @@ Authorization: Bearer JWT令牌
     "id": "植物ID",
     "name": "小绿",
     "level": 3,
-    "experience": 140,
-    "state": "growing"
+    "experience": 145,
+    "state": "growing",
+    "growthStage": 2
   },
-  "levelUp": false
+  "levelUp": false,
+  "stageChange": false
 }
 ```
+
+**响应字段说明:**
+| 字段名 | 类型 | 描述 |
+| ------ | ---- | ---- |
+| levelUp | boolean | 是否升级 |
+| stageChange | boolean | 是否生长阶段改变 |
+
+**升级和生长阶段判断规则:**
+- 每积累100点经验值，植物升级1级（例如：从2级到3级需要200点经验）
+- 生长阶段规则：
+  - 1级-3级：幼苗期（seedling）
+  - 4级-7级：成长期（growing）
+  - 8级及以上：成熟期（mature）
+
+### 7. 更新植物生长阶段
+
+```
+PUT /api/plants/:id/growth-stage
+```
+
+**请求头:**
+```
+Authorization: Bearer JWT令牌
+```
+
+**请求参数:**
+| 参数名 | 位置 | 描述 |
+| ------ | ---- | ---- |
+| id | 路径 | 植物ID |
+
+**请求体参数说明:**
+| 参数名 | 类型 | 必填 | 描述 |
+| ------ | ---- | ---- | ---- |
+| stage | number | 是 | 植物生长阶段(1-3)，1=幼苗期，2=成长期，3=成熟期 |
+
+**请求体示例:**
+```json
+{
+  "stage": 3
+}
+```
+
+**响应:**
+```json
+{
+  "success": true,
+  "plant": {
+    "id": "植物ID",
+    "name": "小绿",
+    "type": "向日葵", 
+    "emoji": "🌻",
+    "level": 5,
+    "experience": 145,
+    "mood": "happy",
+    "state": "mature",
+    "growthStage": 3,
+    "weather": "sunny",
+    "isMainPlant": true,
+    "createdAt": "2023-11-01T08:30:00Z",
+    "lastInteraction": "2023-11-06T16:45:00Z",
+    "traits": ["友好", "活泼"]
+  },
+  "message": "植物生长阶段已更新为3（mature）"
+}
+```
+
+**生长阶段对应状态:**
+| 生长阶段(stage) | 状态(state) | 描述 |
+| --------------- | ----------- | ---- |
+| 1 | seedling | 幼苗期 |
+| 2 | growing | 成长期 |
+| 3 | mature | 成熟期 |
 
 ## 植物心声接口
 
@@ -370,6 +654,11 @@ GET /api/plants/:id/thoughts
 Authorization: Bearer JWT令牌
 ```
 
+**请求参数:**
+| 参数名 | 位置 | 描述 |
+| ------ | ---- | ---- |
+| id | 路径 | 植物ID |
+
 **响应:**
 ```json
 {
@@ -380,12 +669,24 @@ Authorization: Bearer JWT令牌
       "content": "今天的阳光真好，感觉精力充沛！",
       "type": "weather",
       "icon": "☀️",
-      "tag": "天气",
-      "timestamp": "2023-10-15T10:00:00Z"
+      "tag": "天气感知",
+      "timestamp": "2023-10-15T10:00:00Z",
+      "context": {
+        "weather": "sunny",
+        "timeOfDay": "morning",
+        "recentTasks": []
+      }
     }
   ]
 }
 ```
+
+**心声类型说明:**
+| 类型(type) | 描述 |
+| ---------- | ---- |
+| weather | 与天气相关的心声 |
+| motivation | 鼓励性心声 |
+| reflection | 反思性心声 |
 
 ### 2. 生成新的植物心声
 
@@ -398,19 +699,37 @@ POST /api/plants/:id/thoughts
 Authorization: Bearer JWT令牌
 ```
 
-**请求体:**
+**请求参数:**
+| 参数名 | 位置 | 描述 |
+| ------ | ---- | ---- |
+| id | 路径 | 植物ID |
+
+**请求体参数说明:**
+| 参数名 | 类型 | 必填 | 描述 |
+| ------ | ---- | ---- | ---- |
+| context | object | 是 | 生成心声的上下文信息 |
+| context.recentTasks | array | 否 | 最近的任务列表，用于生成与任务相关的心声 |
+| context.weather | string | 否 | 当前天气，如"sunny"、"rainy"等，默认为"sunny" |
+| context.timeOfDay | string | 否 | 一天中的时间段，如"morning"、"afternoon"、"evening"，默认为"morning" |
+
+**请求体示例:**
 ```json
 {
   "context": {
     "recentTasks": [
       {
-        "id": "任务ID",
+        "id": "任务ID1",
         "title": "完成项目报告",
         "completed": true
+      },
+      {
+        "id": "任务ID2",
+        "title": "整理工作空间",
+        "completed": false
       }
     ],
-    "weather": "sunny",
-    "timeOfDay": "morning"
+    "weather": "rainy",
+    "timeOfDay": "afternoon"
   }
 }
 ```
@@ -421,11 +740,27 @@ Authorization: Bearer JWT令牌
   "success": true,
   "thought": {
     "id": "心声ID",
-    "content": "早上好！今天阳光明媚，看到你完成了项目报告，真为你高兴！",
+    "content": "下午好！今天雨天，记得给我浇水哦。看到你完成了项目报告，真为你高兴！",
     "type": "motivation",
-    "icon": "🌞",
-    "tag": "早安问候",
-    "timestamp": "2023-10-16T08:30:00Z"
+    "icon": "🌧️",
+    "tag": "天气感知",
+    "timestamp": "2023-11-06T14:30:00Z",
+    "context": {
+      "weather": "rainy",
+      "timeOfDay": "afternoon",
+      "recentTasks": [
+        {
+          "id": "任务ID1",
+          "title": "完成项目报告",
+          "completed": true
+        },
+        {
+          "id": "任务ID2", 
+          "title": "整理工作空间",
+          "completed": false
+        }
+      ]
+    }
   }
 }
 ```
