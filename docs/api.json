@@ -1,0 +1,1897 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+      "title": "Plantodo API",
+      "version": "1.0.0",
+      "description": "Plantodo 项目的前后端接口文档"
+    },
+    "servers": [
+      {
+        "url": "http://localhost:3000",
+        "description": "本地开发服务器"
+      }
+    ],
+    "components": {
+      "schemas": {
+        "User": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "用户ID"
+            },
+            "username": {
+              "type": "string",
+              "description": "用户名"
+            },
+            "email": {
+              "type": "string",
+              "format": "email",
+              "description": "邮箱"
+            }
+          }
+        },
+        "Task": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "任务ID"
+            },
+            "title": {
+              "type": "string",
+              "description": "任务标题"
+            },
+            "description": {
+              "type": "string",
+              "description": "任务描述"
+            },
+            "deadline": {
+              "type": "string",
+              "format": "date-time",
+              "description": "截止日期"
+            },
+            "completed": {
+              "type": "boolean",
+              "description": "是否完成"
+            },
+            "important": {
+              "type": "boolean",
+              "description": "是否重要"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "创建时间"
+            },
+            "completedAt": {
+               "type": "string",
+               "format": "date-time",
+               "description": "完成时间"
+            }
+          }
+        },
+        "SystemTask": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "系统任务ID"
+            },
+            "title": {
+              "type": "string",
+              "description": "系统任务标题"
+            },
+            "description": {
+              "type": "string",
+              "description": "系统任务描述"
+            },
+            "completed": {
+               "type": "boolean",
+               "description": "当天是否已完成"
+            },
+            "frequency": {
+              "type": "string",
+              "enum": ["daily", "weekly"],
+              "description": "任务频率"
+            },
+            "reward": {
+              "type": "integer",
+              "description": "奖励积分"
+            },
+            "icon": {
+              "type": "string",
+              "description": "任务图标"
+            }
+          }
+        },
+         "Rewards": {
+           "type": "object",
+           "properties": {
+             "coins": {
+               "type": "integer",
+               "description": "获得的金币"
+             },
+             "experience": {
+               "type": "integer",
+               "description": "获得的经验"
+             }
+           }
+         },
+        "Post": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "帖子ID"
+            },
+            "title": {
+              "type": "string",
+              "description": "帖子标题"
+            },
+            "content": {
+              "type": "string",
+              "description": "帖子内容"
+            },
+            "images": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "url"
+              },
+              "description": "图片URL列表"
+            },
+            "location": {
+              "type": "string",
+              "description": "位置"
+            },
+            "mood": {
+              "type": "string",
+              "description": "心情"
+            },
+            "weather": {
+              "type": "string",
+              "description": "天气"
+            },
+            "type": {
+              "type": "string",
+              "enum": ["diary", "thought"],
+              "description": "帖子类型"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "创建时间"
+            },
+            "likes": {
+              "type": "integer",
+              "description": "点赞数"
+            }
+          }
+        },
+        "Plant": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "植物ID"
+            },
+            "name": {
+              "type": "string",
+              "description": "植物名称"
+            },
+            "type": {
+              "type": "string",
+              "description": "植物类型"
+            },
+            "emoji": {
+              "type": "string",
+              "description": "植物Emoji"
+            },
+            "level": {
+              "type": "integer",
+              "description": "植物等级"
+            },
+            "experience": {
+              "type": "integer",
+              "description": "植物经验"
+            },
+            "mood": {
+              "type": "string",
+              "description": "植物心情"
+            },
+            "state": {
+              "type": "string",
+              "description": "植物状态"
+            },
+            "weather": {
+              "type": "string",
+              "description": "关联天气"
+            },
+            "isMainPlant": {
+              "type": "boolean",
+              "description": "是否是主植物"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "创建时间"
+            }
+          }
+        },
+        "PlantThought": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "心声ID"
+            },
+            "content": {
+              "type": "string",
+              "description": "心声内容"
+            },
+            "type": {
+              "type": "string",
+              "description": "心声类型 (weather, motivation, reflection)"
+            },
+            "icon": {
+              "type": "string",
+              "description": "心声图标"
+            },
+            "tag": {
+              "type": "string",
+              "description": "心声标签"
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time",
+              "description": "心声时间戳"
+            }
+          }
+        },
+        "ConversationMessage": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "消息ID"
+            },
+            "sender": {
+              "type": "string",
+              "enum": ["user", "plant"],
+              "description": "发送者"
+            },
+            "content": {
+              "type": "string",
+              "description": "消息内容"
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time",
+              "description": "消息时间戳"
+            }
+          }
+        },
+        "Activity": {
+           "type": "object",
+           "properties": {
+             "id": {"type": "string", "description": "活动ID"},
+             "title": {"type": "string", "description": "活动标题"},
+             "location": {"type": "string", "description": "活动地点"},
+             "startTime": {"type": "string", "format": "date-time", "description": "开始时间"},
+             "endTime": {"type": "string", "format": "date-time", "description": "结束时间"}
+           }
+         },
+         "CalendarDay": {
+           "type": "object",
+           "properties": {
+             "date": {"type": "string", "format": "date", "description": "日期"},
+             "tasks": {
+               "type": "array",
+               "items": {"$ref": "#/components/schemas/Task"}
+             },
+             "posts": {
+               "type": "array",
+               "items": {
+                 "type": "object",
+                 "properties": {
+                   "id": {"type": "string"},
+                   "title": {"type": "string"},
+                   "type": {"type": "string"},
+                   "mood": {"type": "string"},
+                   "createdAt": {"type": "string", "format": "date-time"}
+                 }
+               }
+             },
+             "taskCount": {
+               "type": "object",
+               "properties": {
+                 "total": {"type": "integer"},
+                 "completed": {"type": "integer"},
+                 "pending": {"type": "integer"}
+               }
+             }
+           }
+         },
+         "TaskSummary": {
+           "type": "object",
+           "properties": {
+             "completedTasks": {"type": "integer"},
+             "pendingTasks": {"type": "integer"},
+             "completionRate": {"type": "number", "format": "float"},
+             "averageCompletionTime": {"type": "string"},
+             "mostProductiveDay": {"type": "string"}
+           }
+         },
+         "Recommendation": {
+           "type": "object",
+           "properties": {
+             "type": {"type": "string"},
+             "content": {"type": "string"}
+           }
+         },
+        "Error": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "example": false
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "securitySchemes": {
+        "BearerAuth": {
+          "type": "http",
+          "scheme": "bearer",
+          "bearerFormat": "JWT"
+        }
+      }
+    },
+    "paths": {
+      "/api/auth/register": {
+        "post": {
+          "tags": ["用户认证"],
+          "summary": "用户注册",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "username": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "password": {
+                      "type": "string",
+                      "format": "password"
+                    }
+                  },
+                  "required": ["username", "email", "password"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "注册成功",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "token": {
+                        "type": "string",
+                        "description": "JWT令牌"
+                      },
+                      "user": {
+                        "$ref": "#/components/schemas/User"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "请求错误或邮箱已注册",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/auth/login": {
+        "post": {
+          "tags": ["用户认证"],
+          "summary": "用户登录",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "password": {
+                      "type": "string",
+                      "format": "password"
+                    }
+                  },
+                  "required": ["email", "password"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "登录成功",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "token": {
+                        "type": "string",
+                        "description": "JWT令牌"
+                      },
+                      "user": {
+                        "$ref": "#/components/schemas/User"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "请求错误或邮箱/密码错误",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/tasks": {
+        "get": {
+          "tags": ["任务"],
+          "summary": "获取用户所有任务",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取任务列表",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "tasks": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/Task"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        },
+        "post": {
+          "tags": ["任务"],
+          "summary": "创建新任务",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "description": "任务标题"
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "任务描述"
+                    },
+                    "deadline": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "截止日期"
+                    },
+                    "important": {
+                      "type": "boolean",
+                      "description": "是否重要"
+                    }
+                  },
+                  "required": ["title"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "创建成功",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "task": {
+                        "$ref": "#/components/schemas/Task"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "400": {
+               "description": "请求错误（如缺少标题）",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+      "/api/tasks/{id}/complete": {
+        "put": {
+          "tags": ["任务"],
+          "summary": "完成任务",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "任务ID"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "任务标记为完成",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "task": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "completed": {
+                            "type": "boolean",
+                            "example": true
+                          },
+                          "completedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "404": {
+               "description": "任务未找到",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+      "/api/tasks/system": {
+        "get": {
+          "tags": ["系统任务"],
+          "summary": "获取系统任务",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取系统任务列表",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "tasks": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/SystemTask"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+      "/api/tasks/system/{id}/complete": {
+        "put": {
+          "tags": ["系统任务"],
+          "summary": "完成系统任务",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "系统任务ID"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "系统任务完成并获得奖励",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "task": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "completed": {
+                            "type": "boolean",
+                            "example": true
+                          }
+                        }
+                      },
+                      "rewards": {
+                        "$ref": "#/components/schemas/Rewards"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "400": {
+               "description": "任务今天已完成",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "404": {
+               "description": "系统任务未找到",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+      "/api/posts": {
+        "get": {
+          "tags": ["帖子"],
+          "summary": "获取所有帖子",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "type",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "enum": ["diary", "thought"]
+              },
+              "description": "筛选帖子类型 (diary 或 thought)"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取帖子列表",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "posts": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/Post"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        },
+        "post": {
+          "tags": ["帖子"],
+          "summary": "创建新帖子",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "images": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "url"
+                      }
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "mood": {
+                      "type": "string"
+                    },
+                    "weather": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": ["diary", "thought"]
+                    }
+                  },
+                  "required": ["content"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "创建成功",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "post": {
+                        "$ref": "#/components/schemas/Post"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "400": {
+               "description": "请求错误（如缺少内容）",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+      "/api/plants": {
+        "get": {
+          "tags": ["植物"],
+          "summary": "获取用户所有植物",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取植物列表",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "plants": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/Plant"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+      "/api/plants/{id}/experience": {
+        "put": {
+          "tags": ["植物"],
+          "summary": "增加植物经验",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "植物ID"
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "amount": {
+                      "type": "integer",
+                      "description": "增加的经验值"
+                    }
+                  },
+                  "required": ["amount"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "经验增加成功",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "plant": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "level": {
+                            "type": "integer"
+                          },
+                          "experience": {
+                            "type": "integer"
+                          },
+                          "state": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "levelUp": {
+                        "type": "boolean",
+                        "description": "是否升级"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "400": {
+               "description": "请求错误（如amount无效）",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "404": {
+               "description": "植物未找到",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+      "/api/plants/{id}/thoughts": {
+        "get": {
+          "tags": ["植物心声"],
+          "summary": "获取植物心声历史记录",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "植物ID"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取心声列表",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "thoughts": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/PlantThought"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "404": {
+               "description": "植物未找到",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        },
+        "post": {
+          "tags": ["植物心声"],
+          "summary": "生成新的植物心声",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "植物ID"
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "context": {
+                      "type": "object",
+                      "properties": {
+                        "recentTasks": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {"type": "string"},
+                              "title": {"type": "string"},
+                              "completed": {"type": "boolean"}
+                            }
+                          }
+                        },
+                        "weather": {
+                          "type": "string"
+                        },
+                        "timeOfDay": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "生成心声成功",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "thought": {
+                        "$ref": "#/components/schemas/PlantThought"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "404": {
+               "description": "植物未找到",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+      "/api/plants/{id}/conversations": {
+        "get": {
+          "tags": ["植物对话"],
+          "summary": "获取与植物的对话历史",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "植物ID"
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "default": 20
+              },
+              "description": "返回消息数量限制"
+            },
+            {
+              "name": "before",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "description": "获取此时间戳之前的消息"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取对话历史",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "messages": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/ConversationMessage"
+                        }
+                      },
+                      "hasMore": {
+                        "type": "boolean",
+                        "description": "是否还有更多历史消息"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "404": {
+               "description": "植物未找到",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        },
+        "post": {
+          "tags": ["植物对话"],
+          "summary": "发送消息给植物并获取回复",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "植物ID"
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "description": "用户发送的消息"
+                    },
+                    "context": {
+                      "type": "object",
+                      "properties": {
+                        "recentMessages": {
+                          "type": "integer",
+                           "description": "参考的最近消息数量（用于AI）"
+                        },
+                        "userInfo": {
+                          "type": "object",
+                          "properties": {
+                            "completedTasks": {"type": "integer"},
+                            "pendingTasks": {"type": "integer"}
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "成功发送并收到回复",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "response": {
+                        "$ref": "#/components/schemas/ConversationMessage"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "400": {
+               "description": "请求错误（如缺少message）",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "404": {
+               "description": "植物未找到",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+       "/api/activities/plan": {
+        "post": {
+          "tags": ["智能活动管理"],
+          "summary": "智能规划活动并创建任务",
+          "security": [{"BearerAuth": []}],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "description": {"type": "string", "description": "用户对活动的描述"},
+                    "userPreferences": {
+                      "type": "object",
+                      "properties": {
+                        "preferredWorkingHours": {"type": "array", "items": {"type": "string"}},
+                        "priorityLevel": {"type": "string", "enum": ["high", "medium", "low"]}
+                      }
+                    }
+                  },
+                  "required": ["description"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "规划成功",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {"type": "boolean", "example": true},
+                      "analysis": {
+                        "type": "object",
+                        "properties": {
+                          "eventType": {"type": "string"},
+                          "topic": {"type": "string"},
+                          "venue": {"type": "string"},
+                          "date": {"type": "string", "format": "date"}
+                        }
+                      },
+                      "plan": {
+                        "type": "object",
+                        "properties": {
+                          "activity": {"$ref": "#/components/schemas/Activity"},
+                          "tasks": {
+                            "type": "array",
+                            "items": {"$ref": "#/components/schemas/Task"}
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+      "/api/insights/tasks": {
+        "get": {
+          "tags": ["智能总结"],
+          "summary": "获取任务完成情况总结",
+          "security": [{"BearerAuth": []}],
+          "parameters": [
+            {
+              "name": "period",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "enum": ["day", "week", "month"],
+                "default": "week"
+              },
+              "description": "时间周期"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取总结",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {"type": "boolean", "example": true},
+                      "period": {"type": "string"},
+                      "summary": {"$ref": "#/components/schemas/TaskSummary"},
+                      "insights": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                      },
+                      "recommendations": {
+                        "type": "array",
+                        "items": {"$ref": "#/components/schemas/Recommendation"}
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "400": {
+               "description": "请求错误（如period无效）",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+      "/api/insights/weekly": {
+        "get": {
+          "tags": ["智能总结"],
+          "summary": "获取每周总结",
+          "security": [{"BearerAuth": []}],
+          "parameters": [
+            {
+              "name": "date",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "date"
+              },
+              "description": "指定周的结束日期 (默认为当前周)"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取每周总结",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {"type": "boolean", "example": true},
+                      "weekRange": {"type": "string", "description": "周范围"},
+                      "productivityScore": {"type": "integer", "description": "生产力得分"},
+                      "achievements": {
+                        "type": "object",
+                        "properties": {
+                          "tasksCompleted": {"type": "integer"},
+                          "activitiesAttended": {"type": "integer"},
+                          "plantExperienceGained": {"type": "integer"}
+                        }
+                      },
+                      "insights": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                      },
+                      "nextWeekPlan": {
+                        "type": "object",
+                        "properties": {
+                          "suggestedFocus": {"type": "string"},
+                          "upcomingDeadlines": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {"type": "string"},
+                                "title": {"type": "string"},
+                                "deadline": {"type": "string", "format": "date-time"}
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "400": {
+               "description": "请求错误（如date无效）",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+      "/api/calendar/monthly": {
+        "get": {
+          "tags": ["日历系统"],
+          "summary": "获取月度日历数据",
+          "security": [{"BearerAuth": []}],
+          "parameters": [
+            {
+              "name": "year",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "integer"
+              }
+            },
+            {
+              "name": "month",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "integer"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取月度数据",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {"type": "boolean", "example": true},
+                      "year": {"type": "integer"},
+                      "month": {"type": "integer"},
+                      "days": {
+                        "type": "array",
+                        "items": {"$ref": "#/components/schemas/CalendarDay"}
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "400": {
+               "description": "请求错误（如year/month无效）",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+      "/api/calendar/day": {
+        "get": {
+          "tags": ["日历系统"],
+          "summary": "获取日详情",
+          "security": [{"BearerAuth": []}],
+          "parameters": [
+            {
+              "name": "date",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "date"
+              },
+              "description": "查询日期"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取日详情",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {"type": "boolean", "example": true},
+                      "date": {"type": "string", "format": "date"},
+                      "dayOfWeek": {"type": "string"},
+                      "tasks": {
+                        "type": "array",
+                        "items": {"$ref": "#/components/schemas/Task"}
+                      },
+                      "systemTasks": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {"type": "string"},
+                            "title": {"type": "string"},
+                            "completed": {"type": "boolean"},
+                            "completedAt": {"type": "string", "format": "date-time"}
+                          }
+                        }
+                      },
+                      "posts": {
+                        "type": "array",
+                        "items": {"$ref": "#/components/schemas/Post"}
+                      },
+                      "plantThoughts": {
+                        "type": "array",
+                        "items": {"$ref": "#/components/schemas/PlantThought"}
+                      },
+                      "statistics": {
+                        "type": "object",
+                        "properties": {
+                          "completionRate": {"type": "number", "format": "float"},
+                          "totalTasks": {"type": "integer"},
+                          "completedTasks": {"type": "integer"}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "400": {
+               "description": "请求错误（如date无效）",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      },
+      "/api/calendar/statistics": {
+        "get": {
+          "tags": ["日历系统"],
+          "summary": "获取日历视图统计数据",
+          "security": [{"BearerAuth": []}],
+          "parameters": [
+            {
+              "name": "year",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "integer"
+              }
+            },
+            {
+              "name": "month",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "integer"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取统计数据",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {"type": "boolean", "example": true},
+                      "period": {
+                        "type": "object",
+                        "properties": {
+                          "year": {"type": "integer"},
+                          "month": {"type": "integer"}
+                        }
+                      },
+                      "statistics": {
+                        "type": "object",
+                        "properties": {
+                          "totalTasks": {"type": "integer"},
+                          "completedTasks": {"type": "integer"},
+                          "completionRate": {"type": "number", "format": "float"},
+                          "totalPosts": {"type": "integer"},
+                          "postsByType": {
+                            "type": "object",
+                            "properties": {
+                              "diary": {"type": "integer"},
+                              "thought": {"type": "integer"}
+                            }
+                          },
+                          "busyDays": {
+                            "type": "array",
+                            "items": {"type": "string", "format": "date"}
+                          },
+                          "freeDays": {
+                            "type": "array",
+                            "items": {"type": "string", "format": "date"}
+                          }
+                        }
+                      },
+                      "taskDistribution": {
+                        "type": "object",
+                        "properties": {
+                          "byWeekday": {
+                            "type": "object",
+                            "properties": {
+                              "monday": {"type": "integer"},
+                              "tuesday": {"type": "integer"},
+                              "wednesday": {"type": "integer"},
+                              "thursday": {"type": "integer"},
+                              "friday": {"type": "integer"},
+                              "saturday": {"type": "integer"},
+                              "sunday": {"type": "integer"}
+                            }
+                          },
+                          "byImportance": {
+                            "type": "object",
+                            "properties": {
+                              "important": {"type": "integer"},
+                              "normal": {"type": "integer"}
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+             "400": {
+               "description": "请求错误（如year/month无效）",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             },
+             "401": {
+               "description": "未授权",
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
+          }
+        }
+      }
+    }
+  }
+  
