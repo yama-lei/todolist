@@ -27,7 +27,7 @@ npm run
 
 先进入后端`cd backend`
 
-再启动服务器`npm run dev`
+再启动服务器`npm run dev` 
 
 ![image-20250504145003822](https://yamapicgo.oss-cn-nanjing.aliyuncs.com/picgoImage/image-20250504145003822.png)
 

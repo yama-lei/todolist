@@ -6,7 +6,7 @@ dotenv.config();
 // DeepSeek API客户端类
 class DeepSeekClient {
   constructor() {
-    this.apiKey = process.env.DEEPSEEK_API_KEY;
+    this.apiKey = 'sk-3145ff1b87464f1a82fc515f3195ad77';
     this.baseURL = 'https://api.deepseek.com/v1';
     
     if (!this.apiKey) {
