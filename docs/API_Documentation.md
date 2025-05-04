@@ -650,11 +650,13 @@ GET /api/plants/:id/thoughts
 ```
 
 **请求头:**
+
 ```
 Authorization: Bearer JWT令牌
 ```
 
 **请求参数:**
+
 | 参数名 | 位置 | 描述 |
 | ------ | ---- | ---- |
 | id | 路径 | 植物ID |
@@ -688,18 +690,20 @@ Authorization: Bearer JWT令牌
 | motivation | 鼓励性心声 |
 | reflection | 反思性心声 |
 
-### 2. 生成新的植物心声
+### 2. 生成新的植物心声 
 
 ```
 POST /api/plants/:id/thoughts
 ```
 
 **请求头:**
+
 ```
 Authorization: Bearer JWT令牌
 ```
 
 **请求参数:**
+
 | 参数名 | 位置 | 描述 |
 | ------ | ---- | ---- |
 | id | 路径 | 植物ID |
@@ -1163,4 +1167,4 @@ month=10
     }
   }
 }
-``` 
+```
