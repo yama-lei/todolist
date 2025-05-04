@@ -207,16 +207,22 @@ export default {
     
     // 获取任务数据
     onMounted(async () => {
+      console.log('任务页面加载')
       // 如果植物商店没有加载，获取植物
       if (!plantStore.currentPlant) {
         await plantStore.fetchPlants()
       }
       
       // 获取任务和系统任务
-      await Promise.all([
-        taskStore.fetchTasks(),
-        taskStore.fetchSystemTasks()
-      ])
+      try {
+        await Promise.all([
+          taskStore.fetchTasks(),
+          taskStore.fetchSystemTasks()
+        ])
+        console.log('任务数据加载成功')
+      } catch (error) {
+        console.error('加载任务数据失败:', error)
+      }
     })
     
     // 打开任务表单

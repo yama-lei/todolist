@@ -167,7 +167,7 @@ export default {
     }
     
     // 组件挂载和卸载时处理全局点击事件
-    onMounted(() => {
+    onMounted(async () => {
       document.addEventListener('click', handleClickOutside)
       
       console.log('App组件挂载，检查认证状态')
@@ -178,28 +178,37 @@ export default {
         // 确保axios headers已设置
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
         
-        // 如果没有用户信息，主动获取
-        if (!authStore.userInfo?.username) {
+        try {
+          // 无论是否有用户信息，都重新获取以确保数据最新
           console.log('加载用户信息')
-          authStore.fetchUserInfo().then(userData => {
-            if (userData) {
-              console.log('用户信息加载成功')
-              // 如果用户已登录，加载植物数据
-              plantStore.fetchPlants().catch(error => {
-                console.error('获取植物数据失败:', error)
-              })
-            } else {
-              console.warn('获取用户信息失败，可能需要重新登录')
+          const userData = await authStore.fetchUserInfo()
+          
+          if (userData) {
+            console.log('用户信息加载成功', userData)
+            // 用户已登录，加载植物数据
+            await plantStore.fetchPlants()
+            console.log('植物数据加载成功')
+          } else {
+            console.warn('获取用户信息失败，清除无效token')
+            authStore.logout()
+            if (!isAuthRoute.value) {
+              router.push('/login')
             }
-          })
-        } else {
-          // 如果已有用户信息，加载植物数据
-          plantStore.fetchPlants().catch(error => {
-            console.error('获取植物数据失败:', error)
-          })
+          }
+        } catch (error) {
+          console.error('初始化应用状态失败:', error)
+          authStore.logout()
+          if (!isAuthRoute.value) {
+            router.push('/login')
+          }
         }
       } else {
         console.log('未检测到有效token')
+        // 如果当前不在认证页面，重定向到登录
+        if (!isAuthRoute.value) {
+          console.log('重定向到登录页面')
+          router.push('/login')
+        }
       }
     })
     

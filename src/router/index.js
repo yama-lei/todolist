@@ -109,6 +109,13 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   const isAuthenticated = !!token && token.trim() !== ''
   
+  console.log('路由守卫：', {
+    path: to.path,
+    requiresAuth: to.matched.some(record => record.meta.requiresAuth),
+    isAuthenticated,
+    token: token ? '存在' : '不存在'
+  })
+  
   // 需要登录但未登录，跳转到登录页
   if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
     console.log('需要认证，但未登录，重定向到登录页')
