@@ -20,10 +20,10 @@ app.use(morgan('dev'));
 
 // 路由
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/tasks/system', require('./routes/system-tasks'));
 app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/plants', require('./routes/plants'));
 app.use('/api/posts', require('./routes/posts'));
-app.use('/api/tasks/system', require('./routes/system-tasks'));
 app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/insights', require('./routes/insights'));
 

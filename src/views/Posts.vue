@@ -39,7 +39,7 @@
     </div>
     
     <div class="timeline-wrapper">
-      <TimeLinePage :stories="filteredPosts"></TimeLinePage>
+      <TimeLinePage :stories="filteredPosts" @delete-post="deletePost"></TimeLinePage>
     </div>
     
     <!-- 新增说说/日记对话框 -->
@@ -167,7 +167,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { usePostStore } from '../stores/post'
 import { format } from 'date-fns'
 import { 
@@ -272,8 +272,22 @@ const filteredPosts = computed(() => {
       description = `${weatherEmoji[post.weather] || ''}\n${description}`
     }
     
+    // 安全处理日期格式化，确保有效的日期值
+    let formattedTime = ''
+    try {
+      const dateObj = new Date(post.date)
+      if (!isNaN(dateObj.getTime())) {
+        formattedTime = format(dateObj, 'yyyy-MM-dd HH:mm')
+      } else {
+        formattedTime = '无日期'
+      }
+    } catch (error) {
+      console.error('日期格式化错误:', error)
+      formattedTime = '无日期'
+    }
+    
     return {
-      time: format(new Date(post.date), 'yyyy-MM-dd HH:mm'),
+      time: formattedTime,
       title: title,
       description: description,
       imageSrc: post.images.length > 0 ? post.images[0] : null,
@@ -285,51 +299,69 @@ const filteredPosts = computed(() => {
   })
 })
 
-// 添加说说/日记
-const addPost = () => {
-  if (isPostValid.value) {
-    // 将图片的 File 对象转为 URL
-    const imageUrls = []
-    for (const file of newPost.value.images) {
-      if (file.raw) {
-        imageUrls.push(URL.createObjectURL(file.raw))
-      }
-    }
-    
-    // 准备提交的数据
-    const postData = {
-      title: newPost.value.title,
-      content: newPost.value.content,
-      images: imageUrls,
-      location: locationVisible.value ? newPost.value.location : '',
-      mood: newPost.value.mood,
-      weather: weatherVisible.value ? newPost.value.weather : '',
-      type: postType.value
-    }
-    
-    postStore.addCustomPost(postData)
-    
+// 初始化时加载帖子
+const loadPosts = async () => {
+  await postStore.fetchPosts(activeFilter.value === 'all' ? '' : activeFilter.value)
+}
+
+// 监听筛选器变化重新加载帖子
+watch(activeFilter, async () => {
+  await loadPosts()
+})
+
+// 添加帖子
+const addPost = async () => {
+  if (!isPostValid.value) return
+  
+  const success = await postStore.addCustomPost({
+    title: newPost.value.title,
+    content: newPost.value.content,
+    images: newPost.value.images,
+    location: newPost.value.location,
+    mood: newPost.value.mood,
+    weather: newPost.value.weather,
+    type: postType.value
+  })
+  
+  if (success) {
     // 清空表单
-    newPost.value = {
-      title: '',
-      content: '',
-      images: [],
-      location: '',
-      mood: '',
-      weather: '',
-      type: 'thought'
-    }
-    
+    resetForm()
+    // 关闭对话框
     showPostDialog.value = false
-    locationVisible.value = false
-    weatherVisible.value = false
-    
-    ElMessage({
-      message: postType.value === 'diary' ? '日记保存成功！' : '说说发布成功！',
-      type: 'success'
-    })
+    // 重新加载帖子
+    loadPosts()
   }
 }
+
+// 重置表单
+const resetForm = () => {
+  newPost.value = {
+    title: '',
+    content: '',
+    images: [],
+    location: '',
+    mood: '',
+    weather: '',
+    type: postType.value
+  }
+  locationVisible.value = false
+  weatherVisible.value = false
+  showMoodSelector.value = false
+}
+
+// 删除帖子
+const deletePost = async (id) => {
+  const success = await postStore.removePost(id)
+  if (success) {
+    // 重新加载帖子
+    loadPosts()
+  }
+}
+
+// 初始化时加载帖子
+onMounted(() => {
+  loadPosts()
+})
 
 // 处理文件选择
 const handleFileChange = (file) => {

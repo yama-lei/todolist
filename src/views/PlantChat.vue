@@ -8,7 +8,7 @@
               <span class="plant-emoji">{{ plantEmoji }}</span>
             </div>
             <div class="plant-details">
-              <h2>{{ plantStore.plant.name }}</h2>
+              <h2>{{ plantStore.currentPlant ? plantStore.currentPlant.name : '尚未添加植物' }}</h2>
               <span class="plant-status">{{ getPlantStateText() }}</span>
             </div>
           </div>
@@ -96,6 +96,7 @@ import { ref, reactive, onMounted, watch, nextTick, computed } from 'vue'
 import { usePlantStore } from '../stores/plant'
 import { format } from 'date-fns'
 import { Delete, Promotion } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 export default {
   name: 'PlantChatPage',
@@ -110,13 +111,62 @@ export default {
     const isLoading = ref(false)
     const messages = reactive([])
     
+    // 获取当前植物信息
+    onMounted(async () => {
+      // 如果植物商店没有加载植物，先加载植物
+      if (!plantStore.currentPlant) {
+        await plantStore.fetchPlants()
+      }
+      
+      // 确保有当前植物
+      if (plantStore.currentPlant) {
+        // 加载对话历史
+        await loadMessages()
+        
+        // 如果没有消息，添加欢迎消息
+        if (messages.length === 0) {
+          addWelcomeMessage()
+        }
+      } else {
+        ElMessage.warning('请先在花园中购买一个植物')
+      }
+    })
+    
+    // 加载对话历史
+    const loadMessages = async () => {
+      if (!plantStore.currentPlant) return
+      
+      // 检查植物ID是否有效
+      if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
+        console.error('植物ID无效')
+        ElMessage.warning('植物信息不完整，请重新选择植物')
+        return
+      }
+      
+      const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
+      
+      isLoading.value = true
+      try {
+        const loadedMessages = await plantStore.fetchConversations(plantId)
+        if (loadedMessages && loadedMessages.length > 0) {
+          // 使用从API加载的消息
+          messages.length = 0
+          loadedMessages.forEach(msg => messages.push(msg))
+          
+          // 滚动到底部
+          await scrollToBottom()
+        }
+      } catch (error) {
+        console.error('加载对话历史失败', error)
+      } finally {
+        isLoading.value = false
+      }
+    }
+    
     // 植物表情
     const plantEmoji = computed(() => {
-      const state = plantStore.plant.state
-      if (state === 'growing') return '🌱'
-      if (state === 'flowering') return '🌸'
-      if (state === 'fruiting') return '🍎'
-      return '🌱'
+      if (!plantStore.currentPlant) return '🌱'
+      return plantStore.currentPlant.emoji || '🌱'
     })
     
     // 推荐问题
@@ -130,36 +180,51 @@ export default {
     
     // 获取植物状态文本
     const getPlantStateText = () => {
-      const state = plantStore.plant.state
-      if (state === 'growing') return '成长中'
-      if (state === 'flowering') return '开花中'
-      if (state === 'fruiting') return '结果中'
+      if (!plantStore.currentPlant) return '成长中'
+      
+      const state = plantStore.currentPlant.state
+      if (state === 'seedling') return '幼苗期'
+      if (state === 'growing') return '成长期'
+      if (state === 'mature') return '成熟期'
       return '成长中'
     }
     
     // 添加欢迎消息
     const addWelcomeMessage = () => {
-      if (messages.length === 0) {
-        const plantName = plantStore.plant.name
+      if (messages.length === 0 && plantStore.currentPlant) {
+        const plantName = plantStore.currentPlant.name
         messages.push({
           sender: 'plant',
           content: `你好！我是${plantName}，很高兴能和你聊天！有什么我能帮助你的吗？`,
-          timestamp: new Date()
+          timestamp: new Date().toISOString()
         })
       }
     }
     
     // 发送消息
     const sendMessage = async (predefinedMessage = null) => {
+      if (!plantStore.currentPlant) {
+        ElMessage.warning('请先在花园中购买一个植物')
+        return
+      }
+      
+      // 检查植物ID是否有效
+      if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
+        console.error('植物ID无效')
+        ElMessage.warning('植物信息不完整，请重新选择植物')
+        return
+      }
+      
+      const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
       const messageText = predefinedMessage || userInput.value.trim()
       
       if (!messageText) return
       
-      // 添加用户消息
+      // 添加用户消息到本地
       messages.push({
         sender: 'user',
         content: messageText,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       })
       
       // 清空输入框
@@ -168,101 +233,53 @@ export default {
       // 滚动到底部
       await scrollToBottom()
       
-      // 模拟植物思考
+      // 调用API发送消息
       isLoading.value = true
-      setTimeout(() => {
-        generatePlantResponse(messageText)
-      }, 1000 + Math.random() * 1000)
-    }
-    
-    // 生成植物回复
-    const generatePlantResponse = (userMessage) => {
-      // 这里将来会集成真正的API调用
-      // 目前使用模拟回复
-      
-      let plantResponse = ''
-      
-      // 简单模拟一些回复逻辑
-      if (userMessage.includes('天气')) {
-        const weathers = ['晴朗', '多云', '小雨', '大风']
-        const weather = weathers[Math.floor(Math.random() * weathers.length)]
-        plantResponse = `今天的天气是${weather}。${weather === '晴朗' ? '阳光非常充足，非常适合我进行光合作用！' : weather === '多云' ? '光照不是很强，但对我来说已经足够了。' : weather === '小雨' ? '雨水给了我充足的水分，感觉很舒服！' : '大风天气我有点担心，希望不会受伤。'}`
-      } 
-      else if (userMessage.includes('照顾') || userMessage.includes('养殖')) {
-        plantResponse = '照顾植物需要适当的阳光、水分和肥料。每种植物的需求不同，但最重要的是有规律地照顾它们，并给予它们关注和爱。你对我的照顾已经很好了！'
-      }
-      else if (userMessage.includes('故事')) {
-        plantResponse = '从前，有一颗小种子被风吹到了一片肥沃的土地上。它深深扎根于大地，吸收养分，感受阳光的温暖和雨水的滋润。经过时间的洗礼，它长成了一棵挺拔的树，为许多小动物提供了家园。这个故事告诉我们，只要坚持不懈，再小的种子也能成长为参天大树。'
-      }
-      else if (userMessage.includes('音乐')) {
-        plantResponse = '我喜欢轻柔的音乐，尤其是那些有自然声音的曲子，比如雨声、鸟鸣或流水声。有研究表明，植物对音乐有反应，某些类型的音乐甚至可以促进植物生长哦！'
-      }
-      else if (userMessage.includes('建议')) {
-        const suggestions = [
-          '今天是个适合完成任务的好日子，不如先处理一些待办事项？',
-          '有时候适当休息也很重要，不妨出去走走，呼吸新鲜空气。',
-          '多喝水对身体有益，就像我需要水分一样，人类也需要保持水分充足。',
-          '不如今天学习一些新知识，拓展你的视野？',
-          '记得照顾好自己，健康是最重要的财富。'
-        ]
-        plantResponse = suggestions[Math.floor(Math.random() * suggestions.length)]
-      }
-      else {
-        const genericResponses = [
-          '这个问题很有趣！作为一株植物，我的理解可能有限，但我很乐意分享我的看法。',
-          '谢谢你和我分享这个想法！我很享受和你的交流。',
-          '我还在学习和成长中，就像你照顾我一样，我也希望能给你带来一些启发和快乐。',
-          '这让我想起了一件事：大自然中的一切都是相互联系的，就像你和我的关系一样。',
-          '我感觉你今天心情不错！希望我能为你的日子增添一些绿色的活力。'
-        ]
-        plantResponse = genericResponses[Math.floor(Math.random() * genericResponses.length)]
-      }
-      
-      // 添加植物回复
-      messages.push({
-        sender: 'plant',
-        content: plantResponse,
-        timestamp: new Date()
-      })
-      
-      // 更新植物状态
-      plantStore.setMood('happy')
-      
-      // 完成加载
-      isLoading.value = false
-      
-      // 滚动到底部
-      scrollToBottom()
-    }
-    
-    // 清空消息
-    const clearMessages = () => {
-      if (messages.length > 0) {
-        // 确认对话框
-        ElMessageBox.confirm(
-          '确定要清空所有聊天记录吗？',
-          '提示',
-          {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
+      try {
+        const context = {
+          recentMessages: 3,
+          userInfo: {
+            completedTasks: 0,
+            pendingTasks: 0
           }
-        )
-          .then(() => {
-            messages.splice(0, messages.length)
-            addWelcomeMessage()
-            ElMessage({
-              type: 'success',
-              message: '聊天记录已清空',
-            })
-          })
-          .catch(() => {
-            // 用户取消操作
-          })
+        }
+        
+        const response = await plantStore.sendMessage(plantId, messageText, context)
+        
+        if (response) {
+          // 消息已经通过store添加到对话列表中
+          await scrollToBottom()
+        }
+      } catch (error) {
+        console.error('发送消息失败', error)
+        ElMessage.error('发送消息失败')
+      } finally {
+        isLoading.value = false
       }
     }
     
-    // 滚动到底部
+    // 格式化消息，将链接转换为可点击的链接
+    const formatMessage = (text) => {
+      if (!text) return ''
+      
+      // 将URL转换为可点击的链接
+      const urlRegex = /(https?:\/\/[^\s]+)/g
+      return text.replace(urlRegex, (url) => {
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
+      })
+    }
+    
+    // 格式化时间
+    const formatTime = (timestamp) => {
+      if (!timestamp) return ''
+      try {
+        return format(new Date(timestamp), 'HH:mm')
+      } catch (e) {
+        return ''
+      }
+    }
+    
+    // 滚动到对话底部
     const scrollToBottom = async () => {
       await nextTick()
       if (messagesRef.value) {
@@ -270,34 +287,22 @@ export default {
       }
     }
     
-    // 格式化消息文本（支持换行）
-    const formatMessage = (text) => {
-      return text.replace(/\n/g, '<br>')
-    }
-    
-    // 格式化时间
-    const formatTime = (timestamp) => {
-      return format(new Date(timestamp), 'HH:mm')
-    }
-    
-    // 处理回车键
+    // 处理回车键按下
     const handleEnterKeyPressed = (e) => {
-      // Ctrl+Enter 或 Shift+Enter 插入换行
-      if (e.ctrlKey || e.shiftKey) {
-        userInput.value += '\n'
-        return
+      if (!e.shiftKey) {
+        sendMessage()
       }
-      
-      // 普通回车发送消息
-      sendMessage()
     }
     
-    // 监听消息变化，自动滚动
-    watch(() => messages.length, scrollToBottom)
-    
-    // 组件挂载时添加欢迎消息
-    onMounted(() => {
+    // 清空聊天记录
+    const clearMessages = () => {
+      messages.length = 0
       addWelcomeMessage()
+    }
+    
+    // 监听新消息，自动滚动到底部
+    watch(() => messages.length, async () => {
+      await scrollToBottom()
     })
     
     return {
@@ -308,12 +313,16 @@ export default {
       messages,
       plantEmoji,
       suggestedPrompts,
+      
+      getPlantStateText,
       sendMessage,
-      clearMessages,
       formatMessage,
       formatTime,
-      getPlantStateText,
-      handleEnterKeyPressed
+      clearMessages,
+      handleEnterKeyPressed,
+      
+      Delete,
+      Promotion
     }
   }
 }

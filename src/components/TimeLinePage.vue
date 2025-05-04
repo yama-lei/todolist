@@ -89,7 +89,7 @@
 <script setup>
 import { ref } from 'vue'
 import { usePostStore } from '../stores/post'
-import { Star } from '@element-plus/icons-vue'
+import { Star, Delete } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const props = defineProps({
@@ -136,18 +136,20 @@ const confirmDelete = (id) => {
 }
 
 // 删除帖子
-const deletePost = () => {
+const deletePost = async () => {
   if (postToDelete.value) {
-    postStore.removePost(postToDelete.value)
+    emit('delete-post', postToDelete.value);
     deleteDialogVisible.value = false
     postToDelete.value = null
-    
-    ElMessage({
-      message: '删除成功！',
-      type: 'success'
-    })
   }
 }
+
+// 删除帖子
+const emit = defineEmits(['delete-post']);
+
+const handleDeletePost = (id) => {
+  emit('delete-post', id);
+};
 </script>
 
 <style scoped>

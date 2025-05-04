@@ -1,285 +1,395 @@
 <template>
-  <div class="app">    
-    <div class="main-content">
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <div class="app-logo">
-            <el-icon><Sunny /></el-icon>
-            <span>植物日记</span>
+  <div class="app-container" :class="{ 'auth-page': isAuthRoute }">
+    <!-- 认证页面路由视图 -->
+    <router-view v-if="isAuthRoute" />
+    
+    <!-- 主应用布局 -->
+    <template v-else>
+      <el-container class="main-container">
+        <!-- 侧边栏 -->
+        <el-aside width="220px" class="sidebar">
+          <div class="logo-container">
+            <div class="logo">
+              <el-icon><Sunny /></el-icon>
+              <span>植物日记</span>
+            </div>
           </div>
-        </div>
+          <el-menu
+            :default-active="activeMenu"
+            class="el-menu-vertical"
+            router
+          >
+            <el-menu-item index="/">
+              <el-icon><House /></el-icon>
+              <span>首页</span>
+            </el-menu-item>
+            <el-menu-item index="/tasks">
+              <el-icon><List /></el-icon>
+              <span>任务</span>
+            </el-menu-item>
+            <el-menu-item index="/garden">
+              <el-icon><PriceTag /></el-icon>
+              <span>植物花园</span>
+            </el-menu-item>
+            <el-menu-item index="/plant-voice">
+              <el-icon><ChatDotRound /></el-icon>
+              <span>植物心声</span>
+            </el-menu-item>
+            <el-menu-item index="/plant-chat">
+              <el-icon><ChatLineRound /></el-icon>
+              <span>植物对话</span>
+            </el-menu-item>
+            <el-menu-item index="/posts">
+              <el-icon><Reading /></el-icon>
+              <span>动态</span>
+            </el-menu-item>
+            <el-menu-item index="/calendar">
+              <el-icon><Calendar /></el-icon>
+              <span>日历</span>
+            </el-menu-item>
+          </el-menu>
+          
+          <div class="user-panel">
+            <div class="user-info" @click="showUserMenu = !showUserMenu">
+              <el-avatar :size="32" :src="userAvatar" v-if="userAvatar"></el-avatar>
+              <el-avatar :size="32" icon="UserFilled" v-else></el-avatar>
+              <span class="username">{{ username }}</span>
+              <el-icon><CaretTop :class="{ 'rotate-icon': showUserMenu }" /></el-icon>
+            </div>
+            
+            <div class="user-dropdown" v-if="showUserMenu">
+              <div class="dropdown-item" @click="goToProfile">
+                <el-icon><User /></el-icon>
+                <span>个人资料</span>
+              </div>
+              <div class="dropdown-item" @click="goToSettings">
+                <el-icon><Setting /></el-icon>
+                <span>设置</span>
+              </div>
+              <div class="dropdown-item logout" @click="handleLogout">
+                <el-icon><SwitchButton /></el-icon>
+                <span>退出登录</span>
+              </div>
+            </div>
+          </div>
+        </el-aside>
         
-        <nav class="sidebar-nav">
-          <router-link to="/" class="nav-item">
-            <el-icon><HomeFilled /></el-icon>
-            <span>首页</span>
-          </router-link>
-          <router-link to="/plant-voice" class="nav-item">
-            <el-icon><ChatDotRound /></el-icon>
-            <span>植物心声</span>
-          </router-link>
-          <router-link to="/posts" class="nav-item">
-            <el-icon><Document /></el-icon>
-            <span>说说</span>
-          </router-link>
-          <router-link to="/garden" class="nav-item">
-            <el-icon><Sunny /></el-icon>
-            <span>后花园</span>
-          </router-link>
-          <router-link to="/calendar" class="nav-item">
-            <el-icon><Calendar /></el-icon>
-            <span>日历</span>
-          </router-link>
-        </nav>
-        
-        <div class="plant-preview">
-          <div class="plant-avatar">
-            <img :src="plantStore.plant.avatar" alt="Plant Avatar" v-if="plantStore.plant.avatar">
-            <el-icon v-else><Sunny /></el-icon>
-          </div>
-          <h3>{{ plantStore.plant.name }}</h3>
-          <div class="plant-level">Lv.{{ plantStore.currentLevel }}</div>
-          <div class="exp-progress">
-            <el-progress 
-              :percentage="plantExp" 
-              :format="plantExpFormat" 
-              :stroke-width="8"
-              color="#4caf50"
-              :show-text="false"
-            />
-            <span class="exp-text">{{ plantExpFormat() }}</span>
-          </div>
-        </div>
-      </aside>
-      
-      <main class="content-area">
-        <router-view />
-      </main>
-    </div>
+        <!-- 主内容区 -->
+        <el-main>
+          <router-view v-slot="{ Component }">
+            <keep-alive>
+              <component :is="Component" />
+            </keep-alive>
+          </router-view>
+        </el-main>
+      </el-container>
+    </template>
   </div>
 </template>
 
 <script>
-import { HomeFilled, ChatDotRound, Document, Sunny } from '@element-plus/icons-vue'
-import { useCurrencyStore } from './stores/currency'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from './stores/auth'
 import { usePlantStore } from './stores/plant'
-import { computed } from 'vue'
+import {
+  Sunny, House, List, PriceTag, ChatDotRound, ChatLineRound,
+  Reading, Calendar, CaretTop, User, Setting, SwitchButton
+} from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
+import axios from 'axios'
 
 export default {
   name: 'App',
   components: {
-    HomeFilled,
-    ChatDotRound,
-    Document,
-    Sunny
+    Sunny, House, List, PriceTag, ChatDotRound, ChatLineRound,
+    Reading, Calendar, CaretTop, User, Setting, SwitchButton
   },
   setup() {
-    const currencyStore = useCurrencyStore()
+    const router = useRouter()
+    const route = useRoute()
+    const authStore = useAuthStore()
     const plantStore = usePlantStore()
     
-    const plantExp = computed(() => {
-      const maxExp = plantStore.plant.level * 100
-      return (plantStore.plant.experience / maxExp) * 100
+    const showUserMenu = ref(false)
+    
+    // 判断当前是否为认证相关路由（登录/注册/忘记密码等）
+    const isAuthRoute = computed(() => {
+      const authRoutes = ['/login', '/register', '/forgot-password']
+      // 检查当前路径是否以这些路径开头
+      return authRoutes.some(path => route.path.startsWith(path)) ||
+             route.path.startsWith('/reset-password')
     })
     
-    const plantExpFormat = () => {
-      return `${plantStore.plant.experience}/${plantStore.plant.level * 100} EXP`
+    // 当前激活的菜单项
+    const activeMenu = computed(() => route.path)
+    
+    // 用户信息
+    const username = computed(() => authStore.userInfo?.username || '未登录')
+    const userAvatar = computed(() => authStore.userInfo?.avatar || '')
+    
+    // 处理退出登录
+    const handleLogout = () => {
+      ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        authStore.logout()
+        router.push('/login')
+      }).catch(() => {})
     }
     
+    // 个人资料页面
+    const goToProfile = () => {
+      showUserMenu.value = false
+      // router.push('/profile')
+      ElMessageBox.alert('个人资料功能正在开发中', '提示', {
+        confirmButtonText: '确定'
+      })
+    }
+    
+    // 设置页面
+    const goToSettings = () => {
+      showUserMenu.value = false
+      // router.push('/settings')
+      ElMessageBox.alert('设置功能正在开发中', '提示', {
+        confirmButtonText: '确定'
+      })
+    }
+    
+    // 点击页面其他区域关闭用户菜单
+    const handleClickOutside = (event) => {
+      const userPanel = document.querySelector('.user-panel')
+      if (userPanel && !userPanel.contains(event.target) && showUserMenu.value) {
+        showUserMenu.value = false
+      }
+    }
+    
+    // 组件挂载和卸载时处理全局点击事件
+    onMounted(async () => {
+      document.addEventListener('click', handleClickOutside)
+      
+      console.log('App组件挂载，检查认证状态')
+      // 确认token有效性并加载用户信息
+      const token = localStorage.getItem('token')
+      if (token && token.trim() !== '') {
+        console.log('检测到有存储的token，确保用户数据已加载')
+        // 确保axios headers已设置
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        
+        try {
+          // 无论是否有用户信息，都重新获取以确保数据最新
+          console.log('加载用户信息')
+          const userData = await authStore.fetchUserInfo()
+          
+          if (userData) {
+            console.log('用户信息加载成功', userData)
+            // 用户已登录，加载植物数据
+            await plantStore.fetchPlants()
+            console.log('植物数据加载成功')
+          } else {
+            console.warn('获取用户信息失败，清除无效token')
+            authStore.logout()
+            if (!isAuthRoute.value) {
+              router.push('/login')
+            }
+          }
+        } catch (error) {
+          console.error('初始化应用状态失败:', error)
+          authStore.logout()
+          if (!isAuthRoute.value) {
+            router.push('/login')
+          }
+        }
+      } else {
+        console.log('未检测到有效token')
+        // 如果当前不在认证页面，重定向到登录
+        if (!isAuthRoute.value) {
+          console.log('重定向到登录页面')
+          router.push('/login')
+        }
+      }
+    })
+    
+    onBeforeUnmount(() => {
+      document.removeEventListener('click', handleClickOutside)
+    })
+    
     return {
-      currencyStore,
-      plantStore,
-      plantExp,
-      plantExpFormat
+      isAuthRoute,
+      activeMenu,
+      username,
+      userAvatar,
+      showUserMenu,
+      handleLogout,
+      goToProfile,
+      goToSettings
     }
   }
 }
 </script>
 
-<style scoped>
-:root {
-  --primary-color: #4caf50;
-  --primary-light: #81c784;
-  --primary-dark: #388e3c;
-  --secondary-color: #ff9800;
-  --text-color: #333;
-  --text-light: #666;
-  --bg-color: #f9f9f7;
-  --sidebar-bg: #ffffff;
-  --border-radius: 12px;
-  --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  --transition: all 0.3s ease;
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-.app {
-  background-image: url('@/assets/images/bg.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+body {
+  font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #333;
+  background-color: #f5f7fa;
+}
+
+/* 主容器样式 */
+.app-container {
   min-height: 100vh;
-
-  background-color: var(--bg-color);
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-}
-
-.main-content {
   display: flex;
+}
+
+/* 认证页面布局 */
+.auth-page {
+  background-color: #f5f7fa;
+}
+
+/* 主布局容器 */
+.main-container {
+  width: 100%;
   min-height: 100vh;
 }
 
+/* 侧边栏样式 */
 .sidebar {
-  width: 260px;
-  background-color: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  flex-direction: column;
-  z-index: 10;
+  background-color: #fff;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  height: 100vh;
   position: fixed;
-  top: 10px;
-  left: 5px;
-  height: 95vh;
-  overflow-y: auto;
-  margin: 10px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(5px);
-}
-
-.sidebar-header {
-  padding: 20px 20px 15px 20px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  margin-bottom: 20px;
-}
-
-.app-logo {
-  display: flex;
-  align-items: center;
-  font-size: 1.4rem;
-  font-weight: 600;
-  color: var(--primary-dark);
-}
-
-.app-logo .el-icon {
-  font-size: 1.8rem;
-  margin-right: 10px;
-  color: var(--primary-color);
-}
-
-.sidebar-nav {
+  left: 0;
+  top: 0;
+  z-index: 100;
+  border-right: 1px solid #ebeef5;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 30px;
 }
 
-.nav-item {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  border-radius: var(--border-radius);
-  color: var(--text-light);
-  text-decoration: none;
-  transition: var(--transition);
-  font-size: 0.95rem;
-}
-
-.nav-item:hover {
-  background-color: rgba(76, 175, 80, 0.1);
-  color: var(--primary-dark);
-}
-
-.nav-item.router-link-active {
-  background-color: var(--primary-color);
-  color: white;
-  font-weight: 500;
-}
-
-.nav-item .el-icon {
-  font-size: 1.2rem;
-  margin-right: 12px;
-}
-
-.plant-preview {
-  margin-top: auto;
-  padding: 20px;
-  background-color: rgba(76, 175, 80, 0.05);
-  border-radius: var(--border-radius);
-  text-align: center;
-  border: 1px dashed rgba(76, 175, 80, 0.3);
-}
-
-.plant-avatar {
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 15px;
-  border-radius: 50%;
-  background-color: rgba(76, 175, 80, 0.1);
+/* Logo容器 */
+.logo-container {
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.5rem;
-  color: var(--primary-color);
-  overflow: hidden;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.plant-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.logo {
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: #4caf50;
 }
 
-.plant-preview h3 {
-  margin: 0 0 5px;
-  color: var(--text-color);
-  font-size: 1.2rem;
+.logo .el-icon {
+  margin-right: 10px;
+  font-size: 24px;
 }
 
-.plant-level {
-  font-size: 0.9rem;
-  color: var(--secondary-color);
-  margin-bottom: 15px;
-  font-weight: 500;
-}
-
-.exp-progress {
-  margin-top: 15px;
-}
-
-.exp-text {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--text-light);
-  margin-top: 5px;
-}
-
-.content-area {
+/* 垂直菜单 */
+.el-menu-vertical {
+  border-right: none;
   flex: 1;
-  padding: 30px;
-  overflow-y: auto;
 }
 
-/* 动画效果 */
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+/* 主内容区域 */
+.el-main {
+  padding: 20px;
+  margin-left: 220px;
+  min-height: 100vh;
 }
 
-.plant-avatar {
-  animation: float 3s ease-in-out infinite;
+/* 用户面板 */
+.user-panel {
+  margin-top: auto;
+  padding: 16px;
+  border-top: 1px solid #f0f0f0;
+  position: relative;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .main-content {
-    flex-direction: column;
-  }
-  
-  .sidebar {
-    width: 100%;
-    padding: 15px;
-  }
-  
-  .content-area {
-    padding: 20px;
-  }
+.user-info {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.user-info:hover {
+  background-color: #f5f7fa;
+}
+
+.username {
+  margin: 0 8px;
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rotate-icon {
+  transform: rotate(180deg);
+  transition: transform 0.3s;
+}
+
+/* 用户下拉菜单 */
+.user-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  margin: 0 16px 8px;
+  overflow: hidden;
+  z-index: 100;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.dropdown-item:hover {
+  background-color: #f5f7fa;
+}
+
+.dropdown-item .el-icon {
+  margin-right: 8px;
+  font-size: 18px;
+  color: #606266;
+}
+
+.dropdown-item span {
+  font-size: 14px;
+  color: #333;
+}
+
+.dropdown-item.logout {
+  border-top: 1px solid #f0f0f0;
+}
+
+.dropdown-item.logout .el-icon,
+.dropdown-item.logout span {
+  color: #f56c6c;
 }
 </style>

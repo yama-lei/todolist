@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Users } = require('../utils/localDB');
 const router = express.Router();
+const auth = require('../middleware/auth'); // 添加认证中间件引用
 
 // 用户注册
 router.post('/register', async (req, res) => {
@@ -115,6 +116,35 @@ router.post('/login', async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message
+    });
+  }
+});
+
+// 获取当前用户信息
+router.get('/me', auth, async (req, res) => {
+  try {
+    console.log('获取用户信息，用户ID:', req.user.id);
+    const user = await Users.findOne({ _id: req.user.id });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
+    // 返回用户信息，不包含密码
+    res.json({
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      createdAt: user.createdAt
+    });
+  } catch (error) {
+    console.error('获取用户信息失败:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '获取用户信息失败'
     });
   }
 });
