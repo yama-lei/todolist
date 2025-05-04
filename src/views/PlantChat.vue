@@ -1,90 +1,91 @@
 <template>
   <div class="plant-chat-page">
     <div class="container">
-      <div class="chat-card card">
-        <div class="chat-header">
-          <div class="chat-plant-info">
-            <div class="plant-avatar">
-              <span class="plant-emoji">{{ plantEmoji }}</span>
-            </div>
-            <div class="plant-details">
-              <h2>{{ plantStore.currentPlant ? plantStore.currentPlant.name : '尚未添加植物' }}</h2>
-              <span class="plant-status">{{ getPlantStateText() }}</span>
-            </div>
-          </div>
-          <div class="chat-actions">
-            <el-tooltip content="清空聊天记录" placement="top">
-              <el-button @click="clearMessages" circle>
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </el-tooltip>
-          </div>
+      <div class="plant-chat-header card">
+        <div class="plant-avatar">
+          <span class="plant-emoji">{{ getPlantEmoji() }}</span>
         </div>
-        
-        <div class="chat-messages" ref="messagesRef">
-          <div v-if="messages.length === 0" class="empty-chat">
-            <div class="empty-icon">🌱</div>
-            <p class="empty-text">和你的植物聊聊天吧！</p>
-            <div class="suggested-prompts">
-              <p>推荐问题：</p>
-              <div class="prompt-list">
-                <div 
-                  v-for="(prompt, index) in suggestedPrompts" 
-                  :key="index" 
-                  class="prompt-item"
-                  @click="sendMessage(prompt)"
-                >
-                  {{ prompt }}
-                </div>
-              </div>
-            </div>
+        <div class="plant-info">
+          <h2>与{{ plantStore.currentPlant ? plantStore.currentPlant.name : '植物' }}对话</h2>
+          <p class="plant-status">
+            <span class="status-label">状态:</span> 
+            <span class="status-value">{{ getPlantStatus() }}</span>
+            <span class="mood-emoji">{{ getMoodEmoji() }}</span>
+          </p>
+        </div>
+        <div class="plant-level">
+          <div class="level-badge">Lv.{{ plantStore.currentPlant?.level || 1 }}</div>
+        </div>
+      </div>
+      
+      <div class="message-container card">
+        <div class="messages-list" ref="messagesList">
+          <div v-if="!conversations || conversations.length === 0" class="empty-conversation">
+            <el-empty description="暂无对话，发送消息开始与植物聊天吧~">
+              <template #image>
+                <img src="/images/plant_chat_empty.png" alt="空对话" class="empty-img" />
+              </template>
+            </el-empty>
           </div>
           
           <template v-else>
             <div 
-              v-for="(msg, index) in messages" 
-              :key="index" 
-              class="message"
-              :class="{ 'user-message': msg.sender === 'user', 'plant-message': msg.sender === 'plant' }"
+              v-for="message in conversations" 
+              :key="message.id"
+              :class="['message', message.sender === 'user' ? 'user-message' : 'plant-message']"
             >
               <div class="message-avatar">
-                <span v-if="msg.sender === 'user'">👤</span>
-                <span v-else>{{ plantEmoji }}</span>
+                <span v-if="message.sender === 'user'" class="user-avatar">
+                  <el-avatar :size="40" icon="UserFilled" />
+                </span>
+                <span v-else class="plant-message-avatar">
+                  {{ getPlantEmoji() }}
+                </span>
               </div>
-              <div class="message-content">
-                <div class="message-text" v-html="formatMessage(msg.content)"></div>
-                <div class="message-time">{{ formatTime(msg.timestamp) }}</div>
+              <div class="message-bubble">
+                <div class="message-content">{{ message.content }}</div>
+                <div class="message-time">{{ formatTime(message.timestamp) }}</div>
               </div>
             </div>
           </template>
           
-          <div v-if="isLoading" class="loading-message">
-            <div class="plant-thinking">
-              <div class="dot"></div>
-              <div class="dot"></div>
-              <div class="dot"></div>
-            </div>
+          <div v-if="loading" class="typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
           </div>
         </div>
         
-        <div class="chat-input">
-          <el-input
-            v-model="userInput"
-            type="textarea"
-            :rows="2"
-            placeholder="输入你想问的问题..."
-            resize="none"
-            @keydown.enter.prevent="handleEnterKeyPressed"
-          ></el-input>
-          <el-button 
-            type="primary" 
-            :icon="Promotion"
-            :loading="isLoading"
-            :disabled="isLoading || !userInput.trim()"
-            @click="sendMessage()"
-          >
-            发送
-          </el-button>
+        <div class="input-container">
+          <div class="suggestion-chips" v-if="showSuggestions">
+            <div 
+              v-for="(suggestion, index) in suggestions" 
+              :key="index"
+              class="suggestion-chip"
+              @click="sendSuggestion(suggestion)"
+            >
+              {{ suggestion }}
+            </div>
+          </div>
+          
+          <div class="input-wrapper">
+            <el-input
+              v-model="messageInput"
+              type="textarea"
+              :rows="1"
+              :autosize="{ minRows: 1, maxRows: 4 }"
+              placeholder="输入消息与植物聊天..."
+              @keyup.enter.native="handleEnterPress"
+            />
+            <el-button 
+              type="primary" 
+              class="send-btn" 
+              :disabled="!messageInput.trim() || loading"
+              @click="sendMessage"
+            >
+              <el-icon><el-icon-position /></el-icon>
+            </el-button>
+          </div>
         </div>
       </div>
     </div>
@@ -92,237 +93,183 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, watch, nextTick, computed } from 'vue'
+import { ref, onMounted, nextTick, watch, computed } from 'vue'
 import { usePlantStore } from '../stores/plant'
 import { format } from 'date-fns'
-import { Delete, Promotion } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 export default {
   name: 'PlantChatPage',
-  components: {
-    Delete,
-    Promotion
-  },
   setup() {
     const plantStore = usePlantStore()
-    const messagesRef = ref(null)
-    const userInput = ref('')
-    const isLoading = ref(false)
-    const messages = reactive([])
+    const messagesList = ref(null)
+    const messageInput = ref('')
+    const loading = ref(false)
+    const showSuggestions = ref(true)
     
-    // 获取当前植物信息
-    onMounted(async () => {
-      // 如果植物商店没有加载植物，先加载植物
-      if (!plantStore.currentPlant) {
-        await plantStore.fetchPlants()
-      }
-      
-      // 确保有当前植物
-      if (plantStore.currentPlant) {
-        // 加载对话历史
-        await loadMessages()
-        
-        // 如果没有消息，添加欢迎消息
-        if (messages.length === 0) {
-          addWelcomeMessage()
-        }
-      } else {
-        ElMessage.warning('请先在花园中购买一个植物')
-      }
-    })
-    
-    // 加载对话历史
-    const loadMessages = async () => {
-      if (!plantStore.currentPlant) return
-      
-      // 检查植物ID是否有效
-      if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
-        console.error('植物ID无效')
-        ElMessage.warning('植物信息不完整，请重新选择植物')
-        return
-      }
-      
-      const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
-      
-      isLoading.value = true
-      try {
-        const loadedMessages = await plantStore.fetchConversations(plantId)
-        if (loadedMessages && loadedMessages.length > 0) {
-          // 使用从API加载的消息
-          messages.length = 0
-          loadedMessages.forEach(msg => messages.push(msg))
-          
-          // 滚动到底部
-          await scrollToBottom()
-        }
-      } catch (error) {
-        console.error('加载对话历史失败', error)
-      } finally {
-        isLoading.value = false
-      }
-    }
-    
-    // 植物表情
-    const plantEmoji = computed(() => {
-      if (!plantStore.currentPlant) return '🌱'
-      return plantStore.currentPlant.emoji || '🌱'
-    })
-    
-    // 推荐问题
-    const suggestedPrompts = [
-      "你能告诉我今天的天气怎么样吗？",
-      "我应该怎样照顾植物让它长得更快？",
-      "你能给我讲个有趣的故事吗？",
-      "你喜欢什么类型的音乐？",
-      "你能给我一些今天的建议吗？"
+    // 建议问题
+    const suggestions = [
+      '你今天感觉怎么样？',
+      '有什么生长小秘诀吗？',
+      '你喜欢什么样的环境？',
+      '如何让你更快成长？'
     ]
     
-    // 获取植物状态文本
-    const getPlantStateText = () => {
-      if (!plantStore.currentPlant) return '成长中'
-      
-      const state = plantStore.currentPlant.state
-      if (state === 'seedling') return '幼苗期'
-      if (state === 'growing') return '成长期'
-      if (state === 'mature') return '成熟期'
-      return '成长中'
+    // 计算属性：获取对话信息
+    const conversations = computed(() => {
+      return plantStore.conversations || []
+    })
+    
+    // 获取植物表情
+    const getPlantEmoji = () => {
+      if (!plantStore.currentPlant) return '🌱'
+      return plantStore.currentPlant.emoji || '🌱'
     }
     
-    // 添加欢迎消息
-    const addWelcomeMessage = () => {
-      if (messages.length === 0 && plantStore.currentPlant) {
-        const plantName = plantStore.currentPlant.name
-        messages.push({
-          sender: 'plant',
-          content: `你好！我是${plantName}，很高兴能和你聊天！有什么我能帮助你的吗？`,
-          timestamp: new Date().toISOString()
-        })
+    // 获取植物状态
+    const getPlantStatus = () => {
+      if (!plantStore.currentPlant) return '未种植'
+      
+      const stateMap = {
+        'seedling': '幼苗期',
+        'growing': '成长期',
+        'mature': '成熟期'
       }
+      
+      return stateMap[plantStore.currentPlant.state] || '成长中'
     }
     
-    // 发送消息
-    const sendMessage = async (predefinedMessage = null) => {
-      if (!plantStore.currentPlant) {
-        ElMessage.warning('请先在花园中购买一个植物')
-        return
+    // 获取心情表情
+    const getMoodEmoji = () => {
+      if (!plantStore.currentPlant) return '😐'
+      
+      const moodMap = {
+        'happy': '😊',
+        'neutral': '😐',
+        'sad': '😢'
       }
       
-      // 检查植物ID是否有效
-      if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
-        console.error('植物ID无效')
-        ElMessage.warning('植物信息不完整，请重新选择植物')
-        return
-      }
-      
-      const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
-      const messageText = predefinedMessage || userInput.value.trim()
-      
-      if (!messageText) return
-      
-      // 添加用户消息到本地
-      messages.push({
-        sender: 'user',
-        content: messageText,
-        timestamp: new Date().toISOString()
-      })
-      
-      // 清空输入框
-      userInput.value = ''
-      
-      // 滚动到底部
-      await scrollToBottom()
-      
-      // 调用API发送消息
-      isLoading.value = true
-      try {
-        const context = {
-          recentMessages: 3,
-          userInfo: {
-            completedTasks: 0,
-            pendingTasks: 0
-          }
-        }
-        
-        const response = await plantStore.sendMessage(plantId, messageText, context)
-        
-        if (response) {
-          // 消息已经通过store添加到对话列表中
-          await scrollToBottom()
-        }
-      } catch (error) {
-        console.error('发送消息失败', error)
-        ElMessage.error('发送消息失败')
-      } finally {
-        isLoading.value = false
-      }
-    }
-    
-    // 格式化消息，将链接转换为可点击的链接
-    const formatMessage = (text) => {
-      if (!text) return ''
-      
-      // 将URL转换为可点击的链接
-      const urlRegex = /(https?:\/\/[^\s]+)/g
-      return text.replace(urlRegex, (url) => {
-        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
-      })
+      return moodMap[plantStore.currentPlant.mood] || '😐'
     }
     
     // 格式化时间
     const formatTime = (timestamp) => {
       if (!timestamp) return ''
-      try {
-        return format(new Date(timestamp), 'HH:mm')
-      } catch (e) {
-        return ''
-      }
+      return format(new Date(timestamp), 'HH:mm')
     }
     
-    // 滚动到对话底部
-    const scrollToBottom = async () => {
-      await nextTick()
-      if (messagesRef.value) {
-        messagesRef.value.scrollTop = messagesRef.value.scrollHeight
-      }
-    }
-    
-    // 处理回车键按下
-    const handleEnterKeyPressed = (e) => {
-      if (!e.shiftKey) {
+    // 处理Enter按键
+    const handleEnterPress = (e) => {
+      // 如果按下了Shift键，不发送消息，允许多行输入
+      if (!e.shiftKey && messageInput.value.trim()) {
+        e.preventDefault()
         sendMessage()
       }
     }
     
-    // 清空聊天记录
-    const clearMessages = () => {
-      messages.length = 0
-      addWelcomeMessage()
+    // 发送消息
+    const sendMessage = async () => {
+      if (!messageInput.value.trim() || loading.value) return
+      
+      if (!plantStore.currentPlant) {
+        ElMessage.warning('请先在花园中选择一个植物')
+        return
+      }
+      
+      // 检查植物ID是否有效
+      if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
+        console.error('植物ID无效')
+        ElMessage.warning('植物信息不完整，请重新选择植物')
+        return
+      }
+      
+      const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
+      const message = messageInput.value
+      
+      // 清空输入框
+      messageInput.value = ''
+      
+      // 设置加载状态
+      loading.value = true
+      showSuggestions.value = false
+      
+      try {
+        // 调用API发送消息
+        await plantStore.sendMessage(plantId, message)
+        
+        // 滚动到底部
+        await scrollToBottom()
+      } catch (error) {
+        console.error('发送消息失败:', error)
+        ElMessage.error('发送消息失败')
+      } finally {
+        loading.value = false
+      }
     }
     
-    // 监听新消息，自动滚动到底部
-    watch(() => messages.length, async () => {
+    // 发送建议问题
+    const sendSuggestion = (suggestion) => {
+      messageInput.value = suggestion
+      sendMessage()
+    }
+    
+    // 滚动到底部
+    const scrollToBottom = async () => {
+      await nextTick()
+      if (messagesList.value) {
+        messagesList.value.scrollTop = messagesList.value.scrollHeight
+      }
+    }
+    
+    // 监听对话列表变化，自动滚动到底部
+    watch(() => plantStore.conversations.length, async () => {
       await scrollToBottom()
+    })
+    
+    onMounted(async () => {
+      // 确保有植物数据
+      if (!plantStore.currentPlant) {
+        await plantStore.fetchPlants()
+      }
+      
+      // 如果有植物，加载对话历史
+      if (plantStore.currentPlant) {
+        // 检查植物ID是否有效
+        if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
+          console.error('植物ID无效')
+          ElMessage.warning('植物信息不完整，请重新选择植物')
+          return
+        }
+        
+        const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
+        loading.value = true
+        
+        try {
+          await plantStore.fetchConversations(plantId)
+        } catch (error) {
+          console.error('获取对话历史失败:', error)
+        } finally {
+          loading.value = false
+          await scrollToBottom()
+        }
+      }
     })
     
     return {
       plantStore,
-      messagesRef,
-      userInput,
-      isLoading,
-      messages,
-      plantEmoji,
-      suggestedPrompts,
-      
-      getPlantStateText,
-      sendMessage,
-      formatMessage,
+      messagesList,
+      messageInput,
+      loading,
+      conversations,
+      showSuggestions,
+      suggestions,
+      getPlantEmoji,
+      getPlantStatus,
+      getMoodEmoji,
       formatTime,
-      clearMessages,
-      handleEnterKeyPressed,
-      
-      Delete,
-      Promotion
+      handleEnterPress,
+      sendMessage,
+      sendSuggestion
     }
   }
 }
@@ -330,245 +277,312 @@ export default {
 
 <style scoped>
 .plant-chat-page {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  background: linear-gradient(135deg, #f0f7f4 0%, #e6f7ff 100%);
+  min-height: 100vh;
+  padding: 20px 0;
 }
 
 .container {
-  flex: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 20px;
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  height: calc(100vh - 40px);
 }
 
-.chat-card {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 120px);
-  min-height: 500px;
+.card {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
 }
 
-.chat-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 20px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.chat-plant-info {
+.plant-chat-header {
   display: flex;
   align-items: center;
+  padding: 16px 24px;
+  margin-bottom: 16px;
+  position: relative;
 }
 
 .plant-avatar {
-  width: 50px;
-  height: 50px;
-  background-color: rgba(66, 185, 131, 0.1);
+  width: 70px;
+  height: 70px;
+  background: linear-gradient(135deg, rgba(66, 185, 131, 0.2) 0%, rgba(100, 210, 255, 0.2) 100%);
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-right: 15px;
+  margin-right: 20px;
+  box-shadow: 0 4px 8px rgba(66, 185, 131, 0.15);
 }
 
 .plant-emoji {
-  font-size: 30px;
+  font-size: 40px;
 }
 
-.plant-details h2 {
-  margin: 0;
-  font-size: 18px;
+.plant-info {
+  flex: 1;
+}
+
+.plant-info h2 {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+  color: #333;
 }
 
 .plant-status {
-  font-size: 14px;
-  color: #666;
-}
-
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
   display: flex;
-  flex-direction: column;
-}
-
-.empty-chat {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
   align-items: center;
-  padding: 40px 0;
-  text-align: center;
-}
-
-.empty-icon {
-  font-size: 60px;
-  margin-bottom: 20px;
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
-}
-
-.empty-text {
-  font-size: 18px;
   color: #666;
-  margin-bottom: 30px;
+  font-size: 0.95rem;
+  margin: 0;
 }
 
-.suggested-prompts {
-  max-width: 500px;
-}
-
-.suggested-prompts p {
-  margin-bottom: 10px;
-  font-weight: bold;
+.status-label {
+  margin-right: 5px;
   color: #888;
 }
 
-.prompt-list {
+.status-value {
+  color: #42b983;
+  font-weight: 500;
+}
+
+.mood-emoji {
+  margin-left: 8px;
+  font-size: 1.2rem;
+}
+
+.plant-level {
+  display: flex;
+  align-items: center;
+}
+
+.level-badge {
+  background: linear-gradient(135deg, #42b983 0%, #36a174 100%);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: bold;
+  padding: 5px 10px;
+  border-radius: 20px;
+  box-shadow: 0 2px 4px rgba(66, 185, 131, 0.3);
+}
+
+.message-container {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: 100%;
+  overflow: hidden;
 }
 
-.prompt-item {
-  background-color: rgba(var(--el-color-primary-rgb), 0.1);
-  color: var(--el-color-primary);
-  padding: 12px 16px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-align: left;
+.messages-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  scroll-behavior: smooth;
 }
 
-.prompt-item:hover {
-  background-color: rgba(var(--el-color-primary-rgb), 0.2);
-  transform: translateY(-2px);
+.empty-conversation {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-img {
+  width: 150px;
+  opacity: 0.7;
 }
 
 .message {
   display: flex;
-  margin-bottom: 20px;
-  max-width: 85%;
+  margin-bottom: 16px;
+  align-items: flex-start;
 }
 
 .user-message {
-  margin-left: auto;
   flex-direction: row-reverse;
 }
 
-.plant-message {
-  margin-right: auto;
+.message-avatar {
+  margin: 0 10px;
 }
 
-.message-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+.plant-message-avatar {
   display: flex;
   justify-content: center;
   align-items: center;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, rgba(66, 185, 131, 0.2) 0%, rgba(100, 210, 255, 0.2) 100%);
+  border-radius: 50%;
   font-size: 24px;
-  margin: 0 10px;
-  flex-shrink: 0;
 }
 
-.user-message .message-avatar {
-  background-color: rgba(64, 158, 255, 0.1);
-}
-
-.plant-message .message-avatar {
-  background-color: rgba(66, 185, 131, 0.1);
-}
-
-.message-content {
+.message-bubble {
+  max-width: 70%;
   padding: 12px 16px;
   border-radius: 18px;
   position: relative;
 }
 
-.user-message .message-content {
-  background-color: var(--el-color-primary);
+.user-message .message-bubble {
+  background: linear-gradient(135deg, #42b983 0%, #36a174 100%);
   color: white;
   border-top-right-radius: 4px;
 }
 
-.plant-message .message-content {
-  background-color: #f5f7fa;
+.plant-message .message-bubble {
+  background-color: #f0f2f5;
   color: #333;
   border-top-left-radius: 4px;
 }
 
-.message-text {
+.message-content {
+  font-size: 1rem;
   line-height: 1.5;
   word-break: break-word;
 }
 
 .message-time {
-  font-size: 12px;
-  margin-top: 5px;
-  opacity: 0.8;
+  font-size: 0.7rem;
+  opacity: 0.7;
+  margin-top: 4px;
   text-align: right;
 }
 
-.loading-message {
-  align-self: flex-start;
-  margin-left: 60px;
-  margin-bottom: 20px;
-}
-
-.plant-thinking {
-  display: flex;
+.typing-indicator {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  background-color: #f0f2f5;
+  padding: 8px 16px;
+  border-radius: 18px;
+  margin: 10px 0;
 }
 
-.dot {
-  width: 8px;
+.typing-indicator span {
   height: 8px;
-  background-color: #ddd;
+  width: 8px;
   border-radius: 50%;
-  animation: bounce 1.4s infinite;
+  background-color: #a3a3a3;
+  display: inline-block;
+  margin: 0 2px;
+  animation: bounce 1.5s infinite ease-in-out;
 }
 
-.dot:nth-child(2) {
+.typing-indicator span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-indicator span:nth-child(2) {
   animation-delay: 0.2s;
 }
 
-.dot:nth-child(3) {
+.typing-indicator span:nth-child(3) {
   animation-delay: 0.4s;
 }
 
 @keyframes bounce {
-  0%, 80%, 100% { transform: translateY(0); }
-  40% { transform: translateY(-8px); }
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
-.chat-input {
-  padding: 15px 20px;
+.input-container {
+  padding: 15px;
   border-top: 1px solid rgba(0, 0, 0, 0.05);
-  display: flex;
-  gap: 10px;
 }
 
-.chat-input :deep(.el-textarea__inner) {
+.suggestion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+
+.suggestion-chip {
+  background-color: rgba(66, 185, 131, 0.1);
+  color: #42b983;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.suggestion-chip:hover {
+  background-color: rgba(66, 185, 131, 0.2);
+  transform: translateY(-1px);
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: flex-end;
+}
+
+.input-wrapper :deep(.el-textarea__inner) {
   border-radius: 20px;
   padding: 10px 15px;
+  min-height: 44px !important;
   resize: none;
+  border: 1px solid #dcdfe6;
+  transition: all 0.3s;
 }
 
-.chat-input .el-button {
-  border-radius: 20px;
-  padding: 0 20px;
-  align-self: flex-end;
+.input-wrapper :deep(.el-textarea__inner:focus) {
+  border-color: #42b983;
+  box-shadow: 0 0 0 2px rgba(66, 185, 131, 0.2);
+}
+
+.send-btn {
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 10px;
+  background: linear-gradient(135deg, #42b983 0%, #36a174 100%);
+  border: none;
+  transition: all 0.3s;
+}
+
+.send-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(66, 185, 131, 0.4);
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 10px;
+    height: calc(100vh - 20px);
+  }
+  
+  .plant-chat-header {
+    padding: 12px 16px;
+  }
+  
+  .plant-avatar {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .plant-emoji {
+    font-size: 30px;
+  }
+  
+  .plant-info h2 {
+    font-size: 1.2rem;
+  }
+  
+  .message-bubble {
+    max-width: 85%;
+  }
 }
 </style> 

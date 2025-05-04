@@ -6,7 +6,7 @@
     </div>
     
     <div class="content-card">
-      <div class="thought-input-area" @click="showPostDialog = true">
+      <div class="thought-input-area" @click="openPostDialog('thought')">
         <div class="thought-input-placeholder">
           <el-icon><Edit /></el-icon>
           <span>写下心中碎碎念...</span>
@@ -36,6 +36,13 @@
           说说
         </div>
       </div>
+      
+      <div class="content-actions">
+        <el-button type="primary" @click="openPostDialog('diary')" class="write-diary-btn">
+          <el-icon><Notebook /></el-icon>
+          写日记
+        </el-button>
+      </div>
     </div>
     
     <div class="timeline-wrapper">
@@ -46,9 +53,10 @@
     <el-dialog
       v-model="showPostDialog"
       :title="postType === 'diary' ? '写日记' : '发说说'"
-      width="500px"
+      width="65%"
       custom-class="post-dialog"
       destroy-on-close
+      :fullscreen="false"
     >
       <div class="post-type-selector">
         <div 
@@ -69,26 +77,123 @@
         </div>
       </div>
       
-      <el-form>
-        <el-form-item v-if="postType === 'diary'">
+      <div class="diary-header" v-if="postType === 'diary'">
+        <div class="diary-date">
+          <div class="diary-day">{{ new Date().getDate() }}</div>
+          <div class="diary-month-year">{{ new Date().toLocaleDateString('zh-CN', { month: 'long', year: 'numeric' }) }}</div>
+        </div>
+        <div class="diary-weather-mood" v-if="newPost.weather || newPost.mood">
+          <span v-if="newPost.weather" class="diary-weather">
+            {{ {sunny: '☀️ 晴天', rainy: '🌧️ 下雨', cloudy: '☁️ 多云', snowy: '❄️ 下雪'}[newPost.weather] || '' }}
+          </span>
+          <span v-if="newPost.mood" class="diary-mood">{{ getMoodText(newPost.mood) }}</span>
+        </div>
+      </div>
+      
+      <el-form class="diary-form">
+        <el-form-item v-if="postType === 'diary'" class="diary-title-item">
           <el-input
             v-model="newPost.title"
-            placeholder="日记标题"
+            placeholder="给今天写个标题..."
             :prefix-icon="Document"
+            class="diary-title-input"
+            :size="postType === 'diary' ? 'large' : 'default'"
           />
         </el-form-item>
         
-        <el-form-item>
+        <el-form-item class="diary-content-item">
           <el-input
             v-model="newPost.content"
             type="textarea"
-            :rows="postType === 'diary' ? 6 : 4"
-            :placeholder="postType === 'diary' ? '今天发生了什么...' : '此刻的想法...'"
+            :rows="postType === 'diary' ? 10 : 6"
+            :placeholder="postType === 'diary' ? '今天发生了什么...\n\n写下此刻的心情，记录生活的点滴...' : '此刻的想法...'"
+            class="diary-content"
+            resize="none"
           />
         </el-form-item>
         
-        <el-form-item>
-          <div class="upload-area">
+        <div class="diary-toolbar" v-if="postType === 'diary'">
+          <div class="toolbar-group">
+            <div class="option-item" @click="toggleMood">
+              <el-icon><SmileFilled /></el-icon>
+              <span>{{ newPost.mood ? `心情：${getMoodText(newPost.mood)}` : '添加心情' }}</span>
+            </div>
+            
+            <div class="option-item" @click="locationVisible = !locationVisible">
+              <el-icon><Location /></el-icon>
+              <span>{{ locationVisible ? '隐藏位置' : '添加位置' }}</span>
+            </div>
+            
+            <div class="option-item" @click="weatherVisible = !weatherVisible">
+              <el-icon><Sunny /></el-icon>
+              <span>{{ weatherVisible ? '隐藏天气' : '添加天气' }}</span>
+            </div>
+          </div>
+          
+          <div class="toolbar-group">
+            <div class="diary-image-count" v-if="newPost.images.length > 0">
+              已添加 {{ newPost.images.length }} 张图片
+            </div>
+            <el-button size="small" @click="scrollToUpload">添加图片</el-button>
+          </div>
+        </div>
+        
+        <el-form-item v-if="postType !== 'diary'" class="thought-options">
+          <div class="post-options">
+            <div class="option-item" @click="toggleMood">
+              <el-icon><SmileFilled /></el-icon>
+              <span>{{ newPost.mood ? `心情：${getMoodText(newPost.mood)}` : '添加心情' }}</span>
+            </div>
+            
+            <div class="option-item" @click="locationVisible = !locationVisible">
+              <el-icon><Location /></el-icon>
+              <span>{{ locationVisible ? '隐藏位置' : '添加位置' }}</span>
+            </div>
+          </div>
+        </el-form-item>
+        
+        <el-form-item v-if="locationVisible">
+          <el-input 
+            v-model="newPost.location" 
+            placeholder="我在哪里..." 
+            :prefix-icon="Location"
+            class="location-input"
+          />
+        </el-form-item>
+        
+        <el-form-item v-if="weatherVisible && postType === 'diary'" class="weather-selector">
+          <div class="weather-options">
+            <div 
+              v-for="(label, value) in { sunny: '☀️ 晴天', rainy: '🌧️ 下雨', cloudy: '☁️ 多云', snowy: '❄️ 下雪' }" 
+              :key="value"
+              class="weather-option"
+              :class="{ active: newPost.weather === value }"
+              @click="newPost.weather = value"
+            >
+              <span class="weather-icon">{{ label.split(' ')[0] }}</span>
+              <span>{{ label.split(' ')[1] }}</span>
+            </div>
+          </div>
+        </el-form-item>
+        
+        <el-form-item v-if="showMoodSelector" class="mood-item">
+          <div class="mood-selector">
+            <div 
+              v-for="mood in moods" 
+              :key="mood.value" 
+              class="mood-item"
+              :class="{ active: newPost.mood === mood.value }"
+              @click="selectMood(mood.value)"
+            >
+              <span class="mood-emoji">{{ mood.emoji }}</span>
+              <span class="mood-text">{{ mood.text }}</span>
+            </div>
+          </div>
+        </el-form-item>
+        
+        <el-form-item id="upload-section">
+          <div class="upload-area" :class="{ 'diary-upload': postType === 'diary' }">
+            <div class="upload-title" v-if="postType === 'diary'">添加图片记录美好瞬间</div>
             <el-upload
               action="#"
               list-type="picture-card"
@@ -103,61 +208,12 @@
             </el-upload>
           </div>
         </el-form-item>
-        
-        <div class="post-options">
-          <div class="option-item" @click="toggleMood">
-            <el-icon><SmileFilled /></el-icon>
-            <span>{{ newPost.mood ? `心情：${getMoodText(newPost.mood)}` : '添加心情' }}</span>
-          </div>
-          
-          <div class="option-item" @click="locationVisible = !locationVisible">
-            <el-icon><Location /></el-icon>
-            <span>{{ locationVisible ? '隐藏位置' : '添加位置' }}</span>
-          </div>
-          
-          <div v-if="postType === 'diary'" class="option-item" @click="weatherVisible = !weatherVisible">
-            <el-icon><Sunny /></el-icon>
-            <span>{{ weatherVisible ? '隐藏天气' : '添加天气' }}</span>
-          </div>
-        </div>
-        
-        <el-form-item v-if="locationVisible">
-          <el-input 
-            v-model="newPost.location" 
-            placeholder="我在哪里..." 
-            :prefix-icon="Location"
-          />
-        </el-form-item>
-        
-        <el-form-item v-if="weatherVisible && postType === 'diary'">
-          <el-select v-model="newPost.weather" placeholder="今天的天气" style="width: 100%">
-            <el-option label="☀️ 晴天" value="sunny" />
-            <el-option label="🌧️ 下雨" value="rainy" />
-            <el-option label="☁️ 多云" value="cloudy" />
-            <el-option label="❄️ 下雪" value="snowy" />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item v-if="showMoodSelector">
-          <div class="mood-selector">
-            <div 
-              v-for="mood in moods" 
-              :key="mood.value" 
-              class="mood-item"
-              :class="{ active: newPost.mood === mood.value }"
-              @click="selectMood(mood.value)"
-            >
-              <span class="mood-emoji">{{ mood.emoji }}</span>
-              <span class="mood-text">{{ mood.text }}</span>
-            </div>
-          </div>
-        </el-form-item>
       </el-form>
       
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="showPostDialog = false">取消</el-button>
-          <el-button type="primary" @click="addPost" :disabled="!isPostValid">
+          <el-button type="primary" @click="addPost" :disabled="!isPostValid" :size="postType === 'diary' ? 'large' : 'default'">
             {{ postType === 'diary' ? '保存日记' : '发布说说' }}
           </el-button>
         </div>
@@ -313,6 +369,9 @@ watch(activeFilter, async () => {
 const addPost = async () => {
   if (!isPostValid.value) return
   
+  // 如果没有指定日期，使用当前日期
+  const currentDate = new Date().toISOString();
+  
   const success = await postStore.addCustomPost({
     title: newPost.value.title,
     content: newPost.value.content,
@@ -320,7 +379,8 @@ const addPost = async () => {
     location: newPost.value.location,
     mood: newPost.value.mood,
     weather: newPost.value.weather,
-    type: postType.value
+    type: postType.value,
+    date: currentDate // 添加当前日期
   })
   
   if (success) {
@@ -376,10 +436,23 @@ const handleFileRemove = (file) => {
   }
 }
 
+// 滚动到上传区域
+const scrollToUpload = () => {
+  document.getElementById('upload-section')?.scrollIntoView({ behavior: 'smooth' })
+}
+
 // 每次显示对话框时，更新postType到newPost
 watch(postType, (newVal) => {
   newPost.value.type = newVal
+  console.log('切换类型为:', newVal)
 })
+
+// 初始化对话框时设置类型
+const openPostDialog = (type = 'thought') => {
+  postType.value = type
+  newPost.value.type = type
+  showPostDialog.value = true
+}
 </script>
 
 <style scoped>
@@ -466,6 +539,18 @@ watch(postType, (newVal) => {
   font-weight: 500;
 }
 
+.content-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.write-diary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .timeline-wrapper {
   margin-top: 30px;
 }
@@ -513,6 +598,146 @@ watch(postType, (newVal) => {
 
 .post-type-option.active .el-icon {
   color: white;
+}
+
+/* 日记特有样式 */
+.diary-form {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.diary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #DCDFE6;
+}
+
+.diary-date {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.diary-day {
+  font-size: 28px;
+  font-weight: 700;
+  color: #409EFF;
+}
+
+.diary-month-year {
+  font-size: 14px;
+  color: #606266;
+}
+
+.diary-weather-mood {
+  display: flex;
+  gap: 15px;
+  font-size: 16px;
+}
+
+.diary-title-item {
+  margin-bottom: 24px;
+}
+
+.diary-title-input :deep(input) {
+  font-size: 18px;
+  height: 48px;
+  font-weight: 600;
+}
+
+.diary-content {
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.diary-content :deep(.el-textarea__inner) {
+  padding: 15px;
+  border-radius: 8px;
+  background-color: #fafafa;
+  border: 1px solid #e4e7ed;
+  transition: all 0.3s;
+  font-family: inherit;
+}
+
+.diary-content :deep(.el-textarea__inner:focus) {
+  background-color: #fff;
+  box-shadow: 0 0 10px rgba(64, 158, 255, 0.2);
+}
+
+.diary-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  margin-bottom: 15px;
+  padding: 10px 12px;
+  background-color: #f8faff;
+  border-radius: 8px;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.diary-image-count {
+  font-size: 14px;
+  color: #606266;
+}
+
+.weather-selector {
+  margin-top: 10px;
+}
+
+.weather-options {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.weather-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.weather-option:hover {
+  background-color: #f0f9ff;
+}
+
+.weather-option.active {
+  background-color: #ecf5ff;
+  border-color: #409EFF;
+  color: #409EFF;
+}
+
+.weather-icon {
+  font-size: 22px;
+  margin-bottom: 5px;
+}
+
+.diary-upload {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8faff;
+  border-radius: 8px;
+  border: 1px dashed #c0c4cc;
+}
+
+.upload-title {
+  margin-bottom: 12px;
+  font-size: 15px;
+  color: #606266;
+  text-align: center;
 }
 
 .upload-area {
@@ -616,6 +841,14 @@ watch(postType, (newVal) => {
   
   .mood-selector {
     grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .diary-day {
+    font-size: 28px;
+  }
+  
+  .weather-options {
+    flex-wrap: wrap;
   }
 }
 </style> 

@@ -1,5 +1,9 @@
-# todolist
+# Todolist
 运行项目前需要配置npm环境
+
+## 同步最新代码
+
+网上有教程 ~~其实是我不太会~~
 
 ## Project setup
 先安装项目的依赖，运行npm install
@@ -13,39 +17,28 @@ npm run
 就可以看见这个项目所有的npm 脚本
 （也可以打开根目录下的package.json，查看script部分）
 
-### Compiles and hot-reloads for development
-这一步是启动项目，成功后在终端中会有网址出现，点击网址即可看见demo
-```
-npm run serve
-```
+##  Run the frontend 启动前端代码
 
-### 打包成desktop应用(调试版本)
-```
-npm run electron:serve
-```
+在项目根目录下，启动`npm run sreve`
 
-前端开发的时候：改变了前端的代码记得**刷新页面**才会显示出更改的效果
-后端开发的时候：可以自行修改前端代码，让前端调用后端的api，看看后端是否正常；也可以直接使用apifox，post、get等等看看接口是否符合预期。
+![image-20250504144920721](https://yamapicgo.oss-cn-nanjing.aliyuncs.com/picgoImage/image-20250504144920721.png)
+
+## Run the server 启动后端
+
+先进入后端`cd backend`
+
+再启动服务器`npm run dev`
+
+![image-20250504145003822](https://yamapicgo.oss-cn-nanjing.aliyuncs.com/picgoImage/image-20250504145003822.png)
 
 ---
 
+## 使用cursor进行开发
 
+用cursor打开项目文件夹（一定要是一整个文件夹）
 
+比如在命令行中打开：
 
-### 打包成desktop应用(发行)
-```
-npm run electron:build
-```
+![image-20250504145252380](https://yamapicgo.oss-cn-nanjing.aliyuncs.com/picgoImage/image-20250504145252380.png)
 
-### Compiles and minifies for production
-```
-npm run build
-```
-
-### Lints and fixes files
-```
-npm run lint
-```
-
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+可以看看项目有什么问题，有问题详细地和ai讲一下（agent模式会自己修改改代码，如果修改的代码不是自己需要的，需要`reject`）

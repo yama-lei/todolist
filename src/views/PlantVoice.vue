@@ -14,36 +14,55 @@
       </div>
       
       <div class="action-bar card">
-        <el-button type="primary" @click="generateThought">
+        <el-button type="primary" @click="generateThought" class="generate-btn">
           <el-icon><ChatLineRound /></el-icon>
           生成新的植物心声
         </el-button>
-        <el-select v-model="plantMood" placeholder="选择植物心情" @change="updateMood">
-          <el-option label="开心" value="happy" />
-          <el-option label="一般" value="neutral" />
-          <el-option label="难过" value="sad" />
+        <el-select v-model="plantMood" placeholder="选择植物心情" @change="updateMood" class="mood-select">
+          <el-option label="开心" value="happy">
+            <div class="mood-option">
+              <span class="mood-emoji">😊</span> 开心
+            </div>
+          </el-option>
+          <el-option label="一般" value="neutral">
+            <div class="mood-option">
+              <span class="mood-emoji">😐</span> 一般
+            </div>
+          </el-option>
+          <el-option label="难过" value="sad">
+            <div class="mood-option">
+              <span class="mood-emoji">😢</span> 难过
+            </div>
+          </el-option>
         </el-select>
       </div>
       
       <div class="thoughts-list">
         <div v-if="!plantStore.thoughts || plantStore.thoughts.length === 0" class="empty-thoughts card">
-          <el-empty description="还没有植物心声，点击上方按钮生成吧！" />
+          <el-empty description="还没有植物心声，点击上方按钮生成吧！">
+            <el-button type="primary" @click="generateThought" class="empty-btn">
+              <el-icon><ChatLineRound /></el-icon> 生成第一条心声
+            </el-button>
+          </el-empty>
         </div>
         
         <div v-else>
-          <div 
-            v-for="thought in plantStore.thoughts" 
-            :key="thought.id" 
-            class="thought-card card"
-          >
-            <div class="thought-date">{{ formatDate(thought.timestamp) }}</div>
-            <div class="thought-content">{{ thought.content }}</div>
-            <div class="thought-footer">
-              <el-button type="text" size="small" @click="likeThought(thought.id)">
-                <el-icon><Star /></el-icon> 收藏
-              </el-button>
+          <transition-group name="thought-fade">
+            <div 
+              v-for="thought in plantStore.thoughts" 
+              :key="thought.id" 
+              class="thought-card card"
+            >
+              <div class="thought-bubble"></div>
+              <div class="thought-date">{{ formatDate(thought.timestamp) }}</div>
+              <div class="thought-content">{{ thought.content }}</div>
+              <div class="thought-footer">
+                <el-button type="text" size="small" @click="likeThought(thought.id)" class="like-btn">
+                  <el-icon><Star /></el-icon> 收藏
+                </el-button>
+              </div>
             </div>
-          </div>
+          </transition-group>
         </div>
       </div>
     </div>
@@ -199,44 +218,120 @@ export default {
 
 <style scoped>
 .plant-voice-page {
-  background-color: var(--background-color);
+  background: linear-gradient(135deg, #e1f5e9 0%, #d7f5ff 100%);
   min-height: 100vh;
   padding: 20px 0;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.card {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border: none;
 }
 
 .plant-voice-header {
   display: flex;
   align-items: center;
-  padding: 20px;
-  margin-bottom: 20px;
+  padding: 24px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.plant-voice-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #42b983 0%, #64d2ff 100%);
 }
 
 .plant-icon {
-  margin-right: 20px;
-  width: 80px;
-  height: 80px;
-  background-color: rgba(66, 185, 131, 0.1);
+  margin-right: 24px;
+  width: 90px;
+  height: 90px;
+  background: linear-gradient(135deg, rgba(66, 185, 131, 0.2) 0%, rgba(100, 210, 255, 0.2) 100%);
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
+  box-shadow: 0 6px 12px rgba(66, 185, 131, 0.2);
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+  100% { transform: translateY(0px); }
 }
 
 .plant-emoji {
-  font-size: 48px;
+  font-size: 54px;
+}
+
+.plant-info h2 {
+  font-size: 1.8rem;
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 600;
 }
 
 .plant-description {
   color: #666;
   margin-top: 5px;
+  font-size: 1.05rem;
+  line-height: 1.5;
 }
 
 .action-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
-  margin-bottom: 20px;
+  padding: 18px 24px;
+  margin-bottom: 24px;
+}
+
+.generate-btn {
+  padding: 12px 20px;
+  font-weight: 500;
+  background: linear-gradient(135deg, #42b983 0%, #36a174 100%);
+  border: none;
+  box-shadow: 0 4px 8px rgba(66, 185, 131, 0.3);
+  transition: all 0.3s ease;
+}
+
+.generate-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 10px rgba(66, 185, 131, 0.4);
+  background: linear-gradient(135deg, #4bc990 0%, #3cac7e 100%);
+}
+
+.generate-btn:active {
+  transform: translateY(0);
+}
+
+.mood-select {
+  width: 150px;
+}
+
+.mood-option {
+  display: flex;
+  align-items: center;
+}
+
+.mood-emoji {
+  font-size: 1.2rem;
+  margin-right: 6px;
 }
 
 .thoughts-list {
@@ -244,29 +339,104 @@ export default {
 }
 
 .empty-thoughts {
-  padding: 40px 0;
+  padding: 50px 0;
+  text-align: center;
+}
+
+.empty-btn {
+  margin-top: 15px;
 }
 
 .thought-card {
-  padding: 20px;
-  margin-bottom: 20px;
+  padding: 24px;
+  margin-bottom: 24px;
   position: relative;
+  transition: all 0.3s ease;
+  border-left: 4px solid #42b983;
+}
+
+.thought-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.thought-bubble {
+  position: absolute;
+  top: -10px;
+  left: 20px;
+  width: 20px;
+  height: 20px;
+  background-color: rgba(255, 255, 255, 0.9);
+  transform: rotate(45deg);
+  border-top-left-radius: 3px;
 }
 
 .thought-date {
-  font-size: 0.8rem;
-  color: #666;
-  margin-bottom: 10px;
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.thought-date::before {
+  content: '🕒';
+  margin-right: 6px;
+  font-size: 0.9rem;
 }
 
 .thought-content {
-  font-size: 1.1rem;
-  line-height: 1.6;
+  font-size: 1.15rem;
+  line-height: 1.7;
   margin-bottom: 20px;
+  color: #444;
 }
 
 .thought-footer {
   display: flex;
   justify-content: flex-end;
+  border-top: 1px dashed #eee;
+  padding-top: 12px;
+  margin-top: 5px;
+}
+
+.like-btn {
+  color: #42b983;
+  padding: 6px 10px;
+  border-radius: 20px;
+}
+
+.like-btn:hover {
+  background-color: rgba(66, 185, 131, 0.1);
+}
+
+.thought-fade-enter-active, .thought-fade-leave-active {
+  transition: all 0.5s ease;
+}
+
+.thought-fade-enter-from, .thought-fade-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@media (max-width: 768px) {
+  .plant-voice-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .plant-icon {
+    margin-right: 0;
+    margin-bottom: 16px;
+  }
+  
+  .action-bar {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .mood-select {
+    width: 100%;
+  }
 }
 </style> 

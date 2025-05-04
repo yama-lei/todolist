@@ -29,6 +29,11 @@ export const usePostStore = defineStore('post', () => {
   const addCustomPost = async (postData) => {
     loading.value = true
     try {
+      // 如果没有日期，设置为当前日期
+      if (!postData.date) {
+        postData.date = new Date().toISOString();
+      }
+      
       const response = await postApi.createPost({
         title: postData.title || '',
         content: postData.content,
@@ -36,7 +41,8 @@ export const usePostStore = defineStore('post', () => {
         location: postData.location || '',
         mood: postData.mood || 'neutral',
         weather: postData.weather || 'sunny',
-        type: postData.type || 'thought' // 'thought' 或 'diary'
+        type: postData.type || 'thought', // 'thought' 或 'diary'
+        date: postData.date // 添加日期
       })
       
       // 添加到本地状态

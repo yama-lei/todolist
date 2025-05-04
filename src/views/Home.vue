@@ -13,6 +13,13 @@
                   <div class="ai-pulse"></div>
                   <el-icon><Magic /></el-icon>
                 </div>
+                <span>智能粘贴板</span>
+              </button>
+              <button class="ai-insight-button" @click="showAiSummary">
+                <div class="ai-insight-icon">
+                  <div class="ai-pulse"></div>
+                  <el-icon><Magic /></el-icon>
+                </div>
                 <span>AI洞察</span>
               </button>
             </div>

@@ -1,30 +1,47 @@
 <template>
   <div class="garden-page">
+    <div class="garden-background"></div>
+    
     <div class="container">
       <div class="garden-header card">
         <h2 class="card-title">我的后花园</h2>
         <p class="garden-description">
           在这里，你可以选择和购买各种植物，打造属于自己的花园。
         </p>
+        <div class="garden-stats">
+          <div class="stats-item coins">
+            <span class="stats-icon">🪙</span>
+            <span class="stats-value">{{ currencyStore.coins }}</span>
+            <span class="stats-label">金币</span>
+          </div>
+          <div class="stats-item plants">
+            <span class="stats-icon">🌱</span>
+            <span class="stats-value">{{ myPlants.length }}</span>
+            <span class="stats-label">植物</span>
+          </div>
+        </div>
       </div>
       
       <div class="garden-content">
-        <el-row :gutter="20">
+        <el-row :gutter="24">
           <el-col :sm="24" :md="8">
             <div class="shop-section card">
-              <h3 class="section-title">植物商店</h3>
+              <div class="section-header">
+                <h3 class="section-title">植物商店</h3>
+                <div class="shop-balance">
+                  <span class="coin-icon">🪙</span>
+                  <span class="coin-amount">{{ currencyStore.coins }}</span>
+                </div>
+              </div>
               <p class="section-description">使用你的金币购买新植物和肥料</p>
               
-              <div class="shop-balance">
-                <span class="coin-icon">🪙</span>
-                <span class="coin-amount">{{ currencyStore.coins }}</span>
-              </div>
-              
-              <el-tabs v-model="activeShopTab">
+              <el-tabs v-model="activeShopTab" class="garden-tabs">
                 <el-tab-pane label="植物" name="plants">
                   <div class="shop-items">
                     <div v-for="plant in shopPlants" :key="plant.id" class="shop-item">
-                      <div class="item-image">{{ plant.emoji }}</div>
+                      <div class="item-image-container">
+                        <div class="item-image">{{ plant.emoji }}</div>
+                      </div>
                       <div class="item-info">
                         <div class="item-name">{{ plant.name }}</div>
                         <div class="item-price">
@@ -35,6 +52,7 @@
                       <el-button 
                         type="primary" 
                         size="small" 
+                        class="buy-button"
                         :disabled="currencyStore.coins < plant.price"
                         @click="buyPlant(plant)"
                       >
@@ -47,7 +65,9 @@
                 <el-tab-pane label="肥料" name="fertilizers">
                   <div class="shop-items">
                     <div v-for="fertilizer in shopFertilizers" :key="fertilizer.id" class="shop-item">
-                      <div class="item-image">{{ fertilizer.emoji }}</div>
+                      <div class="item-image-container">
+                        <div class="item-image">{{ fertilizer.emoji }}</div>
+                      </div>
                       <div class="item-info">
                         <div class="item-name">{{ fertilizer.name }}</div>
                         <div class="item-description">{{ fertilizer.description }}</div>
@@ -59,6 +79,7 @@
                       <el-button 
                         type="primary" 
                         size="small" 
+                        class="buy-button"
                         :disabled="currencyStore.coins < fertilizer.price"
                         @click="buyFertilizer(fertilizer)"
                       >
@@ -73,14 +94,33 @@
           
           <el-col :sm="24" :md="16">
             <div class="my-garden-section card">
-              <h3 class="section-title">我的花园</h3>
+              <div class="section-header">
+                <h3 class="section-title">我的花园</h3>
+                <el-input 
+                  v-if="myPlants.length > 0"
+                  placeholder="搜索我的植物..." 
+                  prefix-icon="Search"
+                  v-model="searchPlant"
+                  class="search-input"
+                />
+              </div>
               
               <div class="empty-garden" v-if="myPlants.length === 0">
-                <el-empty description="你的花园还没有植物，去商店购买吧！" />
+                <el-empty description="你的花园还没有植物，去商店购买吧！">
+                  <template #image>
+                    <div class="empty-image">🏡</div>
+                  </template>
+                  <el-button type="primary" @click="activeShopTab = 'plants'">去购买植物</el-button>
+                </el-empty>
               </div>
               
               <div v-else class="garden-grid">
-                <div v-for="plant in myPlants" :key="plant.id" class="garden-plant-item">
+                <div 
+                  v-for="plant in filteredPlants" 
+                  :key="plant.id" 
+                  class="garden-plant-item"
+                  :class="{ 'is-main-plant': plant.isMainPlant }"
+                >
                   <div class="plant-avatar">
                     <WeatherCanvas :weather="plant.weather || 'sunny'" :width="200" :height="200" />
                     <span class="plant-emoji">{{ plant.emoji }}</span>
@@ -94,13 +134,21 @@
                   </div>
                   
                   <div class="plant-details">
-                    <div class="plant-name">{{ plant.name }}</div>
-                    <div class="plant-level">等级: {{ plant.level }}</div>
-                    <el-progress :percentage="calculatePlantExp(plant)" :format="expFormat" />
+                    <div class="plant-header">
+                      <div class="plant-name">{{ plant.name }}</div>
+                      <div v-if="plant.isMainPlant" class="main-plant-badge">
+                        <el-tag size="small" type="success" effect="dark">主要植物</el-tag>
+                      </div>
+                    </div>
                     
-                    <!-- 添加主植物标记 -->
-                    <div v-if="plant.isMainPlant" class="main-plant-badge">
-                      <el-tag type="success" effect="dark">主要植物</el-tag>
+                    <div class="plant-level-container">
+                      <div class="plant-level">等级: <span class="level-value">{{ plant.level }}</span></div>
+                      <el-progress 
+                        :percentage="calculatePlantExp(plant)" 
+                        :format="expFormat" 
+                        :stroke-width="10"
+                        class="plant-exp-progress"
+                      />
                     </div>
                     
                     <!-- 添加天气选择器 -->
@@ -110,16 +158,19 @@
                         <span 
                           class="weather-option" 
                           :class="{ active: plant.weather === 'sunny' || !plant.weather }"
+                          title="晴天"
                           @click="updatePlantWeather(plant, 'sunny')"
                         >☀️</span>
                         <span 
                           class="weather-option" 
                           :class="{ active: plant.weather === 'rainy' }"
+                          title="下雨"
                           @click="updatePlantWeather(plant, 'rainy')"
                         >🌧️</span>
                         <span 
                           class="weather-option" 
                           :class="{ active: plant.weather === 'cloudy' }"
+                          title="多云"
                           @click="updatePlantWeather(plant, 'cloudy')"
                         >☁️</span>
                       </div>
@@ -127,19 +178,20 @@
                   </div>
                   
                   <div class="plant-actions">
-                    <el-button size="small" @click="useFertilizer(plant)">
-                      使用肥料
+                    <el-button size="small" type="info" plain @click="useFertilizer(plant)">
+                      <span class="button-icon">💧</span>施肥
                     </el-button>
                     <el-button size="small" type="primary" @click="showDialog(plant)">
-                      聆听心声
+                      <span class="button-icon">💬</span>聆听心声
                     </el-button>
                     <el-button 
                       size="small" 
                       type="success" 
+                      plain
                       @click="setAsMainPlant(plant)"
                       :disabled="plant.isMainPlant"
                     >
-                      设为主植物
+                      <span class="button-icon">⭐</span>设为主植物
                     </el-button>
                   </div>
                 </div>
@@ -154,23 +206,36 @@
     <el-dialog
       v-model="showFertilizerDialog"
       title="使用肥料"
-      width="30%"
+      width="400px"
+      custom-class="fertilizer-dialog"
     >
       <div v-if="myFertilizers.length === 0" class="empty-fertilizers">
-        <el-empty description="你还没有肥料，去商店购买吧！" />
+        <el-empty description="你还没有肥料，去商店购买吧！">
+          <template #image>
+            <div class="empty-image">✨</div>
+          </template>
+          <el-button type="primary" @click="activeShopTab = 'fertilizers'; showFertilizerDialog = false">
+            去购买肥料
+          </el-button>
+        </el-empty>
       </div>
       
       <div v-else class="fertilizer-list">
+        <h4 class="dialog-subtitle" v-if="selectedPlant">为 {{ selectedPlant.name }} 选择肥料</h4>
+        
         <div v-for="fert in myFertilizers" :key="fert.id" class="fertilizer-item">
-          <div class="item-image">{{ fert.emoji }}</div>
+          <div class="item-image-container">
+            <div class="item-image">{{ fert.emoji }}</div>
+          </div>
           <div class="item-info">
             <div class="item-name">{{ fert.name }}</div>
             <div class="item-description">{{ fert.description }}</div>
-            <div class="item-count">数量: {{ fert.count }}</div>
+            <div class="item-count"><span class="count-label">数量:</span> {{ fert.count }}</div>
           </div>
           <el-button 
             type="primary" 
             size="small" 
+            class="use-button"
             :disabled="fert.count <= 0"
             @click="applyFertilizer(fert)"
           >
@@ -211,6 +276,7 @@ export default {
     const selectedPlant = ref(null)
     const selectedPlantForDialog = ref(null)
     const showPlantThoughtDialog = ref(false)
+    const searchPlant = ref('')
     
     // 商店植物列表
     const shopPlants = reactive([
@@ -429,6 +495,16 @@ export default {
       }
     }
     
+    // 过滤后的植物列表
+    const filteredPlants = computed(() => {
+      if (!searchPlant.value) return plantStore.plants
+      
+      const search = searchPlant.value.toLowerCase()
+      return plantStore.plants.filter(plant => 
+        plant.name.toLowerCase().includes(search)
+      )
+    })
+    
     return {
       currencyStore,
       plantStore,
@@ -440,7 +516,9 @@ export default {
       selectedPlant,
       selectedPlantForDialog,
       showPlantThoughtDialog,
+      searchPlant,
       myPlants: computed(() => plantStore.plants),
+      filteredPlants,
       
       // 方法
       buyPlant,
@@ -459,33 +537,148 @@ export default {
 </script>
 
 <style scoped>
+.garden-page {
+  position: relative;
+  min-height: 100vh;
+  padding: 30px 0;
+}
+
+.garden-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #f0f7ff 0%, #e6ffed 100%);
+  z-index: -1;
+  opacity: 0.6;
+}
+
 .garden-header {
-  margin-bottom: 20px;
+  margin-bottom: 30px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  background: linear-gradient(to right, #ebfaef, #e6f3ff);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.07);
+  padding: 25px;
+}
+
+.garden-header::before {
+  content: '';
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0) 70%);
+  top: -30px;
+  right: -30px;
+  border-radius: 50%;
+}
+
+.card-title {
+  font-size: 28px;
+  color: #2e7d32;
+  margin-bottom: 10px;
+  position: relative;
 }
 
 .garden-description {
   color: #666;
   margin-top: 10px;
+  font-size: 16px;
+  max-width: 80%;
+  line-height: 1.6;
+}
+
+.garden-stats {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.stats-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 12px 20px;
+  border-radius: 12px;
+  min-width: 80px;
+}
+
+.stats-icon {
+  font-size: 24px;
+  margin-bottom: 5px;
+}
+
+.stats-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.stats-label {
+  font-size: 14px;
+  color: #7f8c8d;
+  margin-top: 3px;
+}
+
+.garden-content {
+  margin-top: 20px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
 }
 
 .section-title {
   margin-bottom: 10px;
-  font-size: 1.2rem;
+  font-size: 22px;
+  color: #2e7d32;
+  position: relative;
+  padding-left: 15px;
+}
+
+.section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 20px;
+  background-color: #4caf50;
+  border-radius: 3px;
 }
 
 .section-description {
   color: #666;
   margin-bottom: 20px;
-  font-size: 0.9rem;
+  font-size: 15px;
+}
+
+.shop-section, .my-garden-section {
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.07);
+  background-color: white;
+  overflow: hidden;
+  transition: transform 0.3s;
+}
+
+.shop-section:hover, .my-garden-section:hover {
+  transform: translateY(-5px);
 }
 
 .shop-balance {
   display: inline-flex;
   align-items: center;
-  background-color: var(--light-gray);
-  padding: 5px 15px;
+  background-color: #f0f7ff;
+  padding: 6px 15px;
   border-radius: 20px;
-  margin-bottom: 20px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);
 }
 
 .coin-icon {
@@ -494,27 +687,70 @@ export default {
 
 .coin-amount {
   font-weight: bold;
+  color: #ff9800;
+}
+
+.garden-tabs :deep(.el-tabs__nav) {
+  border-radius: 8px;
+  background-color: #f5f5f5;
+  padding: 3px;
+}
+
+.garden-tabs :deep(.el-tabs__item) {
+  height: 36px;
+  line-height: 36px;
+  border-radius: 6px;
+  transition: all 0.3s;
+}
+
+.garden-tabs :deep(.el-tabs__item.is-active) {
+  color: white;
+  background-color: #4caf50;
+}
+
+.garden-tabs :deep(.el-tabs__active-bar) {
+  display: none;
 }
 
 .shop-items {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  margin-top: 15px;
 }
 
 .shop-item {
   display: flex;
   align-items: center;
-  padding: 10px;
-  border-radius: var(--border-radius);
-  background-color: var(--light-gray);
+  padding: 15px;
+  border-radius: 12px;
+  background-color: #f9f9f9;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #eee;
+}
+
+.shop-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+  border-color: #e0e0e0;
+}
+
+.item-image-container {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #ebf8ee 0%, #e3f2fd 100%);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-right: 15px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 
 .item-image {
-  font-size: 2rem;
-  margin-right: 15px;
-  width: 40px;
-  text-align: center;
+  font-size: 28px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .item-info {
@@ -523,117 +759,223 @@ export default {
 
 .item-name {
   font-weight: bold;
+  font-size: 16px;
+  color: #333;
 }
 
 .item-description {
-  font-size: 0.8rem;
+  font-size: 14px;
   color: #666;
-  margin-top: 3px;
+  margin-top: 5px;
+  line-height: 1.4;
 }
 
 .item-price {
   display: flex;
   align-items: center;
-  font-size: 0.9rem;
-  color: var(--accent-color);
+  font-size: 14px;
+  color: #ff9800;
   font-weight: bold;
-  margin-top: 5px;
+  margin-top: 8px;
+}
+
+.buy-button {
+  min-width: 70px;
+}
+
+.search-input {
+  max-width: 200px;
 }
 
 .garden-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 20px;
+  margin-top: 20px;
 }
 
 .garden-plant-item {
-  background-color: var(--light-gray);
-  border-radius: var(--border-radius);
-  padding: 15px;
+  background-color: white;
+  border-radius: 16px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  transition: all 0.3s;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eee;
+  position: relative;
+  overflow: hidden;
+}
+
+.garden-plant-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.garden-plant-item.is-main-plant {
+  border: 2px solid #4caf50;
+  background: linear-gradient(to bottom, #f5fff7, white);
+}
+
+.garden-plant-item.is-main-plant::after {
+  content: '⭐';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 20px;
+  color: #ffc107;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .plant-avatar {
-  font-size: 3rem;
-  margin-bottom: 10px;
   position: relative;
-  width: 200px;
-  height: 200px;
+  width: 180px;
+  height: 180px;
   border-radius: 50%;
   overflow: hidden;
   display: flex;
   justify-content: center;
   align-items: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  margin-bottom: 15px;
 }
 
 .plant-emoji {
-  font-size: 5rem;
+  font-size: 80px;
   z-index: 3;
   position: relative;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
 }
 
 .plant-details {
   width: 100%;
-  text-align: center;
   margin-bottom: 15px;
+}
+
+.plant-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
 }
 
 .plant-name {
   font-weight: bold;
+  font-size: 18px;
+  color: #333;
+}
+
+.main-plant-badge {
   margin-bottom: 5px;
 }
 
+.plant-level-container {
+  margin-bottom: 15px;
+}
+
 .plant-level {
-  font-size: 0.9rem;
-  margin-bottom: 5px;
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.level-value {
+  font-weight: bold;
+  color: #4caf50;
+}
+
+.plant-exp-progress :deep(.el-progress-bar__outer) {
+  border-radius: 10px;
+  background-color: #f0f0f0;
+}
+
+.plant-exp-progress :deep(.el-progress-bar__inner) {
+  border-radius: 10px;
+  background: linear-gradient(90deg, #81c784, #4caf50);
 }
 
 .plant-weather-selector {
   display: flex;
   align-items: center;
-  margin-top: 10px;
+  margin-top: 15px;
   justify-content: center;
+  background-color: #f5f5f5;
+  padding: 8px 12px;
+  border-radius: 12px;
 }
 
 .weather-label {
   margin-right: 10px;
-  font-size: 0.9rem;
+  font-size: 14px;
   color: #666;
 }
 
 .weather-options {
   display: flex;
-  gap: 10px;
+  gap: 15px;
 }
 
 .weather-option {
-  font-size: 1.4rem;
+  font-size: 22px;
   cursor: pointer;
   opacity: 0.5;
-  transition: all 0.2s;
+  transition: all 0.3s;
+  filter: grayscale(0.6);
 }
 
 .weather-option:hover {
   transform: scale(1.2);
+  opacity: 0.8;
+  filter: grayscale(0);
 }
 
 .weather-option.active {
   opacity: 1;
   transform: scale(1.2);
+  filter: grayscale(0);
 }
 
 .plant-actions {
   width: 100%;
   display: flex;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.button-icon {
+  margin-right: 5px;
 }
 
 .empty-garden, .empty-fertilizers {
   padding: 40px 0;
+  text-align: center;
+}
+
+.empty-image {
+  font-size: 60px;
+  margin-bottom: 20px;
+  animation: float 3s ease-in-out infinite;
+}
+
+.fertilizer-dialog {
+  border-radius: 16px;
+}
+
+.dialog-subtitle {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 16px;
+  color: #666;
+  text-align: center;
 }
 
 .fertilizer-list {
@@ -645,25 +987,58 @@ export default {
 .fertilizer-item {
   display: flex;
   align-items: center;
-  padding: 10px;
-  border-radius: var(--border-radius);
-  background-color: var(--light-gray);
+  padding: 15px;
+  border-radius: 12px;
+  background-color: #f9f9f9;
+  transition: all 0.3s;
+  border: 1px solid #eee;
+}
+
+.fertilizer-item:hover {
+  background-color: #f0f7ff;
 }
 
 .item-count {
-  font-size: 0.8rem;
+  font-size: 14px;
   color: #666;
-  margin-top: 3px;
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
 }
 
-.main-plant-badge {
-  margin-top: 10px;
-  margin-bottom: 10px;
+.count-label {
+  margin-right: 5px;
+  color: #999;
+}
+
+.use-button {
+  min-width: 70px;
 }
 
 @media screen and (max-width: 768px) {
   .garden-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .garden-plant-item {
+    padding: 15px;
+  }
+  
+  .plant-avatar {
+    width: 140px;
+    height: 140px;
+  }
+  
+  .plant-emoji {
+    font-size: 60px;
+  }
+  
+  .garden-content .el-col {
+    margin-bottom: 20px;
+  }
+  
+  .plant-actions {
+    flex-direction: column;
   }
 }
 </style> 

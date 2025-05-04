@@ -153,6 +153,7 @@ export default {
 <style scoped>
 .login-container {
   display: flex;
+  width: 100%;
   min-height: 100vh;
   background-color: #f0f2f5;
   position: relative;

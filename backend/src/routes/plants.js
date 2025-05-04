@@ -1,6 +1,7 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const { Plants, PlantThoughts, Conversations } = require('../utils/localDB');
+const deepSeekClient = require('../utils/apiClient');  // 导入DeepSeek API客户端
 const router = express.Router();
 
 // 获取用户所有植物
@@ -17,7 +18,7 @@ router.get('/', auth, async (req, res) => {
       message: error.message
     });
   }
-});
+}); 
 
 // 创建新植物
 router.post('/', auth, async (req, res) => {
@@ -396,29 +397,17 @@ router.post('/:id/thoughts', auth, async (req, res) => {
       });
     }
     
-    // 这里应该调用AI生成心声，这是模拟的植物心声
+    // 使用DeepSeek API生成心声
+    const content = await deepSeekClient.generatePlantThought(plant, context);
+    
+    // 生成随机标签和图标
     const thoughtTypes = ['weather', 'motivation', 'reflection'];
     const icons = ['🌞', '🌈', '🌱', '🌻', '💧'];
     const tags = ['早安问候', '天气感知', '成长鼓励', '日常感想'];
     
-    // 简单随机选择
     const type = thoughtTypes[Math.floor(Math.random() * thoughtTypes.length)];
     const icon = icons[Math.floor(Math.random() * icons.length)];
     const tag = tags[Math.floor(Math.random() * tags.length)];
-    
-    // 根据类型生成内容
-    let content = '';
-    if (type === 'weather') {
-      content = context.weather === 'sunny' 
-        ? '今天阳光真好，感觉精力充沛！' 
-        : '今天阴天啊，记得给我浇水哦。';
-    } else if (type === 'motivation') {
-      content = context.recentTasks && context.recentTasks.length > 0
-        ? `看到你完成了${context.recentTasks.length}个任务，真为你高兴！`
-        : '今天也要努力完成任务哦！';
-    } else {
-      content = '时光流逝，我们一起成长，真好。';
-    }
     
     const thought = {
       plantId: req.params.id,
@@ -448,9 +437,10 @@ router.post('/:id/thoughts', auth, async (req, res) => {
       thought: newThought
     });
   } catch (error) {
+    console.error('生成植物心声失败', error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || '生成植物心声失败'
     });
   }
 });
@@ -552,19 +542,15 @@ router.post('/:id/conversations', auth, async (req, res) => {
       timestamp: new Date().toISOString()
     };
     
-    // 这里应该调用AI生成回复，这是模拟的植物回复
+    // 获取历史消息用于上下文
+    const messageHistory = conversation.messages || [];
     
-    // 简单的回复逻辑
-    let responseContent = '';
-    if (message.includes('你好') || message.includes('hello')) {
-      responseContent = `你好！我是${plant.name}，很高兴认识你！`;
-    } else if (message.includes('天气')) {
-      responseContent = '今天的天气是晴朗，阳光充足！';
-    } else if (message.includes('照顾') || message.includes('植物')) {
-      responseContent = '照顾植物需要适当的阳光、水分和肥料。你已经做得很好了！';
-    } else {
-      responseContent = '谢谢你跟我聊天！我很开心！';
-    }
+    // 使用DeepSeek API生成回复
+    const responseContent = await deepSeekClient.generatePlantResponse(
+      plant, 
+      message, 
+      messageHistory.slice(-10) // 只使用最近10条消息作为上下文
+    );
     
     // 植物回复
     const plantResponse = {
@@ -597,9 +583,10 @@ router.post('/:id/conversations', auth, async (req, res) => {
       response: plantResponse
     });
   } catch (error) {
+    console.error('生成植物回复失败', error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || '生成植物回复失败'
     });
   }
 });

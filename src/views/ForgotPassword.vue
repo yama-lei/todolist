@@ -125,6 +125,7 @@ export default {
   background-color: #f5f7fa;
   position: relative;
   overflow: hidden;
+  width: 100%;
 }
 
 .forgot-card {
