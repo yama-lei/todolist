@@ -1,92 +1,388 @@
 import { defineStore } from 'pinia'
+import { plantApi } from '../services/api'
+import { ElMessage } from 'element-plus'
 
 export const usePlantStore = defineStore('plant', {
   state: () => ({
-    plant: JSON.parse(localStorage.getItem('plant') || JSON.stringify({
-      name: '小绿',
-      level: 1,
-      experience: 0,
-      mood: 'happy', // happy, neutral, sad
-      state: 'growing', // growing, flowering, fruiting
-      weather: 'sunny', // sunny, rainy, cloudy
-      lastThoughtDate: null,
+    plants: [],
+    currentPlant: null,
+    loading: false,
       thoughts: [],
-    }))
+    conversations: [],
+    hasMoreConversations: false
   }),
   
   actions: {
-    gainExperience(amount) {
-      this.plant.experience += amount
-      this.checkLevelUp()
-      this.savePlant()
-    },
-    
-    checkLevelUp() {
-      const nextLevelExp = this.plant.level * 100
-      if (this.plant.experience >= nextLevelExp) {
-        this.plant.level += 1
-        this.plant.experience -= nextLevelExp
-        this.updateState()
+    // 获取用户所有植物
+    async fetchPlants() {
+      try {
+        this.loading = true
+        const response = await plantApi.getPlants()
+        this.plants = response.plants
+        
+        // 如果有主植物，则设置为当前植物
+        const mainPlant = this.plants.find(p => p.isMainPlant)
+        if (mainPlant) {
+          this.currentPlant = mainPlant
+        } else if (this.plants.length > 0) {
+          // 否则选择第一个植物
+          this.currentPlant = this.plants[0]
+        }
+      } catch (error) {
+        ElMessage.error('获取植物列表失败')
+      } finally {
+        this.loading = false
       }
     },
     
-    updateState() {
-      if (this.plant.level >= 10) {
-        this.plant.state = 'fruiting'
-      } else if (this.plant.level >= 5) {
-        this.plant.state = 'flowering'
-      } else {
-        this.plant.state = 'growing'
+    // 获取特定植物详情
+    async fetchPlantDetail(id) {
+      try {
+        this.loading = true
+        const response = await plantApi.getPlant(id)
+        // 更新植物详情
+        const index = this.plants.findIndex(p => p.id === id)
+        if (index !== -1) {
+          this.plants[index] = response.plant
+        }
+        
+        // 如果是当前植物，更新当前植物
+        if (this.currentPlant && this.currentPlant.id === id) {
+          this.currentPlant = response.plant
+        }
+        
+        return response.plant
+      } catch (error) {
+        ElMessage.error('获取植物详情失败')
+        return null
+      } finally {
+        this.loading = false
       }
-      this.savePlant()
     },
     
-    updateWeather(weather) {
-      this.plant.weather = weather
-      this.savePlant()
-    },
-    
-    setMood(mood) {
-      this.plant.mood = mood
-      this.savePlant()
-    },
-    
-    addThought(thought) {
-      const newThought = {
-        id: Date.now(),
-        content: thought,
-        date: new Date().toISOString()
+    // 创建新植物
+    async createPlant(plantData) {
+      try {
+        this.loading = true
+        const response = await plantApi.createPlant(plantData)
+        this.plants.push(response.plant)
+        
+        // 如果是主植物，更新当前植物
+        if (response.plant.isMainPlant) {
+          this.currentPlant = response.plant
+        }
+        
+        ElMessage.success('创建植物成功')
+        return response.plant
+      } catch (error) {
+        ElMessage.error('创建植物失败')
+        return null
+      } finally {
+        this.loading = false
       }
-      this.plant.thoughts.unshift(newThought)
-      this.plant.lastThoughtDate = new Date().toISOString()
-      this.savePlant()
     },
     
-    savePlant() {
-      localStorage.setItem('plant', JSON.stringify(this.plant))
+    // 更新植物信息
+    async updatePlant(id, plantData) {
+      if (!id) {
+        console.error('更新植物失败: 无效的植物ID')
+        ElMessage.error('无法更新植物信息: ID不存在')
+        return null
+      }
+      
+      try {
+        this.loading = true
+        console.log(`准备更新植物，ID: ${id}`, plantData)
+        const response = await plantApi.updatePlant(id, plantData)
+        
+        // 更新植物列表中的植物信息
+        const index = this.plants.findIndex(p => p._id === id || p.id === id)
+        if (index !== -1) {
+          this.plants[index] = response.plant
+        }
+        
+        // 如果更新的是当前植物，更新当前植物
+        if (this.currentPlant && (this.currentPlant.id === id || this.currentPlant._id === id)) {
+          this.currentPlant = response.plant
+        }
+        
+        // 如果更新了主植物状态，需要更新其他植物的主植物状态
+        if (plantData.isMainPlant) {
+          this.plants.forEach(p => {
+            if (p.id !== id && p._id !== id) {
+              p.isMainPlant = false
+            }
+          })
+        }
+        
+        ElMessage.success(response.message || '更新植物信息成功')
+        return response.plant
+      } catch (error) {
+        console.error('更新植物信息失败:', error)
+        ElMessage.error('更新植物信息失败')
+        return null
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 删除植物
+    async deletePlant(id) {
+      try {
+        this.loading = true
+        const response = await plantApi.deletePlant(id)
+        
+        // 从植物列表中移除
+        this.plants = this.plants.filter(p => p.id !== id)
+        
+        // 如果删除的是当前植物，重置当前植物
+        if (this.currentPlant && this.currentPlant.id === id) {
+          this.currentPlant = this.plants.find(p => p.isMainPlant) || this.plants[0] || null
+        }
+        
+        ElMessage.success(response.message || '删除植物成功')
+        return true
+      } catch (error) {
+        ElMessage.error(error.response?.data?.message || '删除植物失败')
+        return false
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 增加植物经验
+    async gainExperience(id, amount) {
+      try {
+        const response = await plantApi.increaseExperience(id, amount)
+        
+        // 更新植物信息
+        const plant = response.plant
+        const index = this.plants.findIndex(p => p.id === id)
+        
+        if (index !== -1) {
+          this.plants[index].level = plant.level
+          this.plants[index].experience = plant.experience
+          this.plants[index].state = plant.state
+          this.plants[index].growthStage = plant.growthStage
+        }
+        
+        // 如果是当前植物，更新当前植物
+        if (this.currentPlant && this.currentPlant.id === id) {
+          this.currentPlant.level = plant.level
+          this.currentPlant.experience = plant.experience
+          this.currentPlant.state = plant.state
+          this.currentPlant.growthStage = plant.growthStage
+        }
+        
+        // 检查是否升级
+        if (response.levelUp) {
+          ElMessage.success(`植物升级了！现在等级为 ${plant.level}`)
+        }
+        
+        // 检查是否阶段变化
+        if (response.stageChange) {
+          ElMessage.success(`植物进入了新的生长阶段: ${this.getGrowthStageName(plant.growthStage)}`)
+        }
+        
+        return response
+      } catch (error) {
+        ElMessage.error('增加植物经验失败')
+        return null
+      }
+    },
+    
+    // 更新植物生长阶段
+    async updateGrowthStage(id, stage) {
+      try {
+        const response = await plantApi.updateGrowthStage(id, stage)
+        
+        // 更新植物信息
+        const plant = response.plant
+        const index = this.plants.findIndex(p => p.id === id)
+        
+        if (index !== -1) {
+          this.plants[index].state = plant.state
+          this.plants[index].growthStage = plant.growthStage
+        }
+        
+        // 如果是当前植物，更新当前植物
+        if (this.currentPlant && this.currentPlant.id === id) {
+          this.currentPlant.state = plant.state
+          this.currentPlant.growthStage = plant.growthStage
+        }
+        
+        ElMessage.success(response.message || `植物生长阶段已更新为 ${this.getGrowthStageName(stage)}`)
+        return response.plant
+      } catch (error) {
+        ElMessage.error('更新植物生长阶段失败')
+        return null
+      }
+    },
+    
+    // 获取生长阶段名称
+    getGrowthStageName(stage) {
+      const stageMap = {
+        1: '幼苗期',
+        2: '成长期',
+        3: '成熟期'
+      }
+      return stageMap[stage] || '未知阶段'
+    },
+    
+    // 获取植物心声
+    async fetchPlantThoughts(id) {
+      try {
+        // 检查ID是否有效
+        if (!id) {
+          console.error('植物ID无效')
+          ElMessage.warning('植物ID无效，无法获取植物心声')
+          return []
+        }
+        
+        this.loading = true
+        const response = await plantApi.getPlantThoughts(id)
+        this.thoughts = response.thoughts
+        return response.thoughts
+      } catch (error) {
+        console.error('获取植物心声失败:', error)
+        ElMessage.error('获取植物心声失败')
+        return []
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 生成新的植物心声
+    async generatePlantThought(id, context) {
+      try {
+        // 检查ID是否有效
+        if (!id) {
+          console.error('植物ID无效')
+          ElMessage.warning('植物ID无效，无法生成植物心声')
+          return null
+        }
+        
+        const response = await plantApi.generatePlantThought(id, context)
+        // 添加到心声列表
+        this.thoughts.unshift(response.thought)
+        return response.thought
+      } catch (error) {
+        console.error('生成植物心声失败:', error)
+        ElMessage.error('生成植物心声失败')
+        return null
+      }
+    },
+    
+    // 获取与植物的对话历史
+    async fetchConversations(id, limit = 20, before = null) {
+      try {
+        // 检查ID是否有效
+        if (!id) {
+          console.error('植物ID无效')
+          ElMessage.warning('植物ID无效，无法获取对话历史')
+          return []
+        }
+        
+        this.loading = true
+        const response = await plantApi.getConversations(id, limit, before)
+        
+        if (before) {
+          // 加载更多消息，添加到现有消息列表
+          this.conversations = [...this.conversations, ...response.messages]
+        } else {
+          // 初始加载，替换消息列表
+          this.conversations = response.messages
+        }
+        
+        this.hasMoreConversations = response.hasMore
+        return response.messages
+      } catch (error) {
+        console.error('获取对话历史失败:', error)
+        ElMessage.error('获取对话历史失败')
+        return []
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 发送消息给植物并获取回复
+    async sendMessage(id, message, context = {}) {
+      try {
+        // 检查ID是否有效
+        if (!id) {
+          console.error('植物ID无效')
+          ElMessage.warning('植物ID无效，无法发送消息')
+          return null
+        }
+        
+        const response = await plantApi.sendMessage(id, message, context)
+        
+        // 添加用户消息和植物回复到对话列表
+        const userMessage = {
+          id: Date.now().toString(),
+          sender: 'user',
+          content: message,
+          timestamp: new Date().toISOString()
+        }
+        
+        this.conversations.push(userMessage)
+        this.conversations.push(response.response)
+        
+        return response.response
+      } catch (error) {
+        console.error('发送消息失败:', error)
+        ElMessage.error('发送消息失败')
+        return null
+      }
+    },
+    
+    // 设置当前植物
+    setCurrentPlant(plant) {
+      this.currentPlant = plant
     }
   },
   
   getters: {
-    currentLevel() {
-      return this.plant.level
+    // 获取主植物
+    mainPlant: (state) => {
+      return state.plants.find(p => p.isMainPlant) || (state.plants.length > 0 ? state.plants[0] : null)
     },
     
-    experienceToNextLevel() {
-      return this.plant.level * 100 - this.plant.experience
+    // 当前植物等级
+    currentLevel: (state) => {
+      return state.currentPlant?.level || 1
     },
     
-    avatarImage() {
-      const state = this.plant.state
-      const weather = this.plant.weather
-      const mood = this.plant.mood
+    // 当前植物的下一级所需经验值
+    experienceToNextLevel: (state) => {
+      if (!state.currentPlant) return 100
+      const currentExp = state.currentPlant.experience || 0
+      const level = state.currentPlant.level || 1
+      return level * 100 - currentExp
+    },
+    
+    // 当前植物经验百分比
+    experiencePercentage: (state) => {
+      if (!state.currentPlant) return 0
+      const currentExp = state.currentPlant.experience || 0
+      const level = state.currentPlant.level || 1
+      return Math.min(100, (currentExp / (level * 100)) * 100)
+    },
+    
+    // 获取植物图片路径
+    getPlantAvatar: (state) => (plant) => {
+      if (!plant) return ''
+      const state = plant.state || 'seedling'
+      const weather = plant.weather || 'sunny'
+      const mood = plant.mood || 'neutral'
       
       // 返回不同状态下的图片路径
       return `/images/plant/${state}_${weather}_${mood}.png`
     },
     
-    recentThoughts() {
-      return this.plant.thoughts.slice(0, 5)
+    // 获取最近的植物心声
+    recentThoughts: (state) => {
+      return state.thoughts.slice(0, 5)
     }
   }
 }) 

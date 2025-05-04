@@ -98,6 +98,11 @@
                     <div class="plant-level">等级: {{ plant.level }}</div>
                     <el-progress :percentage="calculatePlantExp(plant)" :format="expFormat" />
                     
+                    <!-- 添加主植物标记 -->
+                    <div v-if="plant.isMainPlant" class="main-plant-badge">
+                      <el-tag type="success" effect="dark">主要植物</el-tag>
+                    </div>
+                    
                     <!-- 添加天气选择器 -->
                     <div class="plant-weather-selector">
                       <span class="weather-label">环境:</span>
@@ -127,6 +132,14 @@
                     </el-button>
                     <el-button size="small" type="primary" @click="showDialog(plant)">
                       聆听心声
+                    </el-button>
+                    <el-button 
+                      size="small" 
+                      type="success" 
+                      @click="setAsMainPlant(plant)"
+                      :disabled="plant.isMainPlant"
+                    >
+                      设为主植物
                     </el-button>
                   </div>
                 </div>
@@ -176,7 +189,7 @@
 </template>
 
 <script>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useCurrencyStore } from '../stores/currency'
 import { usePlantStore } from '../stores/plant'
 import { ElMessage } from 'element-plus'
@@ -200,79 +213,113 @@ export default {
     const showPlantThoughtDialog = ref(false)
     
     // 商店植物列表
-    const shopPlants = [
-      { id: 1, name: '向日葵', emoji: '🌻', price: 50, exp: 0, level: 1 },
-      { id: 2, name: '玫瑰', emoji: '🌹', price: 100, exp: 0, level: 1 },
-      { id: 3, name: '郁金香', emoji: '🌷', price: 80, exp: 0, level: 1 },
-      { id: 4, name: '仙人掌', emoji: '🌵', price: 60, exp: 0, level: 1 },
-      { id: 5, name: '樱花', emoji: '🌸', price: 120, exp: 0, level: 1 }
-    ]
+    const shopPlants = reactive([
+      { id: 'plant1', name: '向日葵', emoji: '🌻', price: 50 },
+      { id: 'plant2', name: '仙人掌', emoji: '🌵', price: 30 },
+      { id: 'plant3', name: '樱花', emoji: '🌸', price: 80 },
+      { id: 'plant4', name: '松树', emoji: '🌲', price: 100 },
+      { id: 'plant5', name: '玫瑰', emoji: '🌹', price: 65 }
+    ])
     
     // 商店肥料列表
-    const shopFertilizers = [
-      { id: 1, name: '普通肥料', emoji: '💩', price: 20, description: '增加少量经验值', expBoost: 10 },
-      { id: 2, name: '高级肥料', emoji: '✨', price: 50, description: '增加中量经验值', expBoost: 30 },
-      { id: 3, name: '特级肥料', emoji: '🌟', price: 100, description: '增加大量经验值', expBoost: 60 }
-    ]
+    const shopFertilizers = reactive([
+      { 
+        id: 'fert1', 
+        name: '基础肥料', 
+        emoji: '💧', 
+        price: 10,
+        description: '提供少量经验值',
+        expValue: 10
+      },
+      { 
+        id: 'fert2', 
+        name: '高级肥料', 
+        emoji: '✨', 
+        price: 25,
+        description: '提供中量经验值',
+        expValue: 25
+      },
+      { 
+        id: 'fert3', 
+        name: '特级肥料', 
+        emoji: '🌟', 
+        price: 50,
+        description: '提供大量经验值',
+        expValue: 50
+      }
+    ])
     
-    // 我的植物和肥料（使用本地存储）
-    const myPlants = reactive(JSON.parse(localStorage.getItem('myPlants') || '[]'))
-    const myFertilizers = reactive(JSON.parse(localStorage.getItem('myFertilizers') || '[]'))
+    // 我的肥料列表
+    const myFertilizers = reactive([])
     
-    // 保存我的植物到本地存储
-    const savePlants = () => {
-      localStorage.setItem('myPlants', JSON.stringify(myPlants))
+    // 加载植物列表
+    onMounted(async () => {
+      await plantStore.fetchPlants()
+    })
+    
+    // 计算植物经验百分比
+    const calculatePlantExp = (plant) => {
+      const currentExp = plant.experience || 0
+      const level = plant.level || 1
+      return Math.min(100, (currentExp / (level * 100)) * 100)
     }
     
-    // 保存我的肥料到本地存储
-    const saveFertilizers = () => {
-      localStorage.setItem('myFertilizers', JSON.stringify(myFertilizers))
+    // 经验格式化
+    const expFormat = (percentage) => {
+      const plant = selectedPlant.value
+      if (!plant) return ''
+      const currentExp = plant.experience || 0
+      const level = plant.level || 1
+      const nextLevelExp = level * 100
+      return `${currentExp}/${nextLevelExp}`
     }
     
     // 购买植物
-    const buyPlant = (plant) => {
-      if (currencyStore.useCoins(plant.price)) {
-        const newPlant = { ...plant }
-        myPlants.push(newPlant)
-        savePlants()
-        
-        ElMessage({
-          message: `成功购买 ${plant.name}！`,
-          type: 'success'
-        })
-      } else {
-        ElMessage({
-          message: '金币不足！',
-          type: 'error'
-        })
+    const buyPlant = async (plant) => {
+      if (currencyStore.coins < plant.price) {
+        ElMessage.warning('金币不足，无法购买')
+        return
+      }
+      
+      // 创建植物
+      const plantData = {
+        name: plant.name,
+        type: plant.name,
+        emoji: plant.emoji,
+        isMainPlant: plantStore.plants.length === 0 // 如果是第一个植物，设为主植物
+      }
+      
+      const newPlant = await plantStore.createPlant(plantData)
+      
+      if (newPlant) {
+        // 扣除金币
+        currencyStore.deductCoins(plant.price)
+        ElMessage.success(`成功购买 ${plant.name}`)
       }
     }
     
     // 购买肥料
     const buyFertilizer = (fertilizer) => {
-      if (currencyStore.useCoins(fertilizer.price)) {
-        // 检查是否已有该肥料
-        const existingFertilizer = myFertilizers.find(f => f.id === fertilizer.id)
-        
-        if (existingFertilizer) {
-          existingFertilizer.count += 1
-        } else {
-          const newFertilizer = { ...fertilizer, count: 1 }
-          myFertilizers.push(newFertilizer)
-        }
-        
-        saveFertilizers()
-        
-        ElMessage({
-          message: `成功购买 ${fertilizer.name}！`,
-          type: 'success'
-        })
+      if (currencyStore.coins < fertilizer.price) {
+        ElMessage.warning('金币不足，无法购买')
+        return
+      }
+      
+      // 扣除金币
+      currencyStore.deductCoins(fertilizer.price)
+      
+      // 添加肥料到我的肥料列表
+      const existingFert = myFertilizers.find(f => f.id === fertilizer.id)
+      if (existingFert) {
+        existingFert.count++
       } else {
-        ElMessage({
-          message: '金币不足！',
-          type: 'error'
+        myFertilizers.push({
+          ...fertilizer,
+          count: 1
         })
       }
+      
+      ElMessage.success(`成功购买 ${fertilizer.name}`)
     }
     
     // 使用肥料对话框
@@ -281,104 +328,131 @@ export default {
       showFertilizerDialog.value = true
     }
     
-    // 应用肥料
-    const applyFertilizer = (fertilizer) => {
-      if (selectedPlant.value && fertilizer.count > 0) {
-        // 增加植物经验
-        selectedPlant.value.exp += fertilizer.expBoost
-        
-        // 检查是否升级
-        const maxExp = selectedPlant.value.level * 100
-        if (selectedPlant.value.exp >= maxExp) {
-          selectedPlant.value.level += 1
-          selectedPlant.value.exp -= maxExp
-        }
-        
+    // 使用肥料
+    const applyFertilizer = async (fertilizer) => {
+      if (!selectedPlant.value) return
+      
+      if (fertilizer.count <= 0) {
+        ElMessage.warning('肥料数量不足')
+        return
+      }
+      
+      // 使用肥料增加植物经验
+      const result = await plantStore.gainExperience(selectedPlant.value.id, fertilizer.expValue)
+      
+      if (result) {
         // 减少肥料数量
-        fertilizer.count -= 1
-        
-        // 保存更改
-        savePlants()
-        saveFertilizers()
-        
-        // 给主植物也增加一些经验
-        plantStore.gainExperience(fertilizer.expBoost / 2)
-        
-        ElMessage({
-          message: `成功使用肥料，${selectedPlant.value.name} 获得 ${fertilizer.expBoost} 点经验！`,
-          type: 'success'
-        })
-        
-        // 如果肥料用完，关闭对话框
-        if (myFertilizers.every(f => f.count <= 0)) {
-          showFertilizerDialog.value = false
+        fertilizer.count--
+        if (fertilizer.count <= 0) {
+          const index = myFertilizers.findIndex(f => f.id === fertilizer.id)
+          if (index !== -1) {
+            myFertilizers.splice(index, 1)
+          }
         }
+        
+        ElMessage.success(`成功使用肥料，${selectedPlant.value.name} 获得了 ${fertilizer.expValue} 点经验`)
+        showFertilizerDialog.value = false
       }
     }
     
-    // 计算植物经验百分比
-    const calculatePlantExp = (plant) => {
-      const maxExp = plant.level * 100
-      return (plant.exp / maxExp) * 100
+    // 更新植物天气
+    const updatePlantWeather = async (plant, weather) => {
+      if (plant.weather === weather) return
+      
+      await plantStore.updatePlant(plant.id, { weather })
     }
     
-    // 经验格式化
-    const expFormat = () => {
-      if (!selectedPlant.value) return ''
-      return `${selectedPlant.value.exp}/${selectedPlant.value.level * 100}`
-    }
-    
-    // 显示植物对话框
-    const showDialog = (plant) => {
+    // 显示植物心声对话框
+    const showDialog = async (plant) => {
       selectedPlantForDialog.value = plant
       showPlantThoughtDialog.value = true
-    }
-    
-    // 产生随机的植物语录
-    const generatePlantThought = () => {
-      const thoughts = [
-        "我感觉自己又长高了一点！",
-        "阳光真好，我超喜欢这种感觉~",
-        "谢谢你的照顾，我很开心！",
-        "今天天气真好，适合光合作用！",
-        "我觉得自己越来越漂亮了，你觉得呢？",
-        "我有时候会想，云朵是什么味道的...",
-        "雨水让我感觉很清爽，谢谢大自然！"
-      ]
-      return thoughts[Math.floor(Math.random() * thoughts.length)]
-    }
-    
-    // 更新植物天气
-    const updatePlantWeather = (plant, newWeather) => {
-      plant.weather = newWeather
-      savePlants()
       
-      ElMessage({
-        message: `${plant.name} 的环境已更新！`,
-        type: 'success'
-      })
+      // 获取有效的植物ID
+      const plantId = plant._id || plant.id
+      
+      console.log('植物信息:', plant)
+      console.log('使用的植物ID:', plantId)
+      
+      try {
+        // 生成植物心声
+        const result = await plantStore.generatePlantThought(plantId, {
+          weather: plant.weather || 'sunny',
+          timeOfDay: getTimeOfDay(),
+          recentTasks: [] // 可以集成任务数据
+        })
+        
+        console.log('生成植物心声结果:', result)
+      } catch (error) {
+        console.error('生成植物心声错误:', error)
+        ElMessage.error(`聆听心声失败: ${error.message || '未知错误'}`)
+      }
+    }
+    
+    // 获取当前时间段
+    const getTimeOfDay = () => {
+      const hour = new Date().getHours()
+      if (hour >= 5 && hour < 12) return 'morning'
+      if (hour >= 12 && hour < 18) return 'afternoon'
+      return 'evening'
+    }
+    
+    // 生成植物心声
+    const generatePlantThought = () => {
+      if (!selectedPlantForDialog.value) return ''
+      
+      const thoughts = plantStore.thoughts || plantStore.recentThoughts
+      if (thoughts && thoughts.length > 0) {
+        return thoughts[0].content
+      }
+      
+      return '...'
+    }
+    
+    // 设置为主植物
+    const setAsMainPlant = async (plant) => {
+      // 获取有效的植物ID
+      const plantId = plant._id || plant.id
+      
+      if (!plantId) {
+        console.error('无法设置主植物: 植物ID无效', plant)
+        ElMessage.error('设置失败：无法获取植物ID')
+        return
+      }
+      
+      console.log('设置主植物，植物ID:', plantId)
+      try {
+        await plantStore.updatePlant(plantId, { isMainPlant: true })
+        ElMessage.success(`${plant.name} 已设置为主植物`)
+      } catch (error) {
+        console.error('设置主植物失败:', error)
+        ElMessage.error(`设置主植物失败: ${error.message || '未知错误'}`)
+      }
     }
     
     return {
       currencyStore,
+      plantStore,
       activeShopTab,
       shopPlants,
       shopFertilizers,
-      myPlants,
       myFertilizers,
       showFertilizerDialog,
       selectedPlant,
-      buyPlant,
-      buyFertilizer,
-      useFertilizer,
-      applyFertilizer,
-      calculatePlantExp,
-      expFormat,
       selectedPlantForDialog,
       showPlantThoughtDialog,
+      myPlants: computed(() => plantStore.plants),
+      
+      // 方法
+      buyPlant,
+      buyFertilizer,
+      calculatePlantExp,
+      expFormat,
+      useFertilizer,
+      applyFertilizer,
+      updatePlantWeather,
       showDialog,
       generatePlantThought,
-      updatePlantWeather
+      setAsMainPlant
     }
   }
 }
@@ -580,6 +654,11 @@ export default {
   font-size: 0.8rem;
   color: #666;
   margin-top: 3px;
+}
+
+.main-plant-badge {
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 @media screen and (max-width: 768px) {

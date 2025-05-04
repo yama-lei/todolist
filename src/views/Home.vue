@@ -50,7 +50,7 @@
                           :class="{'important': task.important}"
                         >
                           <div class="task-checkbox">
-                            <el-checkbox @change="() => completeTask(task.id)"></el-checkbox>
+                            <el-checkbox @change="() => completeTask(task._id)"></el-checkbox>
                           </div>
                           <div class="drag-handle">
                             <el-icon><Menu /></el-icon>
@@ -58,7 +58,7 @@
                           <div class="task-info" @click="editTask(task)">
                             <div class="task-title-row">
                               <h3 class="task-title">{{ task.title }}</h3>
-                              <div class="star-icon" @click.stop="toggleImportant(task.id)">
+                              <div class="star-icon" @click.stop="toggleImportant(task._id)">
                                 <el-icon :color="task.important ? '#F7BA2A' : '#DCDFE6'">
                                   <Star :filled="task.important" />
                                 </el-icon>
@@ -73,7 +73,7 @@
                                 </el-tag>
                               </div>
                               <div class="task-actions">
-                                <el-button type="danger" size="small" circle @click.stop="removeTask(task.id)">
+                                <el-button type="danger" size="small" circle @click.stop="removeTask(task._id)">
                                   <el-icon><Delete /></el-icon>
                                 </el-button>
                               </div>
@@ -104,7 +104,7 @@
                      <div class="task-checkbox">
                        <el-checkbox 
                          :modelValue="task.completed"
-                         @change="() => completeSystemTask(task.id)"
+                         @change="() => completeSystemTask(task._id)"
                          :disabled="task.completed">
                        </el-checkbox>
                      </div>
@@ -164,7 +164,7 @@
                           </div>
                         </div>
                         <div class="task-actions">
-                          <el-button type="danger" size="small" circle @click.stop="removeCompletedTask(task.id)">
+                          <el-button type="danger" size="small" circle @click.stop="removeCompletedTask(task._id)">
                             <el-icon><Delete /></el-icon>
                           </el-button>
                         </div>
@@ -188,8 +188,8 @@
         <div class="plant-section">
           <div class="plant-container">
             <div class="plant-header">
-              <h2 class="section-title">{{ plantStore.plant.name }}</h2>
-              <div class="plant-weather">
+              <h2 class="section-title">{{ plantStore.mainPlant ? plantStore.mainPlant.name : '尚未添加植物' }}</h2>
+              <div class="plant-weather" v-if="plantStore.mainPlant">
                 <el-select v-model="weather" placeholder="选择天气" @change="updateWeather">
                   <el-option label="晴天" value="sunny" />
                   <el-option label="雨天" value="rainy" />
@@ -273,12 +273,39 @@
         </div>
         <div class="ai-summary-text">
           <p>你的任务完成情况分析如下：</p>
-          <ul>
+          <ul v-if="aiSummaryData && aiSummaryData.summary">
+            <li>已完成任务：{{ aiSummaryData.summary.completedTasks }} 个</li>
+            <li>待完成任务：{{ aiSummaryData.summary.pendingTasks }} 个</li>
+            <li>任务完成率：{{ aiSummaryData.summary.completionRate }}%</li>
+            <li>平均完成时间：{{ aiSummaryData.summary.averageCompletionTime }}</li>
+            <li>最高效日期：{{ aiSummaryData.summary.mostProductiveDay }}</li>
+          </ul>
+          <ul v-else>
             <li>已完成任务：{{ taskStore.completedTasks.length }} 个</li>
             <li>待完成任务：{{ taskStore.pendingTasks.length }} 个</li>
             <li>系统任务完成率：{{ calculateSystemTaskCompletion() }}%</li>
           </ul>
-          <p v-if="taskStore.pendingTasks.length > 0">
+          
+          <!-- 显示洞察和建议 -->
+          <div v-if="aiSummaryData && aiSummaryData.insights && aiSummaryData.insights.length > 0">
+            <h4 class="insights-title">洞察：</h4>
+            <ul class="insights-list">
+              <li v-for="(insight, index) in aiSummaryData.insights" :key="index">
+                {{ insight }}
+              </li>
+            </ul>
+          </div>
+          
+          <div v-if="aiSummaryData && aiSummaryData.recommendations && aiSummaryData.recommendations.length > 0">
+            <h4 class="insights-title">建议：</h4>
+            <ul class="insights-list">
+              <li v-for="(rec, index) in aiSummaryData.recommendations" :key="index">
+                {{ rec.content }}
+              </li>
+            </ul>
+          </div>
+          
+          <p v-else-if="taskStore.pendingTasks.length > 0">
             <strong>下一步建议：</strong> 优先完成
             <span class="highlight">{{ taskStore.pendingTasks[0].title }}</span>
             任务，这将帮助你提升效率。
@@ -422,6 +449,8 @@ import WeatherCanvas from '@/components/WeatherCanvas.vue'
 import PlantDialog from '@/components/PlantDialog.vue'
 import PlantStatusMessage from '@/components/PlantStatusMessage.vue'
 import draggable from 'vuedraggable'
+import { ElMessage } from 'element-plus'
+import { insightsApi } from '../services/api'
 
 export default {
   name: 'HomePage',
@@ -475,7 +504,7 @@ export default {
     const isSystemTask = ref(false)
     
     // 植物相关设置
-    const weather = ref(plantStore.plant.weather)
+    const weather = ref(plantStore.mainPlant?.weather || 'sunny')
     const showPlantDialog = ref(false)
     const randomThought = ref('')
     
@@ -609,18 +638,23 @@ export default {
     
     // 经验值百分比
     const experiencePercentage = computed(() => {
-      const maxExp = plantStore.plant.level * 100
-      return (plantStore.plant.experience / maxExp) * 100
+      if (!plantStore.mainPlant) return 0
+      const currentExp = plantStore.mainPlant.experience || 0
+      const level = plantStore.mainPlant.level || 1
+      return Math.min(100, (currentExp / (level * 100)) * 100)
     })
     
     // 格式化经验值显示
     const expFormat = () => {
-      return `${plantStore.plant.experience}/${plantStore.plant.level * 100}`
+      if (!plantStore.mainPlant) return '0/100'
+      const currentExp = plantStore.mainPlant.experience || 0
+      const level = plantStore.mainPlant.level || 1
+      return `${currentExp}/${level * 100}`
     }
     
     // 植物状态计算
     const plantState = computed(() => {
-      return plantStore.plant.state
+      return plantStore.mainPlant?.state || 'seedling'
     })
     
     // 植物心声相关
@@ -635,13 +669,17 @@ export default {
     // 完成任务
     const completeTask = (id) => {
       taskStore.completeTask(id)
-      plantStore.gainExperience(20)
+      if (plantStore.mainPlant) {
+        plantStore.gainExperience(plantStore.mainPlant.id, 20)
+      }
     }
     
     // 完成系统任务
     const completeSystemTask = (id) => {
       taskStore.completeSystemTask(id)
-      plantStore.gainExperience(30)
+      if (plantStore.mainPlant) {
+        plantStore.gainExperience(plantStore.mainPlant.id, 30)
+      }
     }
     
     // 移除任务
@@ -656,7 +694,18 @@ export default {
     
     // 更新天气
     const updateWeather = (newWeather) => {
-      plantStore.updateWeather(newWeather)
+      if (plantStore.mainPlant) {
+        // 获取有效的植物ID
+        const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id;
+        
+        if (!plantId) {
+          console.error('无法更新天气: 植物ID无效', plantStore.mainPlant);
+          ElMessage.error('无法更新天气：植物ID无效');
+          return;
+        }
+        
+        plantStore.updatePlant(plantId, { weather: newWeather });
+      }
     }
     
     // 格式化日期
@@ -667,25 +716,26 @@ export default {
     
     // 获取植物表情
     const getPlantEmoji = () => {
-      const state = plantStore.plant.state
-      if (state === 'growing') return '🌱'
-      if (state === 'flowering') return '🌸'
-      if (state === 'fruiting') return '🍎'
-      return '🌱'
+      if (!plantStore.mainPlant) return '🌱'
+      return plantStore.mainPlant.emoji || '🌱'
     }
     
     // 获取植物状态文本
     const getPlantStateText = () => {
-      const state = plantStore.plant.state
-      if (state === 'growing') return '成长中'
-      if (state === 'flowering') return '开花中'
-      if (state === 'fruiting') return '结果中'
+      if (!plantStore.mainPlant) return '成长中'
+      
+      const state = plantStore.mainPlant.state
+      if (state === 'seedling') return '幼苗期'
+      if (state === 'growing') return '成长期'
+      if (state === 'mature') return '成熟期'
       return '成长中'
     }
     
     // 获取心情文本
     const getMoodText = () => {
-      const mood = plantStore.plant.mood
+      if (!plantStore.mainPlant) return '一般'
+      
+      const mood = plantStore.mainPlant.mood
       if (mood === 'happy') return '开心'
       if (mood === 'neutral') return '一般'
       if (mood === 'sad') return '难过'
@@ -713,15 +763,25 @@ export default {
     }
     
     // 显示AI总结
-    const showAiSummary = () => {
+    const showAiSummary = async () => {
       showAiSummaryDialog.value = true
       isAiSummaryLoading.value = true
       
-      // 模拟AI处理时间
-      setTimeout(() => {
+      try {
+        // 使用后端API获取AI洞察数据
+        const response = await insightsApi.getTaskInsights('week')
+        aiSummaryData.value = response
+        
         isAiSummaryLoading.value = false
-      }, 1500)
+      } catch (error) {
+        console.error('获取AI洞察失败:', error)
+        ElMessage.error('获取AI洞察数据失败，请稍后再试')
+        isAiSummaryLoading.value = false
+      }
     }
+    
+    // AI总结数据
+    const aiSummaryData = ref(null)
     
     // 计算系统任务完成率
     const calculateSystemTaskCompletion = () => {
@@ -891,7 +951,8 @@ export default {
       calculateSystemTaskCompletion,
       currentPlantThought,
       refreshPlantThought,
-      goToPlantChat
+      goToPlantChat,
+      aiSummaryData
     }
   }
 }
@@ -1511,14 +1572,14 @@ export default {
 }
 
 .ai-summary-content {
-  padding: 10px;
+  padding: 20px;
 }
 
 .ai-summary-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 15px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .ai-summary-text {
@@ -1526,15 +1587,31 @@ export default {
 }
 
 .ai-summary-text ul {
-  margin: 15px 0;
+  margin: 16px 0;
   padding-left: 20px;
 }
 
+.ai-summary-text p {
+  margin: 12px 0;
+}
+
 .highlight {
-  background-color: rgba(255, 230, 0, 0.2);
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-weight: bold;
+  font-weight: 600;
+  color: #409EFF;
+}
+
+.insights-title {
+  margin: 16px 0 8px 0;
+  color: #606266;
+  font-weight: 600;
+}
+
+.insights-list {
+  margin-bottom: 20px;
+}
+
+.insights-list li {
+  margin-bottom: 8px;
 }
 
 /* 响应式设计 */

@@ -6,7 +6,7 @@
           <span class="plant-emoji">{{ getPlantEmoji() }}</span>
         </div>
         <div class="plant-info">
-          <h2>{{ plantStore.plant.name }}的心声</h2>
+          <h2>{{ plantStore.currentPlant ? plantStore.currentPlant.name : '尚未添加植物' }}的心声</h2>
           <p class="plant-description">
             从植物的视角看待你的生活，倾听它对你的想法和建议。
           </p>
@@ -26,17 +26,17 @@
       </div>
       
       <div class="thoughts-list">
-        <div v-if="plantStore.plant.thoughts.length === 0" class="empty-thoughts card">
+        <div v-if="!plantStore.thoughts || plantStore.thoughts.length === 0" class="empty-thoughts card">
           <el-empty description="还没有植物心声，点击上方按钮生成吧！" />
         </div>
         
         <div v-else>
           <div 
-            v-for="thought in plantStore.plant.thoughts" 
+            v-for="thought in plantStore.thoughts" 
             :key="thought.id" 
             class="thought-card card"
           >
-            <div class="thought-date">{{ formatDate(thought.date) }}</div>
+            <div class="thought-date">{{ formatDate(thought.timestamp) }}</div>
             <div class="thought-content">{{ thought.content }}</div>
             <div class="thought-footer">
               <el-button type="text" size="small" @click="likeThought(thought.id)">
@@ -70,57 +70,71 @@ export default {
     const taskStore = useTaskStore()
     const postStore = usePostStore()
     
-    const plantMood = ref(plantStore.plant.mood)
+    const plantMood = ref(plantStore.currentPlant?.mood || 'neutral')
     
     // 生成植物心声
-    const generateThought = () => {
-      // 这一阶段的实现先用固定的模板生成植物心声
-      // 后续接入LLM后可以使用更复杂的逻辑
-      
-      const templates = [
-        "今天看到主人又完成了一个任务，真是勤劳呢！希望能一直保持这样的热情。",
-        "看着窗外的阳光，感觉自己又长高了一点，主人的关心让我每天都很开心。",
-        "最近主人似乎很忙的样子，希望不要忘记照顾好自己哦。",
-        "今天的天气真好，适合户外活动，主人要不要去外面走走？",
-        "刚看到主人写的说说，感觉主人的心情很不错，我也跟着开心起来了。",
-        "主人的任务列表上有好多事情还没完成，要加油哦！",
-        "我感觉自己快要开花了，这都是因为主人平时的悉心照料。",
-        "今天感受到了一些阳光，能量满满，希望主人也能保持活力。",
-        "主人最近心情似乎不太好，有什么事情可以和我分享吗？",
-        "我已经长到这么大了，回想起来真是一段美好的旅程，谢谢主人的陪伴。"
-      ]
-      
-      // 根据可用的信息生成更具体的内容
-      let thoughtContent = ""
-      
-      // 看有没有最近完成的任务
-      if (taskStore.completedTasks.length > 0) {
-        const recentTask = taskStore.completedTasks[0]
-        thoughtContent = `主人最近完成了"${recentTask.title}"任务，真是太棒了！继续加油，我会一直陪伴着你成长。`
-      } 
-      // 看有没有最近发布的说说
-      else if (postStore.posts.length > 0) {
-        thoughtContent = `我看到主人最近发布了新的说说，从中感受到了主人的心情。希望每一天都能充满阳光！`
-      }
-      // 如果没有特定信息，则随机选择一条模板
-      else {
-        const randomIndex = Math.floor(Math.random() * templates.length)
-        thoughtContent = templates[randomIndex]
+    const generateThought = async () => {
+      if (!plantStore.currentPlant) {
+        ElMessage.warning('请先在花园中购买一个植物')
+        return
       }
       
-      // 添加到心声列表
-      plantStore.addThought(thoughtContent)
+      // 检查植物ID是否有效
+      if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
+        console.error('植物ID无效')
+        ElMessage.warning('植物信息不完整，请重新选择植物')
+        return
+      }
       
-      // 提示用户
-      ElMessage({
-        message: '植物有新的心声啦！',
-        type: 'success'
-      })
+      const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
+      
+      try {
+        // 使用API生成心声
+        const context = {
+          weather: plantStore.currentPlant.weather || 'sunny',
+          timeOfDay: getTimeOfDay(),
+          recentTasks: taskStore.completedTasks.slice(0, 3).map(task => ({
+            id: task._id || task.id,
+            title: task.title,
+            completed: true
+          }))
+        }
+        
+        const thought = await plantStore.generatePlantThought(plantId, context)
+        
+        if (thought) {
+          ElMessage({
+            message: '植物有新的心声啦！',
+            type: 'success'
+          })
+        }
+      } catch (error) {
+        console.error('生成植物心声失败', error)
+        ElMessage.error('生成植物心声失败')
+      }
+    }
+    
+    // 获取当前时间段
+    const getTimeOfDay = () => {
+      const hour = new Date().getHours()
+      if (hour >= 5 && hour < 12) return 'morning'
+      if (hour >= 12 && hour < 18) return 'afternoon'
+      return 'evening'
     }
     
     // 更新心情
-    const updateMood = (mood) => {
-      plantStore.setMood(mood)
+    const updateMood = async (mood) => {
+      if (plantStore.currentPlant) {
+        // 检查植物ID是否有效
+        if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
+          console.error('植物ID无效')
+          ElMessage.warning('植物信息不完整，请重新选择植物')
+          return
+        }
+        
+        const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
+        await plantStore.updatePlant(plantId, { mood })
+      }
     }
     
     // 格式化日期
@@ -131,11 +145,8 @@ export default {
     
     // 获取植物表情
     const getPlantEmoji = () => {
-      const state = plantStore.plant.state
-      if (state === 'growing') return '🌱'
-      if (state === 'flowering') return '🌸'
-      if (state === 'fruiting') return '🍎'
-      return '🌱'
+      if (!plantStore.currentPlant) return '🌱'
+      return plantStore.currentPlant.emoji || '🌱'
     }
     
     // 收藏心声（实际功能待实现）
@@ -148,10 +159,28 @@ export default {
       })
     }
     
-    onMounted(() => {
-      // 如果没有心声，自动生成一条
-      if (plantStore.plant.thoughts.length === 0) {
-        generateThought()
+    onMounted(async () => {
+      // 确保有植物数据
+      if (!plantStore.currentPlant) {
+        await plantStore.fetchPlants()
+      }
+      
+      // 如果有植物，加载心声历史
+      if (plantStore.currentPlant) {
+        // 检查植物ID是否有效
+        if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
+          console.error('植物ID无效')
+          ElMessage.warning('植物信息不完整，请重新选择植物')
+          return
+        }
+        
+        const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
+        await plantStore.fetchPlantThoughts(plantId)
+        
+        // 如果没有心声，自动生成一条
+        if (plantStore.thoughts.length === 0) {
+          generateThought()
+        }
       }
     })
     
