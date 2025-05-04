@@ -328,6 +328,7 @@ export const usePlantStore = defineStore('plant', {
         this.conversations.push(userMessage)
         this.conversations.push(response.response)
         
+        // 返回植物的回复消息对象，确保有完整的消息属性
         return response.response
       } catch (error) {
         console.error('发送消息失败:', error)
