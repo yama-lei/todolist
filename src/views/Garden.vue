@@ -21,13 +21,6 @@
         <div class="my-garden-section card">
           <div class="section-header">
             <h3 class="section-title">我的花园</h3>
-            <el-input 
-              v-if="myPlants.length > 0"
-              placeholder="搜索我的植物..." 
-              prefix-icon="Search"
-              v-model="searchPlant"
-              class="search-input"
-            />
           </div>
           
           <div class="empty-garden" v-if="myPlants.length === 0">

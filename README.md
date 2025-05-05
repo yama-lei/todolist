@@ -25,7 +25,7 @@ npm run
 
 ## Run the server 启动后端
 
-先进入后端`cd backend`
+先进入后端`cd backend`   
 
 再启动服务器`npm run dev` 
 

@@ -6,11 +6,20 @@ dotenv.config();
 // DeepSeek API客户端类
 class DeepSeekClient {
   constructor() {
-    this.apiKey = 'sk-3145ff1b87464f1a82fc515f3195ad77';
+    // 尝试从环境变量获取API密钥，如果没有则使用默认值
+    this.apiKey = process.env.DEEPSEEK_API_KEY || '';
     this.baseURL = 'https://api.deepseek.com/v1';
+    this.client = axios.create({
+      baseURL: this.baseURL,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`
+      },
+      timeout: 15000 // 设置更短的超时时间，15秒
+    });
     
     if (!this.apiKey) {
-      console.warn('警告: DEEPSEEK_API_KEY 未在环境变量中设置');
+      console.warn('警告: DEEPSEEK_API_KEY 未在环境变量中设置，AI分析功能将使用备用方案');
     }
   }
 
@@ -23,33 +32,35 @@ class DeepSeekClient {
    * @param {number} options.max_tokens - 最大生成令牌数
    * @returns {Promise<string>} - 生成的文本内容
    */
-  async generateText(options) {
+  async generateText({ prompt, temperature = 0.7, max_tokens = 800 }) {
+    // 如果没有API密钥，直接抛出错误
+    if (!this.apiKey) {
+      throw new Error('API密钥未设置，无法调用DeepSeek API');
+    }
+    
     try {
-      const { prompt, model = 'deepseek-chat', temperature = 0.7, max_tokens = 1000 } = options;
+      console.log('调用DeepSeek API...');
       
-      const response = await axios.post(
-        `${this.baseURL}/chat/completions`,
-        {
-          model: model,
-          messages: [
-            { role: 'system', content: '你是一个友好的植物助手，拥有植物视角和知识。' },
-            { role: 'user', content: prompt }
-          ],
-          temperature: temperature,
-          max_tokens: max_tokens,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.apiKey}`
-          }
-        }
-      );
+      const response = await this.client.post('/chat/completions', {
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: temperature,
+        max_tokens: max_tokens,
+        stream: false
+      });
       
+      // 直接返回内容文本，简化处理
       return response.data.choices[0].message.content;
     } catch (error) {
-      console.error('DeepSeek API调用失败:', error.response?.data || error.message);
-      throw new Error('无法生成文本：' + (error.response?.data?.error?.message || error.message));
+      console.error('DeepSeek API调用失败:', error.message);
+      
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('DeepSeek API请求超时，请稍后再试');
+      }
+      
+      // 返回API错误详情
+      const errorMsg = error.response?.data?.error?.message || error.message;
+      throw new Error(`DeepSeek API错误: ${errorMsg}`);
     }
   }
   
@@ -120,21 +131,13 @@ class DeepSeekClient {
         { role: 'user', content: userMessage }
       ];
       
-      const response = await axios.post(
-        `${this.baseURL}/chat/completions`,
-        {
-          model: 'deepseek-chat',
-          messages: messages,
-          temperature: 0.8,
-          max_tokens: 200,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.apiKey}`
-          }
-        }
-      );
+      const response = await this.client.post('/chat/completions', {
+        model: 'deepseek-chat',
+        messages: messages,
+        temperature: 0.8,
+        max_tokens: 200,
+        stream: false
+      });
       
       return response.data.choices[0].message.content;
     } catch (error) {
@@ -145,4 +148,4 @@ class DeepSeekClient {
   }
 }
 
-module.exports = new DeepSeekClient(); 
+module.exports = DeepSeekClient; 

@@ -266,8 +266,8 @@
     <!-- AI 总结对话框 -->
     <el-dialog
       v-model="showAiSummaryDialog"
-      title="AI 任务总结"
-      width="40%"
+      title="AI 智能分析"
+      width="60%"
       destroy-on-close
     >
       <div v-if="isAiSummaryLoading" class="ai-summary-loading">
@@ -278,48 +278,88 @@
           <el-avatar :size="40" src="https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png" />
           <h3>AI 助手</h3>
         </div>
-        <div class="ai-summary-text">
-          <p>你的任务完成情况分析如下：</p>
-          <ul v-if="aiSummaryData && aiSummaryData.summary">
-            <li>已完成任务：{{ aiSummaryData.summary.completedTasks }} 个</li>
-            <li>待完成任务：{{ aiSummaryData.summary.pendingTasks }} 个</li>
-            <li>任务完成率：{{ aiSummaryData.summary.completionRate }}%</li>
-            <li>平均完成时间：{{ aiSummaryData.summary.averageCompletionTime }}</li>
-            <li>最高效日期：{{ aiSummaryData.summary.mostProductiveDay }}</li>
-          </ul>
-          <ul v-else>
-            <li>已完成任务：{{ taskStore.completedTasks.length }} 个</li>
-            <li>待完成任务：{{ taskStore.pendingTasks.length }} 个</li>
-            <li>系统任务完成率：{{ calculateSystemTaskCompletion() }}%</li>
-          </ul>
-          
-          <!-- 显示洞察和建议 -->
-          <div v-if="aiSummaryData && aiSummaryData.insights && aiSummaryData.insights.length > 0">
-            <h4 class="insights-title">洞察：</h4>
-            <ul class="insights-list">
-              <li v-for="(insight, index) in aiSummaryData.insights" :key="index">
-                {{ insight }}
-              </li>
-            </ul>
+        
+        <!-- 任务数据摘要 -->
+        <div class="summary-card">
+          <h4 class="summary-title">任务概览</h4>
+          <div class="summary-stats">
+            <div class="stat-item">
+              <div class="stat-value">{{ aiSummaryData?.taskSummary?.completedTasks || 0 }}</div>
+              <div class="stat-label">已完成任务</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ aiSummaryData?.taskSummary?.pendingTasks || 0 }}</div>
+              <div class="stat-label">待完成任务</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ aiSummaryData?.taskSummary?.completionRate || 0 }}%</div>
+              <div class="stat-label">完成率</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ aiSummaryData?.taskSummary?.thisWeekTasks || 0 }}</div>
+              <div class="stat-label">本周完成</div>
+            </div>
+            <div class="stat-item" v-if="aiSummaryData?.taskSummary?.importantPending">
+              <div class="stat-value">{{ aiSummaryData?.taskSummary?.importantPending }}</div>
+              <div class="stat-label">重要待办</div>
+            </div>
+            <div class="stat-item" v-if="aiSummaryData?.taskSummary?.upcomingDeadlines">
+              <div class="stat-value">{{ aiSummaryData?.taskSummary?.upcomingDeadlines }}</div>
+              <div class="stat-label">即将到期</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- AI 分析结果 -->
+        <div class="ai-insights-section">
+          <div class="insight-card">
+            <div class="insight-header overview">
+              <el-icon><DataAnalysis /></el-icon>
+              <h4>总体评价</h4>
+            </div>
+            <div class="insight-content">
+              {{ aiSummaryData?.analysis?.overview || '没有足够的数据进行分析' }}
+            </div>
           </div>
           
-          <div v-if="aiSummaryData && aiSummaryData.recommendations && aiSummaryData.recommendations.length > 0">
-            <h4 class="insights-title">建议：</h4>
-            <ul class="insights-list">
-              <li v-for="(rec, index) in aiSummaryData.recommendations" :key="index">
-                {{ rec.content }}
-              </li>
-            </ul>
+          <div class="insight-card">
+            <div class="insight-header achievements">
+              <el-icon><Trophy /></el-icon>
+              <h4>成就和进步</h4>
+            </div>
+            <div class="insight-content">
+              {{ aiSummaryData?.analysis?.achievements || '继续完成任务来获得成就!' }}
+            </div>
           </div>
           
-          <p v-else-if="taskStore.pendingTasks.length > 0">
-            <strong>下一步建议：</strong> 优先完成
-            <span class="highlight">{{ taskStore.pendingTasks[0].title }}</span>
-            任务，这将帮助你提升效率。
-          </p>
-          <p v-else>
-            <strong>做得好！</strong> 你已经完成了所有待办任务。享受这个轻松的时刻吧！
-          </p>
+          <div class="insight-card">
+            <div class="insight-header suggestions">
+              <el-icon><Lightning /></el-icon>
+              <h4>改进建议</h4>
+            </div>
+            <div class="insight-content">
+              {{ aiSummaryData?.analysis?.suggestions || '没有改进建议' }}
+            </div>
+          </div>
+          
+          <div class="insight-card">
+            <div class="insight-header next-steps">
+              <el-icon><Connection /></el-icon>
+              <h4>下一步行动</h4>
+            </div>
+            <div class="insight-content">
+              {{ aiSummaryData?.analysis?.nextSteps || '暂无行动计划建议' }}
+            </div>
+          </div>
+        </div>
+        
+        <div class="ai-generated-note" v-if="aiSummaryData?.isAIGenerated === false">
+          <el-alert
+            title="AI生成暂时不可用，显示的是自动生成的建议"
+            type="info"
+            :closable="false"
+          >
+          </el-alert>
         </div>
       </div>
     </el-dialog>
@@ -451,7 +491,7 @@ import { useTaskStore } from '../stores/task'
 import { usePlantStore } from '../stores/plant'
 import { format, formatDistance } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { Plus, Delete, Magic, ChatDotRound, Refresh, ArrowDown, Star, Clock, Menu, Close } from '@element-plus/icons-vue'
+import { Plus, Delete, Magic, ChatDotRound, Refresh, ArrowDown, Star, Clock, Menu, Close, DataAnalysis, Trophy, Lightning, Connection } from '@element-plus/icons-vue'
 import WeatherCanvas from '@/components/WeatherCanvas.vue'
 import PlantDialog from '@/components/PlantDialog.vue'
 import PlantStatusMessage from '@/components/PlantStatusMessage.vue'
@@ -475,7 +515,11 @@ export default {
     Star,
     Clock,
     Menu,
-    Close
+    Close,
+    DataAnalysis,
+    Trophy,
+    Lightning,
+    Connection
   },
   setup() {
     const router = useRouter()
@@ -775,9 +819,9 @@ export default {
       isAiSummaryLoading.value = true
       
       try {
-        // 使用后端API获取AI洞察数据
-        const response = await insightsApi.getTaskInsights('week')
-        aiSummaryData.value = response
+        // 使用新的AI分析接口获取智能洞察
+        const response = await insightsApi.getAIAnalysis()
+        aiSummaryData.value = response.data
         
         isAiSummaryLoading.value = false
       } catch (error) {
@@ -1586,22 +1630,123 @@ export default {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-bottom: 24px;
+}
+
+.summary-card {
+  background-color: #f9fafc;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.summary-title {
+  margin-top: 0;
   margin-bottom: 16px;
+  font-size: 18px;
+  color: #606266;
+  font-weight: 600;
 }
 
-.ai-summary-text {
+.summary-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.stat-item {
+  flex: 1;
+  min-width: 90px;
+  background-color: white;
+  border-radius: 8px;
+  padding: 16px 12px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.stat-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #409EFF;
+  margin-bottom: 5px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #909399;
+}
+
+.ai-insights-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.insight-card {
+  background-color: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.insight-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.insight-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.insight-header.overview {
+  background-color: #e6f7ff;
+  color: #1890ff;
+}
+
+.insight-header.achievements {
+  background-color: #f6ffed;
+  color: #52c41a;
+}
+
+.insight-header.suggestions {
+  background-color: #fff7e6;
+  color: #fa8c16;
+}
+
+.insight-header.next-steps {
+  background-color: #f9f0ff;
+  color: #722ed1;
+}
+
+.insight-content {
+  padding: 16px;
   line-height: 1.6;
+  color: #606266;
+  flex: 1;
 }
 
-.ai-summary-text ul {
-  margin: 16px 0;
-  padding-left: 20px;
+.ai-generated-note {
+  margin-top: 20px;
 }
 
-.ai-summary-text p {
-  margin: 12px 0;
-}
-
+/* 保留highlight等其他样式 */
 .highlight {
   font-weight: 600;
   color: #409EFF;

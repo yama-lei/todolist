@@ -674,9 +674,96 @@
         }
       },
       "/api/tasks/system": {
+        "post": {
+          "tags": ["系统任务"],
+          "summary": "创建新的系统任务",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "description": "任务标题"
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "任务描述"
+                    },
+                    "frequency": {
+                      "type": "string",
+                      "enum": ["daily", "weekly"],
+                      "description": "任务频率"
+                    },
+                    "reward": {
+                      "type": "integer",
+                      "description": "奖励点数"
+                    },
+                    "icon": {
+                      "type": "string",
+                      "description": "任务图标"
+                    },
+                    "category": {
+                      "type": "string",
+                      "description": "任务分类"
+                    }
+                  },
+                  "required": ["title", "description", "frequency", "reward"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "系统任务创建成功",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "message": {
+                        "type": "string"
+                      },
+                      "task": {
+                        "$ref": "#/components/schemas/SystemTask"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "请求错误（缺少必填字段）",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            },
+            "401": {
+              "description": "未授权",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            }
+          }
+        },
         "get": {
           "tags": ["系统任务"],
-          "summary": "获取系统任务",
+          "summary": "获取所有系统任务",
           "security": [
             {
               "BearerAuth": []
@@ -716,7 +803,226 @@
           }
         }
       },
-      "/api/tasks/system/{id}/complete": {
+      "/api/tasks/system/{id}": {
+        "get": {
+          "tags": ["系统任务"],
+          "summary": "获取单个系统任务",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "系统任务ID"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取单个系统任务",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "task": {
+                        "$ref": "#/components/schemas/SystemTask"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "未授权",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            },
+            "404": {
+              "description": "系统任务未找到",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            }
+          }
+        },
+        "put": {
+          "tags": ["系统任务"],
+          "summary": "更新系统任务",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "系统任务ID"
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "description": "任务标题"
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "任务描述"
+                    },
+                    "frequency": {
+                      "type": "string",
+                      "enum": ["daily", "weekly"],
+                      "description": "任务频率"
+                    },
+                    "reward": {
+                      "type": "integer",
+                      "description": "奖励点数"
+                    },
+                    "icon": {
+                      "type": "string",
+                      "description": "任务图标"
+                    },
+                    "category": {
+                      "type": "string",
+                      "description": "任务分类"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "系统任务更新成功",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "message": {
+                        "type": "string"
+                      },
+                      "task": {
+                        "$ref": "#/components/schemas/SystemTask"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "请求错误",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            },
+            "401": {
+              "description": "未授权",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            },
+            "404": {
+              "description": "系统任务未找到",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            }
+          }
+        },
+        "delete": {
+          "tags": ["系统任务"],
+          "summary": "删除系统任务",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "系统任务ID"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "系统任务删除成功",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "未授权",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            },
+            "404": {
+              "description": "系统任务未找到",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            }
+          }
+        },
         "put": {
           "tags": ["系统任务"],
           "summary": "完成系统任务",
@@ -795,6 +1101,50 @@
                  }
                }
              }
+          }
+        }
+      },
+      "/api/tasks/system/reset/all": {
+        "delete": {
+          "tags": ["系统任务"],
+          "summary": "重置所有系统任务",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "重置系统任务成功",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "message": {
+                        "type": "string"
+                      },
+                      "removedCount": {
+                        "type": "integer",
+                        "description": "删除的任务数量"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "未授权",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            }
           }
         }
       },

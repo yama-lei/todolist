@@ -1,6 +1,9 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const { Tasks, Posts, Plants } = require('../utils/localDB');
+const DeepSeekClient = require('../utils/apiClient');
+const deepSeekClient = new DeepSeekClient();
+const { parseAIResponse, generateFallbackAnalysis } = require('../utils/parseAIResponse');
 const router = express.Router();
 
 // 获取任务完成情况总结
@@ -271,6 +274,102 @@ router.get('/weekly', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message
+    });
+  }
+});
+
+// AI分析接口
+router.get('/ai-analysis', auth, async (req, res) => {
+  try {
+    console.log('开始AI智能分析，用户ID:', req.user.id);
+    
+    // 获取所有任务数据，但限制获取的数量以提高性能
+    const tasks = await Tasks.find({ userId: req.user.id }).limit(50).sort({ createdAt: -1 });
+    console.log(`获取到${tasks.length}个任务`);
+    
+    // 获取用户的主植物
+    const mainPlant = await Plants.findOne({
+      userId: req.user.id,
+      isMainPlant: true
+    });
+    
+    const mainPlantName = mainPlant ? mainPlant.name : '植物';
+    console.log('主植物:', mainPlantName);
+    
+    // 计算基础分析数据
+    const completedTasksCount = tasks.filter(task => task.completed).length;
+    const pendingTasksCount = tasks.filter(task => !task.completed).length;
+    const completionRate = tasks.length > 0 
+      ? Math.round(completedTasksCount / tasks.length * 100) 
+      : 0;
+    const importantPendingCount = tasks.filter(task => !task.completed && task.priority === 'high').length;
+    
+    // 准备用于AI分析的数据对象
+    const analysisData = {
+      completedTasksCount,
+      pendingTasksCount,
+      completionRate,
+      importantPendingCount,
+      mainPlantName
+    };
+    
+    console.log('AI数据准备完成:', JSON.stringify(analysisData));
+    
+    let aiResponse = {};
+    
+    try {
+      // 尝试调用AI分析
+      console.log('开始调用DeepSeek API');
+      
+      const prompt = `
+作为一个任务管理应用的AI助手，请分析以下数据，并提供简短的总结和建议：
+
+已完成任务数量: ${completedTasksCount}
+待办任务数量: ${pendingTasksCount}
+任务完成率: ${completionRate}%
+高优先级未完成任务: ${importantPendingCount}
+用户植物名称: ${mainPlantName}
+
+请以以下格式提供分析:
+总体评价: (简短的总体评价)
+成就和进步: (列出用户的成就)
+改进建议: (1-2条建议)
+下一步行动: (1条具体行动建议)
+`;
+      
+      // 调用AI生成分析
+      const aiResponseText = await deepSeekClient.generateText({ prompt, max_tokens: 500 });
+      aiResponse = parseAIResponse(aiResponseText);
+      
+    } catch (error) {
+      console.log('调用DeepSeek API失败:', error);
+      // 如果AI调用失败，使用备用分析
+      console.log('使用备用分析方案');
+      aiResponse = generateFallbackAnalysis(analysisData);
+    }
+    
+    // 返回AI分析结果和基础数据
+    res.json({
+      success: true,
+      analysis: aiResponse,
+      stats: {
+        completedTasks: completedTasksCount,
+        pendingTasks: pendingTasksCount,
+        completionRate: completionRate
+      }
+    });
+    
+  } catch (error) {
+    console.error('AI分析出错:', error);
+    res.status(500).json({
+      success: false,
+      message: `AI分析出错: ${error.message}`,
+      fallbackAnalysis: {
+        overview: '分析服务暂时不可用',
+        achievements: '请稍后再试',
+        suggestions: '继续完成您的任务',
+        nextSteps: '专注于最重要的事情'
+      }
     });
   }
 });

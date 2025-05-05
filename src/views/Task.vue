@@ -215,10 +215,10 @@ export default {
       
       // 获取任务和系统任务
       try {
-        await Promise.all([
-          taskStore.fetchTasks(),
-          taskStore.fetchSystemTasks()
-        ])
+      await Promise.all([
+        taskStore.fetchTasks(),
+        taskStore.fetchSystemTasks()
+      ])
         console.log('任务数据加载成功')
       } catch (error) {
         console.error('加载任务数据失败:', error)
