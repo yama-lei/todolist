@@ -4,7 +4,7 @@
     
     <div class="container">
       <div class="garden-header card">
-        <h2 class="card-title">我的后花园</h2>
+        <h2 class="card-title">花语坊</h2>
         <p class="garden-description">
           在这里，你可以查看和管理你的植物，打造属于自己的花园。
         </p>
@@ -20,11 +20,11 @@
       <div class="garden-content">
         <div class="my-garden-section card">
           <div class="section-header">
-            <h3 class="section-title">我的花园</h3>
+            <h3 class="section-title">未完成春天</h3>
           </div>
           
           <div class="empty-garden" v-if="myPlants.length === 0">
-            <el-empty description="你的花园还没有植物">
+            <el-empty description="你的花园还空空如也~">
               <template #image>
                 <div class="empty-image">🏡</div>
               </template>
