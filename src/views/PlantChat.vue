@@ -2,9 +2,9 @@
   <div class="plant-chat-page">
     <div class="container">
       <div class="plant-chat-header card">
-        <div class="plant-avatar">
+            <div class="plant-avatar">
           <span class="plant-emoji">{{ getPlantEmoji() }}</span>
-        </div>
+            </div>
         <div class="plant-info">
           <h2>与{{ plantStore.currentPlant ? plantStore.currentPlant.name : '植物' }}对话</h2>
           <p class="plant-status">
@@ -15,8 +15,8 @@
         </div>
         <div class="plant-level">
           <div class="level-badge">Lv.{{ plantStore.currentPlant?.level || 1 }}</div>
-        </div>
-      </div>
+                </div>
+              </div>
       
       <div class="message-container card">
         <div class="messages-list" ref="messagesList">
@@ -69,22 +69,22 @@
           </div>
           
           <div class="input-wrapper">
-            <el-input
+          <el-input
               v-model="messageInput"
-              type="textarea"
+            type="textarea"
               :rows="1"
               :autosize="{ minRows: 1, maxRows: 4 }"
               placeholder="输入消息与植物聊天..."
               @keyup.enter.native="handleEnterPress"
             />
-            <el-button 
-              type="primary" 
+          <el-button 
+            type="primary" 
               class="send-btn" 
               :disabled="!messageInput.trim() || loading"
               @click="sendMessage"
             >
               <el-icon><el-icon-position /></el-icon>
-            </el-button>
+          </el-button>
           </div>
         </div>
       </div>
@@ -198,7 +198,7 @@ export default {
         await plantStore.sendMessage(plantId, message)
         
         // 滚动到底部
-        await scrollToBottom()
+          await scrollToBottom()
       } catch (error) {
         console.error('发送消息失败:', error)
         ElMessage.error('发送消息失败')
@@ -250,7 +250,7 @@ export default {
           console.error('获取对话历史失败:', error)
         } finally {
           loading.value = false
-          await scrollToBottom()
+      await scrollToBottom()
         }
       }
     })

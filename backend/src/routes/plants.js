@@ -1,7 +1,8 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const { Plants, PlantThoughts, Conversations } = require('../utils/localDB');
-const deepSeekClient = require('../utils/apiClient');  // 导入DeepSeek API客户端
+const DeepSeekClient = require('../utils/apiClient'); // 导入 DeepSeekClient 类
+const deepSeekClient = new DeepSeekClient(); // 创建 DeepSeekClient 实例
 const router = express.Router();
 
 // 获取用户所有植物

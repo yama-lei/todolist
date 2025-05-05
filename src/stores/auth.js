@@ -45,7 +45,7 @@ export const useAuthStore = defineStore('auth', () => {
       } else {
         // 如果没有选择"记住我"，也暂时存入localStorage
         // 在实际项目中可以考虑使用session storage或有效期较短的cookie
-        localStorage.setItem('token', newToken)
+      localStorage.setItem('token', newToken)
       }
       
       // 设置axios默认请求头

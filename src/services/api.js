@@ -3,7 +3,7 @@ import axios from 'axios';
 // 创建axios实例
 const api = axios.create({
   baseURL: process.env.VUE_APP_API_URL || 'http://localhost:3000/api',
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -225,6 +225,13 @@ const insightsApi = {
     const params = {};
     if (date) params.date = date;
     return api.get('/insights/weekly', { params });
+  },
+  
+  // 获取AI智能分析
+  getAIAnalysis() {
+    return api.get('/insights/ai-analysis', { 
+      timeout: 40000
+    });
   }
 };
 

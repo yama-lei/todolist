@@ -56,6 +56,6 @@ if (storedToken) {
 const authStore = useAuthStore()
 
 // 立即挂载应用，同时并行初始化认证状态
-app.mount('#app')
+  app.mount('#app')
 // 初始化认证状态
 authStore.initAuth()

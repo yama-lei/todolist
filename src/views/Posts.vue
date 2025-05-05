@@ -114,19 +114,19 @@
         
         <div class="diary-toolbar" v-if="postType === 'diary'">
           <div class="toolbar-group">
-            <div class="option-item" @click="toggleMood">
-              <el-icon><SmileFilled /></el-icon>
-              <span>{{ newPost.mood ? `心情：${getMoodText(newPost.mood)}` : '添加心情' }}</span>
-            </div>
-            
-            <div class="option-item" @click="locationVisible = !locationVisible">
-              <el-icon><Location /></el-icon>
-              <span>{{ locationVisible ? '隐藏位置' : '添加位置' }}</span>
-            </div>
-            
+          <div class="option-item" @click="toggleMood">
+            <el-icon><SmileFilled /></el-icon>
+            <span>{{ newPost.mood ? `心情：${getMoodText(newPost.mood)}` : '添加心情' }}</span>
+          </div>
+          
+          <div class="option-item" @click="locationVisible = !locationVisible">
+            <el-icon><Location /></el-icon>
+            <span>{{ locationVisible ? '隐藏位置' : '添加位置' }}</span>
+          </div>
+          
             <div class="option-item" @click="weatherVisible = !weatherVisible">
-              <el-icon><Sunny /></el-icon>
-              <span>{{ weatherVisible ? '隐藏天气' : '添加天气' }}</span>
+            <el-icon><Sunny /></el-icon>
+            <span>{{ weatherVisible ? '隐藏天气' : '添加天气' }}</span>
             </div>
           </div>
           
@@ -296,13 +296,33 @@ const isPostValid = computed(() => {
 
 // 格式化并过滤帖子数据以适应TimeLinePage组件
 const filteredPosts = computed(() => {
-  let posts = postStore.posts
-  
-  if (activeFilter.value !== 'all') {
-    posts = posts.filter(post => post.type === activeFilter.value)
+  // 确保 postStore.posts 是一个数组
+  if (!Array.isArray(postStore.posts)) {
+    console.error('postStore.posts is not an array:', postStore.posts);
+    return [];
   }
   
-  return posts.map(post => {
+  // 复制并显式排序：确保最新的在前面
+  const sortedPosts = [...postStore.posts].sort((a, b) => {
+    // 比较 createdAt 字段
+    const dateA = a.createdAt ? new Date(a.createdAt) : null;
+    const dateB = b.createdAt ? new Date(b.createdAt) : null;
+    
+    // 处理无效日期或缺失日期的情况
+    if (!dateB || isNaN(dateB)) return -1; // b 无效，排后面
+    if (!dateA || isNaN(dateA)) return 1;  // a 无效，排后面
+    
+    return dateB - dateA; // 降序排序
+  });
+
+  // 过滤
+  let postsToDisplay = sortedPosts;
+  if (activeFilter.value !== 'all') {
+    postsToDisplay = sortedPosts.filter(post => post.type === activeFilter.value);
+  }
+  
+  // 映射到 TimeLinePage 需要的格式
+  return postsToDisplay.map(post => {
     // 构建标题: 日记显示标题，说说显示位置或心情
     let title = post.title || ''
     if (!title) {
@@ -328,28 +348,34 @@ const filteredPosts = computed(() => {
       description = `${weatherEmoji[post.weather] || ''}\n${description}`
     }
     
-    // 安全处理日期格式化，确保有效的日期值
-    let formattedTime = ''
-    try {
-      const dateObj = new Date(post.date)
-      if (!isNaN(dateObj.getTime())) {
-        formattedTime = format(dateObj, 'yyyy-MM-dd HH:mm')
-      } else {
-        formattedTime = '无日期'
+    // 安全处理日期格式化
+    let formattedTime = '日期处理出错'; // 默认错误文本
+    if (post.createdAt) {
+      try {
+        const dateObj = new Date(post.createdAt);
+        // 再次检查 dateObj 是否有效
+        if (!isNaN(dateObj.getTime())) {
+          formattedTime = format(dateObj, 'yyyy-MM-dd HH:mm');
+        } else {
+          console.warn('Invalid date object created for post:', post._id, 'createdAt:', post.createdAt);
+          formattedTime = '日期无效'; 
+        }
+      } catch (error) {
+        console.error('Error formatting date for post:', post._id, 'createdAt:', post.createdAt, error);
+        formattedTime = '日期格式错误';
       }
-    } catch (error) {
-      console.error('日期格式化错误:', error)
-      formattedTime = '无日期'
+    } else {
+      console.warn('Missing createdAt field for post:', post._id);
+      formattedTime = '日期缺失'; // createdAt 字段不存在
     }
     
     return {
-      time: formattedTime,
+      timestamp: formattedTime,
       title: title,
       description: description,
-      imageSrc: post.images.length > 0 ? post.images[0] : null,
-      galleryImages: post.images,
-      comments: '',
-      id: post.id,
+      imageSrc: post.images && post.images.length > 0 ? post.images[0] : null,
+      galleryImages: post.images || [], // 确保是数组
+      id: post._id,
       postType: post.type
     }
   })
@@ -369,18 +395,14 @@ watch(activeFilter, async () => {
 const addPost = async () => {
   if (!isPostValid.value) return
   
-  // 如果没有指定日期，使用当前日期
-  const currentDate = new Date().toISOString();
-  
   const success = await postStore.addCustomPost({
-    title: newPost.value.title,
-    content: newPost.value.content,
-    images: newPost.value.images,
-    location: newPost.value.location,
-    mood: newPost.value.mood,
-    weather: newPost.value.weather,
-    type: postType.value,
-    date: currentDate // 添加当前日期
+      title: newPost.value.title,
+      content: newPost.value.content,
+      images: newPost.value.images,
+      location: newPost.value.location,
+      mood: newPost.value.mood,
+      weather: newPost.value.weather,
+      type: postType.value,
   })
   
   if (success) {
@@ -395,17 +417,17 @@ const addPost = async () => {
 
 // 重置表单
 const resetForm = () => {
-  newPost.value = {
-    title: '',
-    content: '',
-    images: [],
-    location: '',
-    mood: '',
-    weather: '',
+    newPost.value = {
+      title: '',
+      content: '',
+      images: [],
+      location: '',
+      mood: '',
+      weather: '',
     type: postType.value
-  }
-  locationVisible.value = false
-  weatherVisible.value = false
+    }
+    locationVisible.value = false
+    weatherVisible.value = false
   showMoodSelector.value = false
 }
 
