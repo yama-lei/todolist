@@ -146,11 +146,11 @@ export default {
     
     // 所有植物列表 (已解锁)
     const allPlants = reactive([
-      { id: 'plant1', name: '向日葵', type: '向日葵', emoji: '🌻', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
-      { id: 'plant2', name: '仙人掌', type: '仙人掌', emoji: '🌵', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
-      { id: 'plant3', name: '樱花', type: '樱花', emoji: '🌸', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
-      { id: 'plant4', name: '松树', type: '松树', emoji: '🌲', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
-      { id: 'plant5', name: '玫瑰', type: '玫瑰', emoji: '🌹', level: 1, experience: 0, weather: 'sunny', isMainPlant: false }
+      { id: 'plant1', name: '绯色絮语', type: '玫瑰', emoji: '🌹', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
+      { id: 'plant2', name: '沙屿星芒', type: '仙人掌', emoji: '🌵', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
+      { id: 'plant3', name: '冰爵士', type: ' 郁金香', emoji: '🌸', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
+      { id: 'plant4', name: '云归处', type: ' 白百何', emoji: '🌲', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
+      { id: 'plant5', name: '日轮礼赞', type: ' 向日葵', emoji: '🌹', level: 1, experience: 0, weather: 'sunny', isMainPlant: false }
     ])
     
     // 加载植物列表
