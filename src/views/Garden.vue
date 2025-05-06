@@ -111,11 +111,18 @@
         </div>
       </div>
     </div>
+    
+    <PlantDialog 
+      :messages="plantStore.thoughts"
+      :is-visible="showPlantThoughtDialog"
+      :show-buttons="false"
+      @primary-action="showPlantThoughtDialog = false"
+    />
   </div>
 </template>
 
 <script>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useCurrencyStore } from '../stores/currency'
 import { usePlantStore } from '../stores/plant'
 import { useTaskStore } from '../stores/task'
@@ -319,7 +326,13 @@ export default {
       
       // 获取植物心声
       try {
-        await plantStore.fetchPlantThoughts(plantId)
+        const thoughts = await plantStore.fetchPlantThoughts(plantId)
+        // 将植物心声转换为消息格式
+        plantStore.thoughts = thoughts.map(thought => ({
+          type: 'plant',
+          content: thought.content,
+          timestamp: thought.timestamp
+        }))
       } catch (error) {
         console.error('获取植物心声失败:', error)
         ElMessage.error('获取植物心声失败')
@@ -344,7 +357,15 @@ export default {
           growthStage: plant.growthStage || 1
         }
         
-        await plantStore.generatePlantThought(plantId, context)
+        const thought = await plantStore.generatePlantThought(plantId, context)
+        if (thought) {
+          // 将新生成的植物心声添加到消息列表
+          plantStore.thoughts.unshift({
+            type: 'plant',
+            content: thought.content,
+            timestamp: thought.timestamp
+          })
+        }
         ElMessage.success('植物心声已生成')
       } catch (error) {
         console.error('生成植物心声失败:', error)
@@ -366,7 +387,25 @@ export default {
       
       console.log('设置主植物，植物ID:', plantId)
       try {
+        // 先将所有植物的主植物状态设置为false
+        for (const p of plantStore.plants) {
+          if (p.isMainPlant) {
+            const prevMainPlantId = p._id || p.id
+            await plantStore.updatePlant(prevMainPlantId, { isMainPlant: false })
+          }
+        }
+        
+        // 设置新的主植物
         await plantStore.updatePlant(plantId, { isMainPlant: true })
+        
+        // 更新植物心声
+        await plantStore.fetchPlantThoughts(plantId)
+        
+        // 如果当前正在显示植物心声对话框，更新选中的植物
+        if (showPlantThoughtDialog.value) {
+          selectedPlantForDialog.value = plant
+        }
+        
         ElMessage.success('已设置为主植物')
       } catch (error) {
         console.error('设置主植物失败:', error)
@@ -404,6 +443,27 @@ export default {
     const completedTasksCount = computed(() => {
       return taskStore.completedTasks.length
     })
+    
+    // 监听主植物的变化
+    watch(() => plantStore.plants.find(p => p.isMainPlant), async (newMainPlant) => {
+      if (newMainPlant) {
+        // 更新选中的植物
+        selectedPlantForDialog.value = newMainPlant
+        
+        // 如果对话框是打开的，更新植物心声
+        if (showPlantThoughtDialog.value) {
+          const plantId = newMainPlant._id || newMainPlant.id
+          if (plantId) {
+            try {
+              await plantStore.fetchPlantThoughts(plantId)
+            } catch (error) {
+              console.error('更新植物心声失败:', error)
+              ElMessage.error('更新植物心声失败')
+            }
+          }
+        }
+      }
+    }, { immediate: true })
     
     return {
       currencyStore,

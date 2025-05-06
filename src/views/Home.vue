@@ -542,6 +542,19 @@ export default {
     const taskStore = useTaskStore()
     const plantStore = usePlantStore()
     
+    // 在组件挂载时获取任务数据
+    onMounted(async () => {
+      try {
+        await Promise.all([
+          taskStore.fetchTasks(),
+          taskStore.fetchSystemTasks()
+        ])
+        console.log('首页任务数据加载成功')
+      } catch (error) {
+        console.error('加载任务数据失败:', error)
+      }
+    })
+    
     const activeTaskTab = ref('personal')
     const taskTitleInput = ref(null)
     
@@ -1017,11 +1030,6 @@ export default {
       router.push('/plant-chat')
     }
     
-    onMounted(() => {
-      // 生成初始植物心声
-      generatePlantThought()
-    })
-    
     return {
       taskStore,
       plantStore,
@@ -1300,6 +1308,38 @@ export default {
 
 .task-checkbox {
   padding-top: 3px;
+}
+
+.task-checkbox :deep(.el-checkbox__inner) {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #409EFF;
+  transition: all 0.3s ease;
+}
+
+.task-checkbox :deep(.el-checkbox__inner:hover) {
+  border-color: #66b1ff;
+  transform: scale(1.1);
+}
+
+.task-checkbox :deep(.el-checkbox__inner.is-checked) {
+  background-color: #409EFF;
+  border-color: #409EFF;
+  box-shadow: 0 0 8px rgba(64, 158, 255, 0.4);
+}
+
+.task-checkbox :deep(.el-checkbox__inner.is-checked:hover) {
+  background-color: #66b1ff;
+  border-color: #66b1ff;
+  transform: scale(1.1);
+}
+
+.task-checkbox :deep(.el-checkbox__input.is-checked .el-checkbox__inner::after) {
+  border-color: #fff;
+  width: 6px;
+  height: 10px;
+  left: 6px;
+  top: 2px;
 }
 
 .drag-handle {
