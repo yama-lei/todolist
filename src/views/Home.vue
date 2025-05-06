@@ -212,8 +212,7 @@
                   <!---                  <span class="plant-emoji" :class="plantState">
                     {{ getPlantEmoji() }}
                   </span>-->
-                  <img src="@/../public/images/plant/test.png" alt="植物表情" class="plant-emoji">
-                  
+                  <img :src="getPlantImage(plantStore.mainPlant)" class="plant-image" alt="植物图片" />
                   <PlantDialog 
                     :text="randomThought" 
                     :is-visible="showPlantDialog"
@@ -497,7 +496,24 @@ import PlantDialog from '@/components/PlantDialog.vue'
 import PlantStatusMessage from '@/components/PlantStatusMessage.vue'
 import draggable from 'vuedraggable'
 import { ElMessage } from 'element-plus'
-import { insightsApi } from '../services/api'
+import insightsApi from '@/services/insightsApi'
+
+// 导入植物图片
+import plant1Level1 from '@/assets/images/plant/1-1.png'
+import plant1Level2 from '@/assets/images/plant/1-2.png'
+import plant1Level3 from '@/assets/images/plant/1-3.png'
+import plant2Level1 from '@/assets/images/plant/2-1.png'
+import plant2Level2 from '@/assets/images/plant/2-2.png'
+import plant2Level3 from '@/assets/images/plant/2-3.png'
+import plant3Level1 from '@/assets/images/plant/3-1.png'
+import plant3Level2 from '@/assets/images/plant/3-2.png'
+import plant3Level3 from '@/assets/images/plant/3-3.png'
+import plant4Level1 from '@/assets/images/plant/4-1.png'
+import plant4Level2 from '@/assets/images/plant/4-2.png'
+import plant4Level3 from '@/assets/images/plant/4-3.png'
+import plant5Level1 from '@/assets/images/plant/5-1.png'
+import plant5Level2 from '@/assets/images/plant/5-2.png'
+import plant5Level3 from '@/assets/images/plant/5-3.png'
 
 export default {
   name: 'HomePage',
@@ -765,6 +781,62 @@ export default {
       return format(new Date(dateString), 'yyyy-MM-dd HH:mm')
     }
     
+    // 植物图片映射
+    const plantImages = {
+      '玫瑰': {
+        1: plant1Level1,
+        2: plant1Level2,
+        3: plant1Level3
+      },
+      '仙人掌': {
+        1: plant2Level1,
+        2: plant2Level2,
+        3: plant2Level3
+      },
+      '郁金香': {
+        1: plant3Level1,
+        2: plant3Level2,
+        3: plant3Level3
+      },
+      '白百何': {
+        1: plant4Level1,
+        2: plant4Level2,
+        3: plant4Level3
+      },
+      '向日葵': {
+        1: plant5Level1,
+        2: plant5Level2,
+        3: plant5Level3
+      }
+    }
+    
+    // 获取植物图片
+    const getPlantImage = (plant) => {
+      if (!plant) return plant1Level1
+      
+      const type = plant.type?.trim() // 移除可能存在的前后空格
+      const level = plant.level || 1
+      
+      // 检查植物类型和等级限制
+      const clampLevel = Math.min(Math.max(level, 1), 3) // 限制等级在1-3之间
+      
+      // 根据植物类型返回对应图片
+      if (type === '玫瑰') {
+        return plantImages['玫瑰'][clampLevel]
+      } else if (type === '仙人掌') {
+        return plantImages['仙人掌'][clampLevel]
+      } else if (type === '郁金香') {
+        return plantImages['郁金香'][clampLevel]
+      } else if (type === '白百何') {
+        return plantImages['白百何'][clampLevel]
+      } else if (type === '向日葵') {
+        return plantImages['向日葵'][clampLevel]
+      }
+      
+      // 默认返回第一张图片
+      return plant1Level1
+    }
+    
     // 获取植物表情
     const getPlantEmoji = () => {
       if (!plantStore.mainPlant) return '🌱'
@@ -994,6 +1066,7 @@ export default {
       addTaskFromDialog,
       updateWeather,
       formatDate,
+      getPlantImage,
       getPlantEmoji,
       getPlantStateText,
       getMoodText,

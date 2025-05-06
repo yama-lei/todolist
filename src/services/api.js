@@ -78,6 +78,11 @@ const plantApi = {
   
   // 获取特定植物详情
   getPlant(id) {
+    if (!id) {
+      console.error('API调用错误: 无法获取植物详情，ID无效', id);
+      return Promise.reject(new Error('无效的植物ID'));
+    }
+    console.log('API请求: 获取植物详情, ID:', id);
     return api.get(`/plants/${id}`);
   },
   
@@ -92,36 +97,67 @@ const plantApi = {
       console.error('API调用错误: 无法更新植物，ID无效', id);
       return Promise.reject(new Error('无效的植物ID'));
     }
+    console.log('API请求: 更新植物信息, ID:', id);
     return api.put(`/plants/${id}`, plantData);
   },
   
   // 删除植物
   deletePlant(id) {
+    if (!id) {
+      console.error('API调用错误: 无法删除植物，ID无效', id);
+      return Promise.reject(new Error('无效的植物ID'));
+    }
+    console.log('API请求: 删除植物, ID:', id);
     return api.delete(`/plants/${id}`);
   },
   
   // 增加植物经验
   increaseExperience(id, amount) {
+    if (!id) {
+      console.error('API调用错误: 无法增加植物经验，ID无效', id);
+      return Promise.reject(new Error('无效的植物ID'));
+    }
+    console.log('API请求: 增加植物经验, ID:', id);
     return api.put(`/plants/${id}/experience`, { amount });
   },
   
   // 更新植物生长阶段
   updateGrowthStage(id, stage) {
+    if (!id) {
+      console.error('API调用错误: 无法更新植物生长阶段，ID无效', id);
+      return Promise.reject(new Error('无效的植物ID'));
+    }
+    console.log('API请求: 更新植物生长阶段, ID:', id);
     return api.put(`/plants/${id}/growth-stage`, { stage });
   },
   
   // 获取植物心声
   getPlantThoughts(id) {
+    if (!id) {
+      console.error('API调用错误: 无法获取植物心声，ID无效', id);
+      return Promise.reject(new Error('无效的植物ID'));
+    }
     return api.get(`/plants/${id}/thoughts`);
   },
   
   // 生成新的植物心声
-  generatePlantThought(id, context) {
+  generatePlantThought(id, context = {}) {
+    if (!id) {
+      console.error('API调用错误: 无法生成植物心声，ID无效', id);
+      return Promise.reject(new Error('无效的植物ID'));
+    }
+    console.log('API请求: 生成植物心声, ID:', id);
     return api.post(`/plants/${id}/thoughts`, { context });
   },
   
   // 获取与植物的对话历史
-  getConversations(id, limit, before) {
+  getConversations(id, limit = 20, before = null) {
+    if (!id) {
+      console.error('API调用错误: 无法获取对话历史，ID无效', id);
+      return Promise.reject(new Error('无效的植物ID'));
+    }
+    console.log('API请求: 获取对话历史, ID:', id);
+    
     const params = {};
     if (limit) params.limit = limit;
     if (before) params.before = before;
@@ -131,6 +167,12 @@ const plantApi = {
   
   // 发送消息给植物并获取回复
   sendMessage(id, message, context = {}) {
+    if (!id) {
+      console.error('API调用错误: 无法发送消息，ID无效', id);
+      return Promise.reject(new Error('无效的植物ID'));
+    }
+    console.log('API请求: 发送消息给植物, ID:', id);
+    
     return api.post(`/plants/${id}/conversations`, { 
       message,
       context

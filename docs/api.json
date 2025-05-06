@@ -1139,12 +1139,12 @@
             },
             "401": {
               "description": "未授权",
-              "content": {
-                "application/json": {
-                  "schema": {"$ref": "#/components/schemas/Error"}
-                }
-              }
-            }
+               "content": {
+                 "application/json": {
+                   "schema": {"$ref": "#/components/schemas/Error"}
+                 }
+               }
+             }
           }
         }
       },

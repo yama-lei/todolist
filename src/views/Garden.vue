@@ -20,7 +20,7 @@
       <div class="garden-content">
         <div class="my-garden-section card">
           <div class="section-header">
-            <h3 class="section-title">未完成春天</h3>
+            <h3 class="section-title">未完成的春天</h3>
           </div>
           
           <div class="empty-garden" v-if="myPlants.length === 0">
@@ -40,14 +40,8 @@
             >
               <div class="plant-avatar">
                 <WeatherCanvas :weather="plant.weather || 'sunny'" :width="200" :height="200" />
-                <span class="plant-emoji">{{ plant.emoji }}</span>
-                
-                <!-- 添加植物对话框 -->
-                <PlantDialog 
-                  :text="selectedPlantForDialog && selectedPlantForDialog.id === plant.id ? generatePlantThought() : ''" 
-                  :is-visible="showPlantThoughtDialog && selectedPlantForDialog && selectedPlantForDialog.id === plant.id"
-                  @primary-action="showPlantThoughtDialog = false"
-                />
+                <!-- 使用图片替代emoji -->
+                <img :src="getPlantImage(plant)" class="plant-image" alt="植物图片" />
               </div>
               
               <div class="plant-details">
@@ -129,6 +123,23 @@ import { ElMessage } from 'element-plus'
 import WeatherCanvas from '@/components/WeatherCanvas.vue'
 import PlantDialog from '@/components/PlantDialog.vue'
 
+// 导入植物图片
+import plant1Level1 from '@/assets/images/plant/1-1.png'
+import plant1Level2 from '@/assets/images/plant/1-2.png'
+import plant1Level3 from '@/assets/images/plant/1-3.png'
+import plant2Level1 from '@/assets/images/plant/2-1.png'
+import plant2Level2 from '@/assets/images/plant/2-2.png'
+import plant2Level3 from '@/assets/images/plant/2-3.png'
+import plant3Level1 from '@/assets/images/plant/3-1.png'
+import plant3Level2 from '@/assets/images/plant/3-2.png'
+import plant3Level3 from '@/assets/images/plant/3-3.png'
+import plant4Level1 from '@/assets/images/plant/4-1.png'
+import plant4Level2 from '@/assets/images/plant/4-2.png'
+import plant4Level3 from '@/assets/images/plant/4-3.png'
+import plant5Level1 from '@/assets/images/plant/5-1.png'
+import plant5Level2 from '@/assets/images/plant/5-2.png'
+import plant5Level3 from '@/assets/images/plant/5-3.png'
+
 export default {
   name: 'GardenPage',
   components: {
@@ -144,13 +155,67 @@ export default {
     const showPlantThoughtDialog = ref(false)
     const searchPlant = ref('')
     
+    // 植物图片映射
+    const plantImages = {
+      '玫瑰': {
+        1: plant1Level1,
+        2: plant1Level2,
+        3: plant1Level3
+      },
+      '仙人掌': {
+        1: plant2Level1,
+        2: plant2Level2,
+        3: plant2Level3
+      },
+      '郁金香': {
+        1: plant3Level1,
+        2: plant3Level2,
+        3: plant3Level3
+      },
+      '白百何': {
+        1: plant4Level1,
+        2: plant4Level2,
+        3: plant4Level3
+      },
+      '向日葵': {
+        1: plant5Level1,
+        2: plant5Level2,
+        3: plant5Level3
+      }
+    }
+    
+    // 获取植物图片
+    const getPlantImage = (plant) => {
+      const type = plant.type.trim() // 移除可能存在的前后空格
+      const level = plant.level || 1
+      
+      // 检查植物类型和等级限制
+      const clamplLevel = Math.min(Math.max(level, 1), 3) // 限制等级在1-3之间
+      
+      // 根据植物类型返回对应图片
+      if (type === '玫瑰') {
+        return plantImages['玫瑰'][clamplLevel]
+      } else if (type === '仙人掌') {
+        return plantImages['仙人掌'][clamplLevel]
+      } else if (type === '郁金香') {
+        return plantImages['郁金香'][clamplLevel]
+      } else if (type === '白百何') {
+        return plantImages['白百何'][clamplLevel]
+      } else if (type === '向日葵') {
+        return plantImages['向日葵'][clamplLevel]
+      }
+      
+      // 默认返回第一张图片
+      return plant1Level1
+    }
+    
     // 所有植物列表 (已解锁)
     const allPlants = reactive([
       { id: 'plant1', name: '绯色絮语', type: '玫瑰', emoji: '🌹', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
       { id: 'plant2', name: '沙屿星芒', type: '仙人掌', emoji: '🌵', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
       { id: 'plant3', name: '冰爵士', type: ' 郁金香', emoji: '🌸', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
       { id: 'plant4', name: '云归处', type: ' 白百何', emoji: '🌲', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
-      { id: 'plant5', name: '日轮礼赞', type: ' 向日葵', emoji: '🌹', level: 1, experience: 0, weather: 'sunny', isMainPlant: false }
+      { id: 'plant5', name: '日轮礼赞', type: ' 向日葵', emoji: '🌻', level: 1, experience: 0, weather: 'sunny', isMainPlant: false }
     ])
     
     // 加载植物列表
@@ -159,21 +224,37 @@ export default {
       
       // 初始化植物数据
       for (const plant of allPlants) {
-        if (!plantStore.plants.find(p => p.type === plant.type)) {
-          await plantStore.createPlant({
-            name: plant.name,
-            type: plant.type,
-            emoji: plant.emoji,
-            isMainPlant: plant.isMainPlant
-          })
+        // 检查是否已存在该类型的植物
+        const existingPlant = plantStore.plants.find(p => p.type === plant.type)
+        if (!existingPlant) {
+          try {
+            const newPlant = await plantStore.createPlant({
+              name: plant.name,
+              type: plant.type,
+              emoji: plant.emoji,
+              isMainPlant: plant.isMainPlant
+            })
+            console.log('创建新植物成功:', newPlant)
+          } catch (error) {
+            console.error('创建植物失败:', error)
+            ElMessage.error('创建植物失败')
+          }
         }
       }
       
       // 如果没有主植物，将第一个设为主植物
-      if (!plantStore.plants.find(p => p.isMainPlant)) {
+      const mainPlant = plantStore.plants.find(p => p.isMainPlant)
+      if (!mainPlant && plantStore.plants.length > 0) {
         const firstPlant = plantStore.plants[0]
-        if (firstPlant) {
-          await plantStore.updatePlant(firstPlant.id, { isMainPlant: true })
+        const plantId = firstPlant._id || firstPlant.id
+        if (plantId) {
+          try {
+            await plantStore.updatePlant(plantId, { isMainPlant: true })
+            console.log('设置主植物成功:', firstPlant.name)
+          } catch (error) {
+            console.error('设置主植物失败:', error)
+            ElMessage.error('设置主植物失败')
+          }
         }
       }
       
@@ -189,7 +270,11 @@ export default {
     
     // 经验格式化
     const expFormat = (percentage) => {
-      const plant = plantStore.plants.find(p => p.id === selectedPlantForDialog.value?.id)
+      if (!selectedPlantForDialog.value) return ''
+      const plant = plantStore.plants.find(p => 
+        (p._id === selectedPlantForDialog.value._id) || 
+        (p.id === selectedPlantForDialog.value.id)
+      )
       if (!plant) return ''
       const currentExp = plant.experience || 0
       const level = plant.level || 1
@@ -201,60 +286,78 @@ export default {
     const updatePlantWeather = async (plant, weather) => {
       if (plant.weather === weather) return
       
-      await plantStore.updatePlant(plant.id, { weather })
+      // 获取正确的植物ID
+      const plantId = plant._id || plant.id
+      if (!plantId) {
+        console.error('无法更新植物天气: 植物ID无效', plant)
+        ElMessage.error('更新失败：无法获取植物ID')
+        return
+      }
+      
+      console.log('更新植物天气，植物ID:', plantId, '天气:', weather)
+      try {
+        await plantStore.updatePlant(plantId, { weather })
+        ElMessage.success('植物环境已更新')
+      } catch (error) {
+        console.error('更新植物天气失败:', error)
+        ElMessage.error(`更新失败: ${error.message || '未知错误'}`)
+      }
     }
     
     // 显示植物心声对话框
     const showDialog = async (plant) => {
+      // 获取正确的植物ID
+      const plantId = plant._id || plant.id
+      if (!plantId) {
+        console.error('无法显示植物心声: 植物ID无效', plant)
+        ElMessage.error('无法显示植物心声：植物ID无效')
+        return
+      }
+      
       selectedPlantForDialog.value = plant
       showPlantThoughtDialog.value = true
       
-      // 获取有效的植物ID
-      const plantId = plant._id || plant.id
-      
-      console.log('植物信息:', plant)
-      console.log('使用的植物ID:', plantId)
-      
+      // 获取植物心声
       try {
-        // 生成植物心声
-        const result = await plantStore.generatePlantThought(plantId, {
-          weather: plant.weather || 'sunny',
-          timeOfDay: getTimeOfDay(),
-          recentTasks: [] // 可以集成任务数据
-        })
-        
-        console.log('生成植物心声结果:', result)
+        await plantStore.fetchPlantThoughts(plantId)
       } catch (error) {
-        console.error('生成植物心声错误:', error)
-        ElMessage.error(`聆听心声失败: ${error.message || '未知错误'}`)
+        console.error('获取植物心声失败:', error)
+        ElMessage.error('获取植物心声失败')
       }
-    }
-    
-    // 获取当前时间段
-    const getTimeOfDay = () => {
-      const hour = new Date().getHours()
-      if (hour >= 5 && hour < 12) return 'morning'
-      if (hour >= 12 && hour < 18) return 'afternoon'
-      return 'evening'
     }
     
     // 生成植物心声
-    const generatePlantThought = () => {
-      if (!selectedPlantForDialog.value) return ''
-      
-      const thoughts = plantStore.thoughts || plantStore.recentThoughts
-      if (thoughts && thoughts.length > 0) {
-        return thoughts[0].content
+    const generatePlantThought = async (plant) => {
+      // 获取正确的植物ID
+      const plantId = plant._id || plant.id
+      if (!plantId) {
+        console.error('无法生成植物心声: 植物ID无效', plant)
+        ElMessage.error('生成失败：植物ID无效')
+        return
       }
       
-      return '...'
+      try {
+        const context = {
+          weather: plant.weather || 'sunny',
+          level: plant.level || 1,
+          experience: plant.experience || 0,
+          growthStage: plant.growthStage || 1
+        }
+        
+        await plantStore.generatePlantThought(plantId, context)
+        ElMessage.success('植物心声已生成')
+      } catch (error) {
+        console.error('生成植物心声失败:', error)
+        ElMessage.error(`生成失败: ${error.message || '未知错误'}`)
+      }
     }
     
-    // 设置为主植物
+    // 设置主植物
     const setAsMainPlant = async (plant) => {
-      // 获取有效的植物ID
-      const plantId = plant._id || plant.id
+      if (plant.isMainPlant) return
       
+      // 获取正确的植物ID
+      const plantId = plant._id || plant.id
       if (!plantId) {
         console.error('无法设置主植物: 植物ID无效', plant)
         ElMessage.error('设置失败：无法获取植物ID')
@@ -264,10 +367,10 @@ export default {
       console.log('设置主植物，植物ID:', plantId)
       try {
         await plantStore.updatePlant(plantId, { isMainPlant: true })
-        ElMessage.success(`${plant.name} 已设置为主植物`)
+        ElMessage.success('已设置为主植物')
       } catch (error) {
         console.error('设置主植物失败:', error)
-        ElMessage.error(`设置主植物失败: ${error.message || '未知错误'}`)
+        ElMessage.error(`设置失败: ${error.message || '未知错误'}`)
       }
     }
     
@@ -320,7 +423,8 @@ export default {
       updatePlantWeather,
       showDialog,
       generatePlantThought,
-      setAsMainPlant
+      setAsMainPlant,
+      getPlantImage
     }
   }
 }
@@ -536,8 +640,11 @@ export default {
   margin-bottom: 15px;
 }
 
-.plant-emoji {
-  font-size: 80px;
+/* 植物图片样式 */
+.plant-image {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
   z-index: 3;
   position: relative;
   animation: float 3s ease-in-out infinite;
@@ -696,8 +803,9 @@ export default {
     height: 140px;
   }
   
-  .plant-emoji {
-    font-size: 60px;
+  .plant-image {
+    width: 80%;
+    height: 80%;
   }
   
   .plant-actions {

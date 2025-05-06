@@ -38,21 +38,34 @@ export const usePlantStore = defineStore('plant', {
     // 获取特定植物详情
     async fetchPlantDetail(id) {
       try {
+        // 检查ID是否有效
+        if (!id) {
+          console.error('植物ID无效')
+          ElMessage.warning('植物ID无效，无法获取植物详情')
+          return null
+        }
+        
+        // 获取正确的ID, MongoDB使用_id作为主键
+        const plantId = typeof id === 'object' ? id._id : id
+        console.log('准备获取植物详情，使用ID:', plantId)
+        
         this.loading = true
-        const response = await plantApi.getPlant(id)
+        const response = await plantApi.getPlant(plantId)
+        
         // 更新植物详情
-        const index = this.plants.findIndex(p => p.id === id)
+        const index = this.plants.findIndex(p => p.id === plantId || p._id === plantId)
         if (index !== -1) {
           this.plants[index] = response.plant
         }
         
         // 如果是当前植物，更新当前植物
-        if (this.currentPlant && this.currentPlant.id === id) {
+        if (this.currentPlant && (this.currentPlant.id === plantId || this.currentPlant._id === plantId)) {
           this.currentPlant = response.plant
         }
         
         return response.plant
       } catch (error) {
+        console.error('获取植物详情失败:', error)
         ElMessage.error('获取植物详情失败')
         return null
       } finally {
@@ -84,39 +97,36 @@ export const usePlantStore = defineStore('plant', {
     
     // 更新植物信息
     async updatePlant(id, plantData) {
-      if (!id) {
-        console.error('更新植物失败: 无效的植物ID')
-        ElMessage.error('无法更新植物信息: ID不存在')
-        return null
-      }
-      
       try {
+        // 检查ID是否有效
+        if (!id) {
+          console.error('植物ID无效')
+          ElMessage.warning('植物ID无效，无法更新植物信息')
+          return null
+        }
+        
+        // 获取正确的ID, MongoDB使用_id作为主键
+        const plantId = typeof id === 'object' ? id._id : id
+        console.log('准备更新植物信息，使用ID:', plantId)
+        
         this.loading = true
-        console.log(`准备更新植物，ID: ${id}`, plantData)
-        const response = await plantApi.updatePlant(id, plantData)
+        const response = await plantApi.updatePlant(plantId, plantData)
         
-        // 更新植物列表中的植物信息
-        const index = this.plants.findIndex(p => p._id === id || p.id === id)
+        // 更新本地植物信息
+        const plant = response.plant
+        const index = this.plants.findIndex(p => p.id === plantId || p._id === plantId)
+        
         if (index !== -1) {
-          this.plants[index] = response.plant
+          this.plants[index] = plant
         }
         
-        // 如果更新的是当前植物，更新当前植物
-        if (this.currentPlant && (this.currentPlant.id === id || this.currentPlant._id === id)) {
-          this.currentPlant = response.plant
+        // 如果是当前植物，更新当前植物
+        if (this.currentPlant && (this.currentPlant.id === plantId || this.currentPlant._id === plantId)) {
+          this.currentPlant = plant
         }
         
-        // 如果更新了主植物状态，需要更新其他植物的主植物状态
-        if (plantData.isMainPlant) {
-          this.plants.forEach(p => {
-            if (p.id !== id && p._id !== id) {
-              p.isMainPlant = false
-            }
-          })
-        }
-        
-        ElMessage.success(response.message || '更新植物信息成功')
-        return response.plant
+        ElMessage.success('植物信息更新成功')
+        return plant
       } catch (error) {
         console.error('更新植物信息失败:', error)
         ElMessage.error('更新植物信息失败')
@@ -194,11 +204,22 @@ export const usePlantStore = defineStore('plant', {
     // 更新植物生长阶段
     async updateGrowthStage(id, stage) {
       try {
-        const response = await plantApi.updateGrowthStage(id, stage)
+        // 检查ID是否有效
+        if (!id) {
+          console.error('植物ID无效')
+          ElMessage.warning('植物ID无效，无法更新生长阶段')
+          return null
+        }
+        
+        // 获取正确的ID, MongoDB使用_id作为主键
+        const plantId = typeof id === 'object' ? id._id : id
+        console.log('准备更新植物生长阶段，使用ID:', plantId)
+        
+        const response = await plantApi.updateGrowthStage(plantId, stage)
         
         // 更新植物信息
         const plant = response.plant
-        const index = this.plants.findIndex(p => p.id === id)
+        const index = this.plants.findIndex(p => p.id === plantId || p._id === plantId)
         
         if (index !== -1) {
           this.plants[index].state = plant.state
@@ -206,7 +227,7 @@ export const usePlantStore = defineStore('plant', {
         }
         
         // 如果是当前植物，更新当前植物
-        if (this.currentPlant && this.currentPlant.id === id) {
+        if (this.currentPlant && (this.currentPlant.id === plantId || this.currentPlant._id === plantId)) {
           this.currentPlant.state = plant.state
           this.currentPlant.growthStage = plant.growthStage
         }
@@ -214,6 +235,7 @@ export const usePlantStore = defineStore('plant', {
         ElMessage.success(response.message || `植物生长阶段已更新为 ${this.getGrowthStageName(stage)}`)
         return response.plant
       } catch (error) {
+        console.error('更新植物生长阶段失败:', error)
         ElMessage.error('更新植物生长阶段失败')
         return null
       }
@@ -239,8 +261,12 @@ export const usePlantStore = defineStore('plant', {
           return []
         }
         
+        // 获取正确的ID, MongoDB使用_id作为主键
+        const plantId = typeof id === 'object' ? id._id : id
+        console.log('准备获取植物心声，使用ID:', plantId)
+        
         this.loading = true
-        const response = await plantApi.getPlantThoughts(id)
+        const response = await plantApi.getPlantThoughts(plantId)
         this.thoughts = response.thoughts
         return response.thoughts
       } catch (error) {
@@ -262,7 +288,11 @@ export const usePlantStore = defineStore('plant', {
           return null
         }
         
-        const response = await plantApi.generatePlantThought(id, context)
+        // 获取正确的ID, MongoDB使用_id作为主键
+        const plantId = typeof id === 'object' ? id._id : id
+        
+        console.log('准备生成植物心声，使用ID:', plantId)
+        const response = await plantApi.generatePlantThought(plantId, context)
         // 添加到心声列表
         this.thoughts.unshift(response.thought)
         return response.thought
@@ -283,8 +313,12 @@ export const usePlantStore = defineStore('plant', {
           return []
         }
         
+        // 获取正确的ID, MongoDB使用_id作为主键
+        const plantId = typeof id === 'object' ? id._id : id
+        console.log('准备获取对话历史，使用ID:', plantId)
+        
         this.loading = true
-        const response = await plantApi.getConversations(id, limit, before)
+        const response = await plantApi.getConversations(plantId, limit, before)
         
         if (before) {
           // 加载更多消息，添加到现有消息列表
@@ -315,7 +349,11 @@ export const usePlantStore = defineStore('plant', {
           return null
         }
         
-        const response = await plantApi.sendMessage(id, message, context)
+        // 获取正确的ID, MongoDB使用_id作为主键
+        const plantId = typeof id === 'object' ? id._id : id
+        console.log('准备发送消息，使用ID:', plantId)
+        
+        const response = await plantApi.sendMessage(plantId, message, context)
         
         // 添加用户消息和植物回复到对话列表
         const userMessage = {
