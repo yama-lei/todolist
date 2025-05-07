@@ -101,7 +101,7 @@ router.get('/:id', auth, async (req, res) => {
 // 更新植物信息
 router.put('/:id', auth, async (req, res) => {
   try {
-    const { name, emoji, isMainPlant } = req.body;
+    const { name, emoji, isMainPlant, mood } = req.body;
     const plant = await Plants.findOne({ _id: req.params.id, userId: req.user.id });
     
     if (!plant) {
@@ -116,6 +116,19 @@ router.put('/:id', auth, async (req, res) => {
     // 只更新提供的字段
     if (name) updatedFields.name = name;
     if (emoji) updatedFields.emoji = emoji;
+    
+    // 验证并更新心情
+    if (mood) {
+      // 验证心情值是否有效
+      const validMoods = ['happy', 'neutral', 'sad'];
+      if (!validMoods.includes(mood)) {
+        return res.status(400).json({
+          success: false,
+          message: '无效的心情值，必须是 happy、neutral 或 sad'
+        });
+      }
+      updatedFields.mood = mood;
+    }
     
     // 如果设置为主植物，将其他植物设置为非主植物
     if (isMainPlant === true && !plant.isMainPlant) {
@@ -137,6 +150,9 @@ router.put('/:id', auth, async (req, res) => {
         message: '没有更新任何字段'
       });
     }
+    
+    // 更新最后交互时间
+    updatedFields.lastInteraction = new Date().toISOString();
     
     // 更新植物信息
     await Plants.update(

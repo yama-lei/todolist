@@ -112,25 +112,41 @@ export const usePlantStore = defineStore('plant', {
         this.loading = true
         const response = await plantApi.updatePlant(plantId, plantData)
         
+        if (!response || !response.plant) {
+          throw new Error('更新植物信息失败：服务器响应无效')
+        }
+        
         // 更新本地植物信息
         const plant = response.plant
         const index = this.plants.findIndex(p => p.id === plantId || p._id === plantId)
         
         if (index !== -1) {
-          this.plants[index] = plant
+          // 保留现有属性，只更新修改的字段
+          this.plants[index] = {
+            ...this.plants[index],
+            ...plant,
+            // 确保ID字段保持一致
+            id: this.plants[index].id,
+            _id: this.plants[index]._id
+          }
         }
         
         // 如果是当前植物，更新当前植物
         if (this.currentPlant && (this.currentPlant.id === plantId || this.currentPlant._id === plantId)) {
-          this.currentPlant = plant
+          // 保留现有属性，只更新修改的字段
+          this.currentPlant = {
+            ...this.currentPlant,
+            ...plant,
+            // 确保ID字段保持一致
+            id: this.currentPlant.id,
+            _id: this.currentPlant._id
+          }
         }
         
-        ElMessage.success('植物信息更新成功')
         return plant
       } catch (error) {
         console.error('更新植物信息失败:', error)
-        ElMessage.error('更新植物信息失败')
-        return null
+        throw error // 向上传递错误，让调用者处理
       } finally {
         this.loading = false
       }
