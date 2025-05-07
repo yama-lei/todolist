@@ -101,7 +101,7 @@ router.get('/:id', auth, async (req, res) => {
 // 更新植物信息
 router.put('/:id', auth, async (req, res) => {
   try {
-    const { name, emoji, isMainPlant } = req.body;
+    const { name, emoji, isMainPlant, mood } = req.body;
     const plant = await Plants.findOne({ _id: req.params.id, userId: req.user.id });
     
     if (!plant) {
@@ -116,6 +116,19 @@ router.put('/:id', auth, async (req, res) => {
     // 只更新提供的字段
     if (name) updatedFields.name = name;
     if (emoji) updatedFields.emoji = emoji;
+    
+    // 验证并更新心情
+    if (mood) {
+      // 验证心情值是否有效
+      const validMoods = ['happy', 'neutral', 'sad'];
+      if (!validMoods.includes(mood)) {
+        return res.status(400).json({
+          success: false,
+          message: '无效的心情值，必须是 happy、neutral 或 sad'
+        });
+      }
+      updatedFields.mood = mood;
+    }
     
     // 如果设置为主植物，将其他植物设置为非主植物
     if (isMainPlant === true && !plant.isMainPlant) {
@@ -137,6 +150,9 @@ router.put('/:id', auth, async (req, res) => {
         message: '没有更新任何字段'
       });
     }
+    
+    // 更新最后交互时间
+    updatedFields.lastInteraction = new Date().toISOString();
     
     // 更新植物信息
     await Plants.update(
@@ -398,15 +414,54 @@ router.post('/:id/thoughts', auth, async (req, res) => {
       });
     }
     
+    // 根据心情设置不同的情感基调
+    const moodContext = {
+      happy: {
+        tone: '开心愉悦',
+        keywords: ['快乐', '阳光', '温暖', '充满希望'],
+        emoji: ['😊', '🌟', '✨', '💫']
+      },
+      neutral: {
+        tone: '平和安静',
+        keywords: ['平静', '舒适', '安宁', '思考'],
+        emoji: ['😌', '🍃', '💭', '☘️']
+      },
+      sad: {
+        tone: '略显忧郁',
+        keywords: ['期待', '需要关爱', '渴望阳光', '想要温暖'],
+        emoji: ['🥺', '💧', '🌧️', '🍂']
+      }
+    };
+    
+    // 合并心情上下文和原有上下文
+    const enrichedContext = {
+      ...context,
+      mood: plant.mood || 'neutral',
+      moodTone: moodContext[plant.mood || 'neutral'].tone,
+      moodKeywords: moodContext[plant.mood || 'neutral'].keywords,
+      moodEmoji: moodContext[plant.mood || 'neutral'].emoji
+    };
+    
     // 使用DeepSeek API生成心声
-    const content = await deepSeekClient.generatePlantThought(plant, context);
+    const content = await deepSeekClient.generatePlantThought(plant, enrichedContext);
     
-    // 生成随机标签和图标
-    const thoughtTypes = ['weather', 'motivation', 'reflection'];
-    const icons = ['🌞', '🌈', '🌱', '🌻', '💧'];
-    const tags = ['早安问候', '天气感知', '成长鼓励', '日常感想'];
+    // 根据心情选择合适的标签和图标
+    const moodBasedIcons = {
+      happy: ['🌞', '🌈', '🌻', '✨'],
+      neutral: ['🌱', '🍃', '☘️', '💭'],
+      sad: ['🌧️', '💧', '🍂', '🌫️']
+    };
     
-    const type = thoughtTypes[Math.floor(Math.random() * thoughtTypes.length)];
+    const moodBasedTags = {
+      happy: ['开心时刻', '阳光心情', '快乐分享', '温暖日常'],
+      neutral: ['日常感想', '平静时光', '生活随想', '自然之声'],
+      sad: ['等待阳光', '需要关爱', '雨天心情', '温暖祝愿']
+    };
+    
+    const currentMood = plant.mood || 'neutral';
+    const icons = moodBasedIcons[currentMood];
+    const tags = moodBasedTags[currentMood];
+    
     const icon = icons[Math.floor(Math.random() * icons.length)];
     const tag = tags[Math.floor(Math.random() * tags.length)];
     
@@ -414,15 +469,11 @@ router.post('/:id/thoughts', auth, async (req, res) => {
       plantId: req.params.id,
       userId: req.user.id,
       content,
-      type,
+      type: 'mood',
       icon,
       tag,
       timestamp: new Date().toISOString(),
-      context: {
-        weather: context.weather || 'sunny',
-        recentTasks: context.recentTasks || [],
-        timeOfDay: context.timeOfDay || 'morning'
-      }
+      context: enrichedContext
     };
     
     const newThought = await PlantThoughts.insert(thought);

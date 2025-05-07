@@ -90,6 +90,7 @@ export default {
     const postStore = usePostStore()
     
     const plantMood = ref(plantStore.currentPlant?.mood || 'neutral')
+    const loading = ref(false)
     
     // 生成植物心声
     const generateThought = async () => {
@@ -143,16 +144,47 @@ export default {
     
     // 更新心情
     const updateMood = async (mood) => {
-      if (plantStore.currentPlant) {
-        // 检查植物ID是否有效
-        if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
-          console.error('植物ID无效')
-          ElMessage.warning('植物信息不完整，请重新选择植物')
-          return
-        }
+      if (!plantStore.currentPlant) {
+        ElMessage.warning('请先选择一个植物')
+        return
+      }
+      
+      // 检查植物ID是否有效
+      if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
+        console.error('植物ID无效')
+        ElMessage.warning('植物信息不完整，请重新选择植物')
+        return
+      }
+      
+      const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
+      
+      try {
+        loading.value = true
+        const updatedPlant = await plantStore.updatePlant(plantId, { mood })
         
-        const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
-        await plantStore.updatePlant(plantId, { mood })
+        if (updatedPlant) {
+          // 更新本地状态
+          plantMood.value = mood
+          
+          // 根据心情显示不同的提示
+          const moodMessages = {
+            happy: '植物看起来很开心！',
+            neutral: '植物心情平静',
+            sad: '植物有点难过，需要更多关爱'
+          }
+          
+          ElMessage({
+            type: mood === 'sad' ? 'warning' : mood === 'happy' ? 'success' : 'info',
+            message: moodMessages[mood] || '植物心情已更新'
+          })
+        }
+      } catch (error) {
+        console.error('更新植物心情失败:', error)
+        ElMessage.error('更新植物心情失败，请稍后重试')
+        // 恢复原来的心情值
+        plantMood.value = plantStore.currentPlant.mood || 'neutral'
+      } finally {
+        loading.value = false
       }
     }
     
