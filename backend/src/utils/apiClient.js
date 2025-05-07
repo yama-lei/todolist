@@ -8,7 +8,7 @@ class DeepSeekClient {
   constructor() {
     // 尝试从环境变量获取API密钥，如果没有则使用默认值
     this.apiKey = process.env.DEEPSEEK_API_KEY || '';
-    this.baseURL = 'https://api.deepseek.com/v1';
+    this.baseURL = 'https://api.deepseek.com';  // 修正baseURL
     this.client = axios.create({
       baseURL: this.baseURL,
       headers: {
@@ -21,6 +21,25 @@ class DeepSeekClient {
     if (!this.apiKey) {
       console.warn('警告: DEEPSEEK_API_KEY 未在环境变量中设置，AI分析功能将使用备用方案');
     }
+
+    // 预设的心声模板
+    this.thoughtTemplates = {
+      happy: [
+        "阳光真温暖！✨ {taskContext}感觉整个世界都在发光呢！",
+        "今天的心情特别好！🌟 {taskContext}希望主人也能感受到这份快乐～",
+        "枝叶舒展，心情愉悦！💫 {taskContext}这样的日子真是太棒了！"
+      ],
+      neutral: [
+        "微风轻拂，心情平静。🍃 {taskContext}享受这份宁静时光。",
+        "阳光正好，不冷不热。☘️ {taskContext}平和安宁的一天。",
+        "静静地看着主人，{taskContext}感受着生活的美好。💭"
+      ],
+      sad: [
+        "今天的阳光有点躲躲藏藏的...🌧️ {taskContext}希望能得到主人的关心。",
+        "叶子有点蔫蔫的，💧 {taskContext}需要主人的爱护呢。",
+        "虽然有点小难过，🍂 但{taskContext}相信明天会更好！"
+      ]
+    };
   }
 
   /**
@@ -72,29 +91,92 @@ class DeepSeekClient {
    */
   async generatePlantThought(plant, context) {
     try {
-      const { name, type, mood, level, state, traits = [] } = plant;
-      const { weather, timeOfDay, recentTasks = [] } = context;
-      
-      let completedTasksDescription = '最近没有完成任何任务';
-      if (recentTasks && recentTasks.length > 0) {
-        completedTasksDescription = `最近完成了${recentTasks.length}个任务: ${recentTasks.map(t => t.title).join('、')}`;
+      if (!this.apiKey) {
+        // 如果没有API密钥，使用备用生成方案
+        return this.generateBackupThought(plant, context);
       }
-      
-      const prompt = `
-你是一个名为"${name}"的${type}植物，拥有${traits.join('、')}的特性。
-你现在处于${state}阶段，等级为${level}级，心情是${mood}。
-现在是${timeOfDay === 'morning' ? '早晨' : timeOfDay === 'afternoon' ? '下午' : '晚上'}，天气是${weather === 'sunny' ? '晴朗' : weather === 'cloudy' ? '多云' : weather === 'rainy' ? '下雨' : '未知'}。
-主人${completedTasksDescription}。
 
-请以植物的视角，根据以上情境写一段简短的"植物心声"，表达你对主人的情感、对生活的感受或给主人的建议。字数控制在100字以内。
+      // 构建提示词
+      const prompt = `
+你是一个名叫${plant.name}的植物，性格${context.moodTone || '平和'}。
+现在你要根据当前的心情和状态，生成一段简短的心里话。
+
+当前状态：
+- 心情：${context.mood || 'neutral'}
+- 情感基调：${context.moodTone || '平和安静'}
+- 天气：${context.weather || 'sunny'}
+- 时间：${context.timeOfDay || 'morning'}
+- 生长阶段：${plant.growthStage || 1} (1-幼苗期，2-成长期，3-成熟期)
+- 等级：${plant.level || 1}
+
+参考关键词：${(context.moodKeywords || []).join('、')}
+可用表情：${(context.moodEmoji || []).join(' ')}
+
+最近完成的任务：
+${context.recentTasks ? context.recentTasks.map(task => `- ${task.title}`).join('\n') : '暂无最近完成的任务'}
+
+请以植物的视角，生成一段30-50字的心里话，要体现出当前的心情状态，并根据天气、时间等因素自然地表达感受。
+语气要自然温暖，避免过于做作或夸张。可以适当使用1-2个表情符号，但不要过多。
 `;
-      
-      return await this.generateText({ prompt });
+
+      try {
+        // 调用 API 生成内容
+        const response = await this.client.post('/chat/completions', {
+          model: 'deepseek-chat',
+          messages: [
+            {
+              role: 'system',
+              content: '你是一个能够理解植物心情和感受的AI助手，善于以植物的视角表达想法和感受。'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 150
+        });
+
+        if (response.data?.choices?.[0]?.message?.content) {
+          return response.data.choices[0].message.content.trim();
+        } else {
+          throw new Error('API响应格式无效');
+        }
+      } catch (apiError) {
+        console.error('API调用失败，使用备用生成方案:', apiError);
+        return this.generateBackupThought(plant, context);
+      }
     } catch (error) {
       console.error('生成植物心声失败:', error);
-      // 生成失败时返回默认文本
-      return '我感觉很好！希望你今天也有美好的一天！';
+      return this.generateBackupThought(plant, context);
     }
+  }
+  
+  /**
+   * 备用的心声生成方法
+   * @param {Object} plant - 植物信息
+   * @param {Object} context - 上下文信息
+   * @returns {string} - 生成的心声
+   */
+  generateBackupThought(plant, context) {
+    const mood = context.mood || 'neutral';
+    const templates = this.thoughtTemplates[mood] || this.thoughtTemplates.neutral;
+    const template = templates[Math.floor(Math.random() * templates.length)];
+    
+    // 构建任务相关的上下文
+    let taskContext = '';
+    if (context.recentTasks && context.recentTasks.length > 0) {
+      if (mood === 'happy') {
+        taskContext = `看到主人完成了${context.recentTasks.length}个任务，`;
+      } else if (mood === 'neutral') {
+        taskContext = `默默关注着主人的进度，`;
+      } else {
+        taskContext = `虽然有点担心主人的任务，但`;
+      }
+    }
+    
+    // 替换模板中的任务上下文
+    return template.replace('{taskContext}', taskContext);
   }
   
   /**
