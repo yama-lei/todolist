@@ -5,6 +5,13 @@
     
     <!-- 主应用布局 -->
     <template v-else>
+      <!-- 添加视频背景 -->
+      <div class="video-background">
+        <video autoplay muted loop playsinline>
+          <source src="@/assets/videos/test.mp4" type="video/mp4">
+        </video>
+      </div>
+      
       <el-container class="main-container">
         <!-- 侧边栏 -->
         <el-aside width="220px" class="sidebar">
@@ -258,6 +265,8 @@ body {
 
 /* 主布局容器 */
 .main-container {
+  position: relative;
+  z-index: 1;
   width: 100%;
   min-height: 100vh;
 }
@@ -274,6 +283,7 @@ body {
   border-right: 1px solid #ebeef5;
   display: flex;
   flex-direction: column;
+  width: 220px; /* 明确指定侧边栏宽度 */
 }
 
 /* Logo容器 */
@@ -307,8 +317,11 @@ body {
 /* 主内容区域 */
 .el-main {
   padding: 20px;
-  margin-left: 220px;
+  margin-left: 220px; /* 与侧边栏宽度对应 */
   min-height: 100vh;
+  width: calc(100% - 220px); /* 减去侧边栏宽度 */
+  position: relative;
+  z-index: 1;
 }
 
 /* 用户面板 */
@@ -391,5 +404,23 @@ body {
 .dropdown-item.logout .el-icon,
 .dropdown-item.logout span {
   color: #f56c6c;
+}
+
+/* 视频背景样式 */
+.video-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.video-background video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.3;
 }
 </style>

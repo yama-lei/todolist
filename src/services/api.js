@@ -218,40 +218,30 @@ const taskApi = {
   }
 };
 
-// 帖子API
+// 帖子相关API
 const postApi = {
-  // 获取所有帖子
-  getPosts(type) {
+  // 获取帖子列表
+  getPosts(type = 'all') {
     const params = {};
     if (type && type !== 'all') {
       params.type = type;
     }
     return api.get('/posts', { params });
   },
-  
-  // 获取帖子详情
-  getPost(id) {
-    return api.get(`/posts/${id}`);
-  },
-  
+
   // 创建帖子
   createPost(postData) {
     return api.post('/posts', postData);
   },
-  
+
   // 更新帖子
   updatePost(id, postData) {
     return api.put(`/posts/${id}`, postData);
   },
-  
+
   // 删除帖子
   deletePost(id) {
     return api.delete(`/posts/${id}`);
-  },
-  
-  // 点赞帖子
-  likePost(id) {
-    return api.post(`/posts/${id}/like`);
   }
 };
 

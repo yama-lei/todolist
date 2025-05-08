@@ -14,12 +14,9 @@
             {{ story.postType === 'diary' ? '日记' : '说说' }}
           </div>
           
-          <!-- 帖子标题区域 -->
-          <div class="content-header">
+          <!-- 帖子标题区域，只有在标题存在时显示 -->
+          <div v-if="story.title && (story.postType === 'diary' || story.title.trim() !== '')" class="content-header">
             <h3 class="content-title">{{ story.title }}</h3>
-            <div class="content-actions">
-              <el-button size="small" :icon="Star" circle @click="likePost(story.id)"></el-button>
-            </div>
           </div>
           
           <!-- 帖子内容 -->
@@ -43,13 +40,15 @@
           
           <!-- 帖子底部区域 -->
           <div class="content-footer">
-            <div class="interaction-stats">
-              <span class="likes-count">
-                <el-icon><Star /></el-icon> {{ getRandomLikes() }}
-              </span>
-            </div>
-            
-            <div class="delete-action">
+            <div class="post-actions">
+              <el-button 
+                size="small" 
+                type="primary" 
+                text 
+                @click="editPost(story)"
+              >
+                编辑
+              </el-button>
               <el-button 
                 size="small" 
                 type="danger" 
@@ -89,7 +88,7 @@
 <script setup>
 import { ref } from 'vue'
 import { usePostStore } from '../stores/post'
-import { Star, Delete } from '@element-plus/icons-vue'
+import { Delete, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const props = defineProps({
@@ -103,30 +102,38 @@ const postStore = usePostStore()
 const deleteDialogVisible = ref(false)
 const postToDelete = ref(null)
 
-// 格式化日期部分
+// 定义事件
+const emit = defineEmits(['delete-post', 'edit-post'])
+
+// 删除不需要的方法
 const formatDate = (dateString) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  if (!dateString) return '未知时间'
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) {
+      console.warn('无效的日期格式:', dateString)
+      return '无效时间'
+    }
+    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  } catch (error) {
+    console.error('日期格式化错误:', error)
+    return '无效时间'
+  }
 }
 
-// 格式化时间部分
 const formatTime = (dateString) => {
-  const date = new Date(dateString)
-  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-}
-
-// 获取随机点赞数（仅用于演示）
-const getRandomLikes = () => {
-  return Math.floor(Math.random() * 10)
-}
-
-// 点赞帖子
-const likePost = (id) => {
-  postStore.likePost(id)
-  ElMessage({
-    message: '点赞成功！',
-    type: 'success'
-  })
+  if (!dateString) return ''
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) {
+      console.warn('无效的时间格式:', dateString)
+      return ''
+    }
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  } catch (error) {
+    console.error('时间格式化错误:', error)
+    return ''
+  }
 }
 
 // 打开删除确认框
@@ -144,12 +151,10 @@ const deletePost = async () => {
   }
 }
 
-// 删除帖子
-const emit = defineEmits(['delete-post']);
-
-const handleDeletePost = (id) => {
-  emit('delete-post', id);
-};
+// 编辑帖子
+const editPost = (story) => {
+  emit('edit-post', story)
+}
 </script>
 
 <style scoped>
@@ -267,11 +272,6 @@ const handleDeletePost = (id) => {
   color: #303133;
 }
 
-.content-actions {
-  display: flex;
-  gap: 8px;
-}
-
 .content-body {
   margin-bottom: 16px;
 }
@@ -311,35 +311,20 @@ const handleDeletePost = (id) => {
 
 .content-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding-top: 8px;
   border-top: 1px solid #f0f2f5;
 }
 
-.interaction-stats {
+.post-actions {
   display: flex;
-  gap: 16px;
-}
-
-.likes-count {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: #909399;
-  font-size: 14px;
-}
-
-.likes-count .el-icon {
-  color: #F7BA2A;
-}
-
-.delete-action {
+  gap: 8px;
   opacity: 0.6;
   transition: opacity 0.3s;
 }
 
-.delete-action:hover {
+.post-actions:hover {
   opacity: 1;
 }
 
