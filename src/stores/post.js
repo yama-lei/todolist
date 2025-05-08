@@ -27,44 +27,21 @@ export const usePostStore = defineStore('post', () => {
 
   // 添加自定义帖子（支持日记和说说）
   const addCustomPost = async (postData) => {
-    loading.value = true
     try {
-      // 如果没有日期，设置为当前日期
-      if (!postData.date) {
-        postData.date = new Date().toISOString();
-      }
+      // 确保有创建时间字段，如果已经有就用原来的，没有则设置为当前时间
+      const dataToSubmit = {
+        ...postData,
+        createdAt: postData.createdAt || new Date().toISOString()
+      };
+      console.log('准备提交到后端的帖子数据:', dataToSubmit);
       
-      const response = await postApi.createPost({
-        title: postData.title || '',
-        content: postData.content,
-        images: postData.images || [],
-        location: postData.location || '',
-        mood: postData.mood || 'neutral',
-        weather: postData.weather || 'sunny',
-        type: postData.type || 'thought', // 'thought' 或 'diary'
-        date: postData.date // 添加日期
-      })
-      
-      // 添加到本地状态
-      posts.value.unshift(response.post)
-      
-      // 同时给植物添加经验
-      const plantStore = usePlantStore()
-      if (plantStore.currentPlant) {
-        const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
-        if (plantId) {
-          await plantStore.gainExperience(plantId, 10)
-        }
-      }
-      
-      ElMessage.success(`${postData.type === 'diary' ? '日记' : '说说'}发布成功`)
-      return response.post
+      const response = await postApi.createPost(dataToSubmit);
+      await fetchPosts();
+      return true;
     } catch (error) {
-      console.error('发布失败:', error)
-      ElMessage.error('发布失败，请稍后再试')
-      return null
-    } finally {
-      loading.value = false
+      console.error('发布失败:', error);
+      ElMessage.error('发布失败，请稍后再试');
+      return false;
     }
   }
   
@@ -96,20 +73,24 @@ export const usePostStore = defineStore('post', () => {
     }
   }
   
-  // 点赞帖子
-  const likePost = async (id) => {
+  // 更新帖子
+  const updatePost = async (id, postData) => {
     try {
-      const response = await postApi.likePost(id)
-      // 更新本地状态
-      const post = posts.value.find(post => post._id === id)
-      if (post) {
-        post.likes = response.likes
-      }
-      return response.likes
+      // 确保保留原始创建时间
+      const dataToSubmit = {
+        ...postData,
+        createdAt: postData.createdAt || new Date().toISOString()
+      };
+      console.log('更新帖子数据:', dataToSubmit);
+      
+      const response = await postApi.updatePost(id, dataToSubmit);
+      await fetchPosts();
+      ElMessage.success('更新成功');
+      return true;
     } catch (error) {
-      console.error('点赞失败:', error)
-      ElMessage.error('点赞失败')
-      return null
+      console.error('更新失败:', error);
+      ElMessage.error('更新失败，请稍后再试');
+      return false;
     }
   }
   
@@ -128,6 +109,6 @@ export const usePostStore = defineStore('post', () => {
     addPost,
     addCustomPost,
     removePost,
-    likePost
+    updatePost
   }
 }) 

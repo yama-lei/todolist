@@ -197,28 +197,34 @@
             <div class="plant-header">
               <h2 class="section-title">{{ plantStore.mainPlant ? plantStore.mainPlant.name : '尚未添加植物' }}</h2>
               <div class="plant-weather" v-if="plantStore.mainPlant">
-                <el-select v-model="weather" placeholder="选择天气" @change="updateWeather">
-                  <el-option label="晴天" value="sunny" />
-                  <el-option label="雨天" value="rainy" />
-                  <el-option label="多云" value="cloudy" />
-                </el-select>
+                <div class="weather-options">
+                  <span 
+                    class="weather-option" 
+                    :class="{ active: weather === 'sunny' }"
+                    title="晴天"
+                    @click="updateWeather('sunny')"
+                  >☀️</span>
+                  <span 
+                    class="weather-option" 
+                    :class="{ active: weather === 'rainy' }"
+                    title="下雨"
+                    @click="updateWeather('rainy')"
+                  >🌧️</span>
+                  <span 
+                    class="weather-option" 
+                    :class="{ active: weather === 'cloudy' }"
+                    title="多云"
+                    @click="updateWeather('cloudy')"
+                  >☁️</span>
+                </div>
               </div>
             </div>
             
             <div class="plant-display">
               <div class="plant-canvas-wrapper">
-                <WeatherCanvas :weather="weather" :width="450" :height="350" />
+                <WeatherCanvas :weather="weather" :width="300" :height="300" />
                 <div class="plant-emoji-container">
-                  <!---                  <span class="plant-emoji" :class="plantState">
-                    {{ getPlantEmoji() }}
-                  </span>-->
                   <img :src="getPlantImage(plantStore.mainPlant)" class="plant-image" alt="植物图片" />
-                  <PlantDialog 
-                    :text="randomThought" 
-                    :is-visible="showPlantDialog"
-                    :show-buttons="false"
-                    @primary-action="showPlantDialog = false"
-                  />
                 </div>
               </div>
               
@@ -229,15 +235,15 @@
                   <el-tag type="warning" size="large">心情: {{ getMoodText() }}</el-tag>
                 </div>
                 
-                <el-progress 
-                  :percentage="experiencePercentage" 
-                  :format="expFormat"
-                  class="experience-bar"
-                  :stroke-width="15"
-                  :show-text="true"
-                  striped
-                  :striped-flow="true"
-                />
+                <div class="plant-level-container">
+                  <div class="plant-level">经验值: <span class="level-value">{{ plantStore.mainPlant?.experience || 0 }}/{{ (plantStore.mainPlant?.level || 1) * 100 }}</span></div>
+                  <el-progress 
+                    :percentage="experiencePercentage" 
+                    :format="expFormat"
+                    :stroke-width="10"
+                    class="plant-exp-progress"
+                  />
+                </div>
                 
                 <div class="plant-actions">
                   <el-button type="success" @click="refreshPlantThought">
@@ -484,7 +490,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTaskStore } from '../stores/task'
 import { usePlantStore } from '../stores/plant'
@@ -772,8 +778,8 @@ export default {
       taskStore.removeCompletedTask(id)
     }
     
-    // 更新天气
-    const updateWeather = (newWeather) => {
+    // 更新天气方法
+    const updateWeather = async (newWeather) => {
       if (plantStore.mainPlant) {
         // 获取有效的植物ID
         const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id;
@@ -784,9 +790,46 @@ export default {
           return;
         }
         
-        plantStore.updatePlant(plantId, { weather: newWeather });
+        try {
+          await plantStore.updatePlant(plantId, { weather: newWeather });
+          weather.value = newWeather; // 更新本地状态
+          ElMessage.success('植物环境已更新');
+        } catch (error) {
+          console.error('更新天气失败:', error);
+          ElMessage.error(`更新失败: ${error.message || '未知错误'}`);
+        }
       }
     }
+    
+    // 监听主植物变化
+    watch(() => plantStore.mainPlant, async (newMainPlant) => {
+      if (newMainPlant) {
+        // 更新天气状态
+        weather.value = newMainPlant.weather || 'sunny';
+        
+        // 更新植物心声
+        try {
+          const plantId = newMainPlant._id || newMainPlant.id;
+          if (plantId) {
+            const thoughts = await plantStore.fetchPlantThoughts(plantId);
+            plantStore.thoughts = thoughts.map(thought => ({
+              type: 'plant',
+              content: thought.content,
+              timestamp: thought.timestamp
+            }));
+          }
+        } catch (error) {
+          console.error('更新植物心声失败:', error);
+        }
+      }
+    }, { immediate: true });
+
+    // 初始化天气状态
+    onMounted(() => {
+      if (plantStore.mainPlant) {
+        weather.value = plantStore.mainPlant.weather || 'sunny';
+      }
+    });
     
     // 格式化日期
     const formatDate = (dateString) => {
@@ -1663,16 +1706,19 @@ export default {
 /* Canvas容器样式 */
 .plant-canvas-wrapper {
   position: relative;
-  width: 100%;
-  height: 350px;
+  width: 300px;
+  height: 300px;
   overflow: hidden;
   border-radius: 16px;
+  margin: 0 auto;
 }
 
 .plant-canvas-wrapper :deep(canvas) {
   position: absolute;
   top: 0;
   left: 0;
+  width: 100%;
+  height: 100%;
   z-index: 1;
 }
 
@@ -1685,24 +1731,23 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
+  width: 80%;
+  height: 80%;
 }
 
-.plant-emoji {
-  font-size: 120px;
-  transition: all 0.5s ease;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
+.plant-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 3;
+  position: relative;
+  animation: float 3s ease-in-out infinite;
 }
 
-.plant-emoji.growing {
-  transform: scale(1);
-}
-
-.plant-emoji.flowering {
-  transform: scale(1.1);
-}
-
-.plant-emoji.fruiting {
-  transform: scale(1.2);
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
 }
 
 .plant-details {
@@ -1719,8 +1764,55 @@ export default {
   flex-wrap: wrap;
 }
 
-.experience-bar {
-  margin: 8px 0;
+.plant-level-container {
+  margin-bottom: 15px;
+}
+
+.plant-level {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.level-value {
+  font-weight: bold;
+  color: #4caf50;
+}
+
+.plant-exp-progress :deep(.el-progress-bar__outer) {
+  border-radius: 10px;
+  background-color: #f0f0f0;
+}
+
+.plant-exp-progress :deep(.el-progress-bar__inner) {
+  border-radius: 10px;
+  background: linear-gradient(90deg, #81c784, #4caf50);
+}
+
+.weather-options {
+  display: flex;
+  gap: 15px;
+}
+
+.weather-option {
+  font-size: 22px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: all 0.3s;
+  filter: grayscale(0.6);
+}
+
+.weather-option:hover {
+  transform: scale(1.2);
+  opacity: 0.8;
+  filter: grayscale(0);
+}
+
+.weather-option.active {
+  opacity: 1;
+  transform: scale(1.2);
+  filter: grayscale(0);
 }
 
 .plant-actions {

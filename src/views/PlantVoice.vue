@@ -70,7 +70,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { usePlantStore } from '../stores/plant'
 import { useTaskStore } from '../stores/task'
 import { usePostStore } from '../stores/post'
@@ -91,6 +91,36 @@ export default {
     
     const plantMood = ref(plantStore.currentPlant?.mood || 'neutral')
     const loading = ref(false)
+    
+    // 监听主植物变化
+    watch(() => plantStore.mainPlant, async (newMainPlant) => {
+      if (newMainPlant) {
+        // 更新当前植物
+        plantStore.currentPlant = newMainPlant;
+        
+        // 更新心情状态
+        plantMood.value = newMainPlant.mood || 'neutral';
+        
+        // 重新加载植物心声
+        try {
+          const plantId = newMainPlant._id || newMainPlant.id;
+          if (plantId) {
+            loading.value = true;
+            await plantStore.fetchPlantThoughts(plantId);
+            
+            // 如果没有心声，自动生成一条
+            if (plantStore.thoughts.length === 0) {
+              await generateThought();
+            }
+          }
+        } catch (error) {
+          console.error('获取植物心声失败:', error);
+          ElMessage.error('获取植物心声失败');
+        } finally {
+          loading.value = false;
+        }
+      }
+    }, { immediate: true });
     
     // 生成植物心声
     const generateThought = async () => {
@@ -250,7 +280,6 @@ export default {
 
 <style scoped>
 .plant-voice-page {
-  background: linear-gradient(135deg, #e1f5e9 0%, #d7f5ff 100%);
   min-height: 100vh;
   padding: 20px 0;
 }

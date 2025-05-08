@@ -14,9 +14,15 @@ router.get('/', auth, async (req, res) => {
     
     const posts = await Posts.find(query, { createdAt: -1 });
     
+    // 确保日期格式正确
+    const formattedPosts = posts.map(post => ({
+      ...post,
+      createdAt: post.createdAt ? new Date(post.createdAt).toISOString() : new Date().toISOString()
+    }));
+    
     res.json({
       success: true,
-      posts
+      posts: formattedPosts
     });
   } catch (error) {
     res.status(500).json({
@@ -47,6 +53,7 @@ router.post('/', auth, async (req, res) => {
       });
     }
     
+    const now = new Date();
     const post = {
       userId: req.user.id,
       title: title || '',
@@ -56,7 +63,8 @@ router.post('/', auth, async (req, res) => {
       mood: mood || 'neutral',
       weather: weather || 'sunny',
       type: type || 'thought',
-      createdAt: new Date().toISOString(),
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
       likes: 0
     };
     
@@ -64,7 +72,11 @@ router.post('/', auth, async (req, res) => {
     
     res.status(201).json({
       success: true,
-      post: newPost
+      post: {
+        ...newPost,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString()
+      }
     });
   } catch (error) {
     res.status(500).json({

@@ -115,9 +115,20 @@ export default {
       '如何让你更快成长？'
     ]
     
+    // 默认欢迎语
+    const defaultWelcomeMessage = {
+      id: 'welcome',
+      sender: 'plant',
+      content: '你好！我是你的植物伙伴，很高兴能和你聊天。你可以问我任何问题，或者分享你的想法。',
+      timestamp: new Date()
+    }
+    
     // 计算属性：获取对话信息
     const conversations = computed(() => {
-      return plantStore.conversations || []
+      if (!plantStore.conversations || plantStore.conversations.length === 0) {
+        return [defaultWelcomeMessage]
+      }
+      return plantStore.conversations
     })
     
     // 获取植物表情
@@ -186,6 +197,20 @@ export default {
       const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
       const message = messageInput.value
       
+      // 创建用户消息对象
+      const userMessage = {
+        id: Date.now().toString(),
+        sender: 'user',
+        content: message,
+        timestamp: new Date()
+      }
+      
+      // 立即添加用户消息到对话列表
+      if (!plantStore.conversations) {
+        plantStore.conversations = []
+      }
+      plantStore.conversations.push(userMessage)
+      
       // 清空输入框
       messageInput.value = ''
       
@@ -194,11 +219,14 @@ export default {
       showSuggestions.value = false
       
       try {
+        // 滚动到底部
+        await scrollToBottom()
+        
         // 调用API发送消息
         await plantStore.sendMessage(plantId, message)
         
-        // 滚动到底部
-          await scrollToBottom()
+        // 再次滚动到底部（显示植物回复）
+        await scrollToBottom()
       } catch (error) {
         console.error('发送消息失败:', error)
         ElMessage.error('发送消息失败')
@@ -226,6 +254,29 @@ export default {
       await scrollToBottom()
     })
     
+    // 监听主植物变化
+    watch(() => plantStore.mainPlant, async (newMainPlant) => {
+      if (newMainPlant) {
+        // 更新当前植物
+        plantStore.currentPlant = newMainPlant;
+        
+        // 重新加载对话历史
+        try {
+          const plantId = newMainPlant._id || newMainPlant.id;
+          if (plantId) {
+            loading.value = true;
+            await plantStore.fetchConversations(plantId);
+            await scrollToBottom();
+          }
+        } catch (error) {
+          console.error('获取对话历史失败:', error);
+          ElMessage.error('获取对话历史失败');
+        } finally {
+          loading.value = false;
+        }
+      }
+    }, { immediate: true });
+    
     onMounted(async () => {
       // 确保有植物数据
       if (!plantStore.currentPlant) {
@@ -246,11 +297,15 @@ export default {
         
         try {
           await plantStore.fetchConversations(plantId)
+          // 如果没有对话历史，添加默认欢迎语
+          if (!plantStore.conversations || plantStore.conversations.length === 0) {
+            plantStore.conversations = [defaultWelcomeMessage]
+          }
         } catch (error) {
           console.error('获取对话历史失败:', error)
         } finally {
           loading.value = false
-      await scrollToBottom()
+          await scrollToBottom()
         }
       }
     })
@@ -277,7 +332,6 @@ export default {
 
 <style scoped>
 .plant-chat-page {
-  background: linear-gradient(135deg, #f0f7f4 0%, #e6f7ff 100%);
   min-height: 100vh;
   padding: 20px 0;
 }
@@ -309,13 +363,13 @@ export default {
 .plant-avatar {
   width: 70px;
   height: 70px;
-  background: linear-gradient(135deg, rgba(66, 185, 131, 0.2) 0%, rgba(100, 210, 255, 0.2) 100%);
+  background: linear-gradient(135deg, rgba(64, 158, 255, 0.2) 0%, rgba(100, 210, 255, 0.2) 100%);
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
   margin-right: 20px;
-  box-shadow: 0 4px 8px rgba(66, 185, 131, 0.15);
+  box-shadow: 0 4px 8px rgba(64, 158, 255, 0.15);
 }
 
 .plant-emoji {
@@ -346,7 +400,7 @@ export default {
 }
 
 .status-value {
-  color: #42b983;
+  color: #409EFF;
   font-weight: 500;
 }
 
@@ -361,13 +415,13 @@ export default {
 }
 
 .level-badge {
-  background: linear-gradient(135deg, #42b983 0%, #36a174 100%);
+  background: linear-gradient(135deg, #409EFF 0%, #66b1ff 100%);
   color: white;
   font-size: 0.8rem;
   font-weight: bold;
   padding: 5px 10px;
   border-radius: 20px;
-  box-shadow: 0 2px 4px rgba(66, 185, 131, 0.3);
+  box-shadow: 0 2px 4px rgba(64, 158, 255, 0.3);
 }
 
 .message-container {
@@ -416,7 +470,7 @@ export default {
   align-items: center;
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, rgba(66, 185, 131, 0.2) 0%, rgba(100, 210, 255, 0.2) 100%);
+  background: linear-gradient(135deg, rgba(64, 158, 255, 0.2) 0%, rgba(100, 210, 255, 0.2) 100%);
   border-radius: 50%;
   font-size: 24px;
 }
@@ -429,7 +483,7 @@ export default {
 }
 
 .user-message .message-bubble {
-  background: linear-gradient(135deg, #42b983 0%, #36a174 100%);
+  background: linear-gradient(135deg, #409EFF 0%, #66b1ff 100%);
   color: white;
   border-top-right-radius: 4px;
 }
@@ -506,8 +560,8 @@ export default {
 }
 
 .suggestion-chip {
-  background-color: rgba(66, 185, 131, 0.1);
-  color: #42b983;
+  background-color: rgba(64, 158, 255, 0.1);
+  color: #409EFF;
   padding: 6px 12px;
   border-radius: 16px;
   font-size: 0.85rem;
@@ -516,7 +570,7 @@ export default {
 }
 
 .suggestion-chip:hover {
-  background-color: rgba(66, 185, 131, 0.2);
+  background-color: rgba(64, 158, 255, 0.2);
   transform: translateY(-1px);
 }
 
@@ -548,14 +602,14 @@ export default {
   align-items: center;
   justify-content: center;
   margin-left: 10px;
-  background: linear-gradient(135deg, #42b983 0%, #36a174 100%);
+  background: linear-gradient(135deg, #409EFF 0%, #66b1ff 100%);
   border: none;
   transition: all 0.3s;
 }
 
 .send-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(66, 185, 131, 0.4);
+  box-shadow: 0 4px 8px rgba(64, 158, 255, 0.4);
 }
 
 @media (max-width: 768px) {

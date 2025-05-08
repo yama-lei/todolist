@@ -37,22 +37,20 @@
         </div>
       </div>
       
-      <div class="content-actions">
-        <el-button type="primary" @click="openPostDialog('diary')" class="write-diary-btn">
-          <el-icon><Notebook /></el-icon>
-          写日记
-        </el-button>
-      </div>
     </div>
     
     <div class="timeline-wrapper">
-      <TimeLinePage :stories="filteredPosts" @delete-post="deletePost"></TimeLinePage>
+      <TimeLinePage 
+        :stories="filteredPosts" 
+        @delete-post="deletePost"
+        @edit-post="editPost"
+      ></TimeLinePage>
     </div>
     
-    <!-- 新增说说/日记对话框 -->
+    <!-- 新增/编辑说说/日记对话框 -->
     <el-dialog
       v-model="showPostDialog"
-      :title="postType === 'diary' ? '写日记' : '发说说'"
+      :title="isEditing ? (postType === 'diary' ? '编辑日记' : '编辑说说') : (postType === 'diary' ? '写日记' : '发说说')"
       width="65%"
       custom-class="post-dialog"
       destroy-on-close
@@ -213,8 +211,8 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="showPostDialog = false">取消</el-button>
-          <el-button type="primary" @click="addPost" :disabled="!isPostValid" :size="postType === 'diary' ? 'large' : 'default'">
-            {{ postType === 'diary' ? '保存日记' : '发布说说' }}
+          <el-button type="primary" @click="handleSubmit" :disabled="!isPostValid" :size="postType === 'diary' ? 'large' : 'default'">
+            {{ isEditing ? '保存修改' : (postType === 'diary' ? '保存日记' : '发布说说') }}
           </el-button>
         </div>
       </template>
@@ -245,8 +243,10 @@ const showPostDialog = ref(false)
 const locationVisible = ref(false)
 const weatherVisible = ref(false)
 const showMoodSelector = ref(false)
-const postType = ref('thought') // 'thought' 或 'diary'
+const postType = ref('thought')
 const activeFilter = ref('all')
+const isEditing = ref(false)
+const editingPostId = ref(null)
 
 const newPost = ref({
   title: '',
@@ -294,35 +294,100 @@ const isPostValid = computed(() => {
   }
 })
 
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return '刚刚'
+  
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) {
+    console.warn('无效的日期格式:', dateString)
+    return '刚刚'
+  }
+  
+  return date.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+}
+
+// 格式化时间
+const formatPostTime = (createdAt) => {
+  if (!createdAt) {
+    console.warn('缺少创建时间，使用当前时间');
+    return format(new Date(), 'yyyy-MM-dd HH:mm');
+  }
+  
+  try {
+    const date = new Date(createdAt);
+    if (!isNaN(date.getTime())) {
+      return format(date, 'yyyy-MM-dd HH:mm');
+    } else {
+      console.warn('无效的日期格式:', createdAt);
+    }
+  } catch (error) {
+    console.error('日期格式化错误:', error);
+  }
+  
+  return format(new Date(), 'yyyy-MM-dd HH:mm');
+}
+
+// 添加帖子
+const addPost = async () => {
+  if (!isPostValid.value) return
+  
+  try {
+    const postData = {
+      ...newPost.value,
+      createdAt: new Date().toISOString() // 确保设置创建时间
+    }
+    
+    const success = await postStore.addCustomPost(postData)
+    if (success) {
+      resetForm()
+      showPostDialog.value = false
+      await loadPosts()
+    }
+  } catch (error) {
+    console.error('发布失败:', error)
+    ElMessage.error('发布失败，请稍后再试')
+  }
+}
+
 // 格式化并过滤帖子数据以适应TimeLinePage组件
 const filteredPosts = computed(() => {
-  // 确保 postStore.posts 是一个数组
   if (!Array.isArray(postStore.posts)) {
-    console.error('postStore.posts is not an array:', postStore.posts);
-    return [];
+    console.warn('posts 不是数组:', postStore.posts)
+    return []
   }
   
-  // 复制并显式排序：确保最新的在前面
-  const sortedPosts = [...postStore.posts].sort((a, b) => {
-    // 比较 createdAt 字段
-    const dateA = a.createdAt ? new Date(a.createdAt) : null;
-    const dateB = b.createdAt ? new Date(b.createdAt) : null;
-    
-    // 处理无效日期或缺失日期的情况
-    if (!dateB || isNaN(dateB)) return -1; // b 无效，排后面
-    if (!dateA || isNaN(dateA)) return 1;  // a 无效，排后面
-    
-    return dateB - dateA; // 降序排序
-  });
-
-  // 过滤
-  let postsToDisplay = sortedPosts;
+  let result = [...postStore.posts]
+  
+  // 调试：打印原始数据
+  console.log('原始帖子数据:', result)
+  
+  // 按类型过滤
   if (activeFilter.value !== 'all') {
-    postsToDisplay = sortedPosts.filter(post => post.type === activeFilter.value);
+    result = result.filter(post => post.type === activeFilter.value)
   }
   
-  // 映射到 TimeLinePage 需要的格式
-  return postsToDisplay.map(post => {
+  // 按日期排序（降序）
+  result.sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+    return dateB - dateA
+  })
+  
+  return result.map(post => {
+    // 调试：打印每个帖子的日期
+    console.log('后端返回的帖子：', post);
+    console.log('处理帖子日期:', {
+      id: post._id,
+      createdAt: post.createdAt,
+    })
+    
     // 构建标题: 日记显示标题，说说显示位置或心情
     let title = post.title || ''
     if (!title) {
@@ -330,9 +395,9 @@ const filteredPosts = computed(() => {
         title = `📍 ${post.location}`
       } else if (post.mood) {
         const mood = moods.find(m => m.value === post.mood)
-        title = mood ? `${mood.emoji} ${mood.text}` : '无标题'
+        title = mood ? `${mood.emoji} ${mood.text}` : ''
       } else {
-        title = post.type === 'diary' ? '无标题日记' : '无位置说说'
+        title = post.type === 'diary' ? '无标题日记' : ''
       }
     }
     
@@ -348,35 +413,18 @@ const filteredPosts = computed(() => {
       description = `${weatherEmoji[post.weather] || ''}\n${description}`
     }
     
-    // 安全处理日期格式化
-    let formattedTime = '日期处理出错'; // 默认错误文本
-    if (post.createdAt) {
-      try {
-        const dateObj = new Date(post.createdAt);
-        // 再次检查 dateObj 是否有效
-        if (!isNaN(dateObj.getTime())) {
-          formattedTime = format(dateObj, 'yyyy-MM-dd HH:mm');
-        } else {
-          console.warn('Invalid date object created for post:', post._id, 'createdAt:', post.createdAt);
-          formattedTime = '日期无效'; 
-        }
-      } catch (error) {
-        console.error('Error formatting date for post:', post._id, 'createdAt:', post.createdAt, error);
-        formattedTime = '日期格式错误';
-      }
-    } else {
-      console.warn('Missing createdAt field for post:', post._id);
-      formattedTime = '日期缺失'; // createdAt 字段不存在
-    }
-    
     return {
-      timestamp: formattedTime,
+      time: post.createdAt, // 直接使用后端返回的创建时间
       title: title,
       description: description,
       imageSrc: post.images && post.images.length > 0 ? post.images[0] : null,
       galleryImages: post.images || [], // 确保是数组
       id: post._id,
-      postType: post.type
+      postType: post.type,
+      // 添加原始属性以便编辑时正确保存
+      location: post.location,
+      mood: post.mood,
+      weather: post.weather
     }
   })
 })
@@ -391,44 +439,22 @@ watch(activeFilter, async () => {
   await loadPosts()
 })
 
-// 添加帖子
-const addPost = async () => {
-  if (!isPostValid.value) return
-  
-  const success = await postStore.addCustomPost({
-      title: newPost.value.title,
-      content: newPost.value.content,
-      images: newPost.value.images,
-      location: newPost.value.location,
-      mood: newPost.value.mood,
-      weather: newPost.value.weather,
-      type: postType.value,
-  })
-  
-  if (success) {
-    // 清空表单
-    resetForm()
-    // 关闭对话框
-    showPostDialog.value = false
-    // 重新加载帖子
-    loadPosts()
-  }
-}
-
 // 重置表单
 const resetForm = () => {
-    newPost.value = {
-      title: '',
-      content: '',
-      images: [],
-      location: '',
-      mood: '',
-      weather: '',
+  newPost.value = {
+    title: '',
+    content: '',
+    images: [],
+    location: '',
+    mood: 'neutral',
+    weather: 'sunny',
     type: postType.value
-    }
-    locationVisible.value = false
-    weatherVisible.value = false
+  }
+  locationVisible.value = false
+  weatherVisible.value = false
   showMoodSelector.value = false
+  isEditing.value = false
+  editingPostId.value = null
 }
 
 // 删除帖子
@@ -471,9 +497,71 @@ watch(postType, (newVal) => {
 
 // 初始化对话框时设置类型
 const openPostDialog = (type = 'thought') => {
+  isEditing.value = false
+  editingPostId.value = null
   postType.value = type
   newPost.value.type = type
   showPostDialog.value = true
+}
+
+// 编辑帖子
+const editPost = (post) => {
+  isEditing.value = true
+  editingPostId.value = post.id
+  postType.value = post.postType
+  
+  // 填充表单数据
+  newPost.value = {
+    title: post.title,
+    content: post.description,
+    images: post.galleryImages || [],
+    location: post.location || '',
+    mood: post.mood || '',
+    weather: post.weather || '',
+    type: post.postType,
+    createdAt: post.time // 保留原始创建时间
+  }
+  
+  // 显示相关选项
+  if (newPost.value.location) {
+    locationVisible.value = true
+  }
+  if (newPost.value.weather) {
+    weatherVisible.value = true
+  }
+  
+  showPostDialog.value = true
+}
+
+// 处理提交（新增或编辑）
+const handleSubmit = async () => {
+  if (!isPostValid.value) return
+  
+  try {
+    let success
+    const postData = {
+      ...newPost.value,
+      // 只在新建时设置时间，编辑时保留原始时间
+      createdAt: isEditing.value ? newPost.value.createdAt : new Date().toISOString()
+    }
+    
+    console.log('准备提交的帖子数据:', postData);
+    
+    if (isEditing.value) {
+      success = await postStore.updatePost(editingPostId.value, postData)
+    } else {
+      success = await postStore.addCustomPost(postData)
+    }
+    
+    if (success) {
+      resetForm()
+      showPostDialog.value = false
+      await loadPosts()
+    }
+  } catch (error) {
+    console.error('操作失败:', error)
+    ElMessage.error('操作失败，请稍后再试')
+  }
 }
 </script>
 
@@ -501,11 +589,11 @@ const openPostDialog = (type = 'thought') => {
 }
 
 .content-card {
-  background: white;
   border-radius: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   padding: 24px;
   margin-bottom: 20px;
+  background-color: #F5F7FA;
 }
 
 .thought-input-area {
@@ -521,14 +609,14 @@ const openPostDialog = (type = 'thought') => {
 
 .thought-input-area:hover {
   border-color: #409EFF;
-  background-color: #F5F7FA;
+  background-color: #E6F1FF;
 }
 
 .thought-input-placeholder {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #909399;
+  color: #606266;
 }
 
 .thought-input-placeholder .el-icon {
@@ -538,7 +626,7 @@ const openPostDialog = (type = 'thought') => {
 .filter-tabs {
   display: flex;
   gap: 16px;
-  border-bottom: 1px solid #EBEEF5;
+  border-bottom: 1px solid #DCDFE6;
   padding-bottom: 12px;
 }
 
@@ -548,11 +636,12 @@ const openPostDialog = (type = 'thought') => {
   border-radius: 16px;
   transition: all 0.3s;
   font-size: 14px;
+  background-color: #EBEEF5;
 }
 
 .filter-tab:hover {
   color: #409EFF;
-  background-color: #F0F9FF;
+  background-color: #DBECFF;
 }
 
 .filter-tab.active {
@@ -609,7 +698,7 @@ const openPostDialog = (type = 'thought') => {
 }
 
 .post-type-option:hover {
-  background-color: #F5F7FA;
+  background-color: #E6F1FF;
 }
 
 .post-type-option.active {
@@ -696,7 +785,7 @@ const openPostDialog = (type = 'thought') => {
   margin-top: 8px;
   margin-bottom: 15px;
   padding: 10px 12px;
-  background-color: #f8faff;
+  background-color: #E6F1FF;
   border-radius: 8px;
 }
 
@@ -733,11 +822,11 @@ const openPostDialog = (type = 'thought') => {
 }
 
 .weather-option:hover {
-  background-color: #f0f9ff;
+  background-color: #E6F1FF;
 }
 
 .weather-option.active {
-  background-color: #ecf5ff;
+  background-color: #DBECFF;
   border-color: #409EFF;
   color: #409EFF;
 }
@@ -750,7 +839,7 @@ const openPostDialog = (type = 'thought') => {
 .diary-upload {
   margin-top: 20px;
   padding: 15px;
-  background-color: #f8faff;
+  background-color: #E6F1FF;
   border-radius: 8px;
   border: 1px dashed #c0c4cc;
 }
@@ -789,14 +878,14 @@ const openPostDialog = (type = 'thought') => {
   gap: 6px;
   padding: 6px 12px;
   border-radius: 16px;
-  background-color: #F5F7FA;
+  background-color: #EBEEF5;
   cursor: pointer;
   transition: all 0.3s;
   font-size: 14px;
 }
 
 .option-item:hover {
-  background-color: #EBEEF5;
+  background-color: #DBECFF;
 }
 
 .option-item .el-icon {
@@ -824,11 +913,11 @@ const openPostDialog = (type = 'thought') => {
 }
 
 .mood-item:hover {
-  background-color: #F5F7FA;
+  background-color: #E6F1FF;
 }
 
 .mood-item.active {
-  background-color: #ECF5FF;
+  background-color: #DBECFF;
   border-color: #409EFF;
 }
 
@@ -872,5 +961,16 @@ const openPostDialog = (type = 'thought') => {
   .weather-options {
     flex-wrap: wrap;
   }
+}
+
+/* 添加编辑按钮样式 */
+.edit-button {
+  color: #409EFF;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.edit-button:hover {
+  color: #66b1ff;
 }
 </style> 

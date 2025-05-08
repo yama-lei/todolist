@@ -18,17 +18,56 @@
     </div>
 
     <div v-if="currentView === 'calendar'" class="calendar-view">
-      <div ref="calendar" class="echarts-calendar"></div>
+      <div class="custom-calendar">
+        <div class="calendar-weekdays">
+          <div class="weekday" v-for="day in ['一', '二', '三', '四', '五', '六', '日']" :key="day">周{{ day }}</div>
+        </div>
+        <div class="calendar-days">
+          <div 
+            v-for="(day, index) in calendarDays" 
+            :key="index"
+            class="calendar-day"
+            :class="{ 
+              'empty': !day.date, 
+              'selected': selectedDate === day.date,
+              'has-events': day.taskCount && day.taskCount.total > 0
+            }"
+            @click="day.date && selectDate(day.date)"
+          >
+            <template v-if="day.date">
+              <div class="day-number">{{ getDayNumber(day.date) }}</div>
+              <div class="day-indicators">
+                <span class="task-indicator" v-if="day.taskCount && day.taskCount.total > 0">
+                  {{ day.taskCount.total }}任务
+                </span>
+                <span class="post-indicator" v-if="day.posts && day.posts.length > 0">
+                  {{ day.posts.length }}条记录
+                </span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
       <div v-if="selectedDate" class="day-detail">
         <h2>{{ formatSelectedDate }}</h2>
         <div v-if="dayData">
           <div class="day-tasks" v-if="dayData.tasks && dayData.tasks.length > 0">
-            <h3>待办事项 ({{ dayData.taskCount?.total || 0 }})</h3>
+            <h3>待办事项 ({{ dayData.statistics?.totalTasks || 0 }})</h3>
             <ul>
               <li v-for="task in dayData.tasks" :key="task.id" :class="{ completed: task.completed, important: task.important }">
                 <span class="task-icon" v-if="task.important">⭐</span>
                 <span class="task-title">{{ task.title }}</span>
                 <span class="task-time" v-if="task.deadline">{{ formatTime(task.deadline) }}</span>
+              </li>
+            </ul>
+          </div>
+          <div class="day-tasks" v-if="dayData.systemTasks && dayData.systemTasks.length > 0">
+            <h3>系统任务 ({{ dayData.systemTasks.length }})</h3>
+            <ul>
+              <li v-for="task in dayData.systemTasks" :key="task.id" class="completed">
+                <span class="task-title">{{ task.title }}</span>
+                <span class="task-time" v-if="task.completedAt">{{ formatTime(task.completedAt) }}</span>
               </li>
             </ul>
           </div>
@@ -42,7 +81,19 @@
               </li>
             </ul>
           </div>
-          <div class="empty-day" v-if="(!dayData.tasks || dayData.tasks.length === 0) && (!dayData.posts || dayData.posts.length === 0)">
+          <div class="day-thoughts" v-if="dayData.plantThoughts && dayData.plantThoughts.length > 0">
+            <h3>植物心声</h3>
+            <ul>
+              <li v-for="thought in dayData.plantThoughts" :key="thought.id" class="plant-thought">
+                <span class="thought-icon">{{ thought.icon }}</span>
+                <span class="thought-content">{{ thought.content }}</span>
+              </li>
+            </ul>
+          </div>
+          <div class="empty-day" v-if="(!dayData.tasks || dayData.tasks.length === 0) && 
+                                      (!dayData.systemTasks || dayData.systemTasks.length === 0) && 
+                                      (!dayData.posts || dayData.posts.length === 0) &&
+                                      (!dayData.plantThoughts || dayData.plantThoughts.length === 0)">
             <p>今天没有任何任务或记录</p>
           </div>
         </div>
@@ -91,7 +142,8 @@ export default {
       weekdayBarChart: null,
       postsPieChart: null,
       loading: false,
-      useMockData: true
+      useMockData: false,
+      calendarDays: []
     };
   },
   computed: {
@@ -113,7 +165,7 @@ export default {
           this.calendarData = this.getMockMonthlyData();
           this.statistics = this.getMockStatistics();
         } else {
-          const response = await axios.get('/api/calendar/monthly', {
+          const response = await axios.get('/calendar/monthly', {
             params: {
               year: this.currentYear,
               month: this.currentMonth + 1
@@ -125,7 +177,7 @@ export default {
           
           this.calendarData = response.data;
           
-          const statsResponse = await axios.get('/api/calendar/statistics', {
+          const statsResponse = await axios.get('/calendar/statistics', {
             params: {
               year: this.currentYear,
               month: this.currentMonth + 1
@@ -138,10 +190,20 @@ export default {
           this.statistics = statsResponse.data;
         }
         
+        this.generateCalendarDays();
+        
         this.$nextTick(() => {
-          this.initCalendarChart();
           if (this.currentView === 'chart') {
             this.initStatisticsCharts();
+          }
+          
+          // 默认选中当月第一天
+          if (this.calendarDays && this.calendarDays.length > 0) {
+            // 找到第一个有日期的日历单元格（即当月第一天）
+            const firstDay = this.calendarDays.find(day => day.date);
+            if (firstDay && firstDay.date) {
+              this.selectDate(firstDay.date);
+            }
           }
         });
       } catch (error) {
@@ -150,13 +212,58 @@ export default {
         this.loading = false;
       }
     },
+
+    generateCalendarDays() {
+      this.calendarDays = [];
+      if (!this.calendarData || !this.calendarData.days) return;
+      
+      const year = this.currentYear;
+      const month = this.currentMonth;
+      
+      // 获取当月第一天是星期几 (0-6, 0是星期日)
+      const firstDay = new Date(year, month, 1).getDay();
+      // 调整为从星期一开始 (1-7, 7是星期日)
+      const firstDayOfWeek = firstDay === 0 ? 7 : firstDay;
+      
+      // 获取当月天数
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      
+      // 添加上个月的占位
+      for (let i = 1; i < firstDayOfWeek; i++) {
+        this.calendarDays.push({ date: null });
+      }
+      
+      // 添加当月日期
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        const dayData = this.calendarData.days.find(d => d.date === date) || { date };
+        this.calendarDays.push(dayData);
+      }
+      
+      // 如果需要，添加下个月的占位，使总数为7的倍数
+      const remainingSlots = 7 - (this.calendarDays.length % 7);
+      if (remainingSlots < 7) {
+        for (let i = 0; i < remainingSlots; i++) {
+          this.calendarDays.push({ date: null });
+        }
+      }
+    },
+    
+    getDayNumber(dateString) {
+      return parseInt(dateString.split('-')[2]);
+    },
+    
+    selectDate(date) {
+      this.selectedDate = date;
+      this.fetchDayData(date);
+    },
     
     async fetchDayData(date) {
       try {
         if (this.useMockData) {
           this.dayData = this.getMockDayData(date);
         } else {
-          const response = await axios.get('/api/calendar/day', {
+          const response = await axios.get('/calendar/day', {
             params: {
               date: date
             },
@@ -398,38 +505,61 @@ export default {
         },
         calendar: {
           top: 50,
-          left: 30,
+          left: 50,
           right: 30,
-          cellSize: ['auto', 'auto'],
-          range: [
-            `${this.currentYear}-${this.currentMonth + 1}-01`,
-            this.getLastDayOfMonth(this.currentYear, this.currentMonth)
-          ],
+          bottom: 20,
+          cellSize: [60, 60],
+          orient: 'horizontal',
+          splitLine: {
+            lineStyle: {
+              color: '#e0e0e0',
+              width: 1
+            }
+          },
+          range: `${this.currentYear}-${(this.currentMonth + 1).toString().padStart(2, '0')}`,
           itemStyle: {
-            borderWidth: 0.5
+            borderWidth: 1,
+            borderColor: '#f5f5f5'
           },
           yearLabel: { show: false },
           monthLabel: { show: false },
           dayLabel: {
-            nameMap: 'cn'
+            nameMap: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'],
+            firstDay: 1,
+            color: '#606060',
+            fontSize: 12,
+            margin: 10
           }
         },
         series: [
           {
             type: 'heatmap',
             coordinateSystem: 'calendar',
-            data: taskData
+            data: taskData,
+            label: {
+              show: true,
+              formatter: function(params) {
+                return params.value[0].split('-')[2];
+              },
+              fontSize: 16,
+              fontWeight: 'bold',
+              color: '#303030'
+            },
+            itemStyle: {
+              borderRadius: 4
+            }
           },
           {
             type: 'scatter',
             coordinateSystem: 'calendar',
             data: postData,
             symbolSize: (val) => {
-              return val[1] > 0 ? 6 : 0;
+              return val[1] > 0 ? 8 : 0;
             },
             itemStyle: {
               color: '#ff9800'
-            }
+            },
+            zlevel: 2
           }
         ]
       };
@@ -452,6 +582,8 @@ export default {
         this.taskPieChart.dispose();
       }
       this.taskPieChart = echarts.init(this.$refs.taskPieChart);
+      
+      const stats = this.statistics.statistics;
       
       this.taskPieChart.setOption({
         tooltip: {
@@ -487,8 +619,8 @@ export default {
               show: false
             },
             data: [
-              { value: this.statistics.statistics.completedTasks, name: '已完成' },
-              { value: this.statistics.statistics.totalTasks - this.statistics.statistics.completedTasks, name: '未完成' }
+              { value: stats.completedTasks, name: '已完成' },
+              { value: stats.totalTasks - stats.completedTasks, name: '未完成' }
             ]
           }
         ]
@@ -542,7 +674,7 @@ export default {
       }
       this.postsPieChart = echarts.init(this.$refs.postsPieChart);
       
-      const postsByType = this.statistics.statistics.postsByType;
+      const postsByType = stats.postsByType;
       
       this.postsPieChart.setOption({
         tooltip: {
@@ -630,7 +762,7 @@ export default {
     
     getLastDayOfMonth(year, month) {
       const lastDay = new Date(year, month + 1, 0).getDate();
-      return `${year}-${month + 1}-${lastDay}`;
+      return `${year}-${(month + 1).toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
     }
   },
   beforeDestroy() {
@@ -654,9 +786,9 @@ export default {
 .calendar-container {
   width: 100%;
   height: 100%;
-  padding: 20px;
+  padding: 30px;
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  background-color: var(--background-color);
+  background-color: var(--background-color, #f9f9f9);
   min-height: 100vh;
 }
 
@@ -664,27 +796,39 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.calendar-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
 }
 
 .calendar-nav {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 15px;
   font-size: 18px;
+  font-weight: 500;
 }
 
 .nav-btn {
   background: none;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 5px 10px;
+  border-radius: 8px;
+  padding: 8px 15px;
   cursor: pointer;
   transition: all 0.3s;
+  color: #555;
 }
 
 .nav-btn:hover {
   background-color: #f0f0f0;
+  border-color: #ccc;
 }
 
 .view-toggle {
@@ -693,61 +837,150 @@ export default {
 }
 
 .view-toggle button {
-  padding: 6px 15px;
+  padding: 8px 18px;
   border: 1px solid #ddd;
   background: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s;
+  font-weight: 500;
+  color: #555;
 }
 
 .view-toggle button.active {
   background-color: #4caf50;
   color: white;
   border-color: #4caf50;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
 }
 
 .calendar-view {
   display: flex;
-  gap: 20px;
-  height: calc(100% - 70px);
+  gap: 25px;
+  height: calc(100% - 80px);
 }
 
-.echarts-calendar {
+.custom-calendar {
   width: 65%;
-  height: 100%;
-  min-height: 400px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  padding: 15px;
+  min-height: 450px;
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  padding: 20px;
+  overflow: hidden;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 10px;
+}
+
+.weekday {
+  padding: 10px;
+  color: #666;
+  font-size: 14px;
+}
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-gap: 8px;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.2s;
+  background-color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.calendar-day:hover:not(.empty) {
+  background-color: #f9f9f9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.calendar-day.empty {
+  background-color: #f9f9f9;
+  cursor: default;
+  opacity: 0.5;
+}
+
+.calendar-day.selected {
+  border: 2px solid #4caf50;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.25);
+  background-color: #e8f5e9;
+}
+
+.calendar-day.has-events {
+  background-color: #f1f8e9;
+}
+
+.day-number {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.day-indicators {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.task-indicator {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.post-indicator {
+  color: #ff9800;
+  font-weight: 500;
 }
 
 .day-detail {
   width: 35%;
-  padding: 20px;
-  border-left: 1px solid #eee;
+  padding: 25px;
   overflow-y: auto;
   height: 100%;
-  background-color: rgba(255, 255, 255, 0.9);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
 }
 
 .day-detail h2 {
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
-  margin-bottom: 15px;
-}
-
-.day-tasks, .day-posts {
+  border-bottom: 1px solid #eeeeee;
+  padding-bottom: 15px;
   margin-bottom: 20px;
+  font-size: 20px;
+  color: #333;
+  font-weight: 600;
 }
 
-.day-tasks h3, .day-posts h3 {
-  font-size: 16px;
-  color: #555;
-  margin-bottom: 10px;
+.day-tasks, .day-posts, .day-thoughts {
+  margin-bottom: 25px;
+  padding: 0 5px;
+}
+
+.day-tasks h3, .day-posts h3, .day-thoughts h3 {
+  font-size: 17px;
+  color: #444;
+  margin-bottom: 15px;
+  font-weight: 600;
 }
 
 ul {
@@ -756,13 +989,20 @@ ul {
 }
 
 li {
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  border-radius: 4px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  border-radius: 8px;
   background-color: #f9f9f9;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s;
+}
+
+li:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
 }
 
 li.completed {
@@ -771,63 +1011,83 @@ li.completed {
 }
 
 li.important {
-  border-left: 3px solid #ff5722;
+  border-left: 4px solid #ff5722;
 }
 
-.task-icon, .post-type {
-  margin-right: 8px;
+.task-icon, .post-type, .thought-icon {
+  margin-right: 10px;
+  font-size: 18px;
 }
 
 .task-title, .post-title {
   flex: 1;
+  font-weight: 500;
 }
 
 .task-time, .post-time {
-  font-size: 12px;
+  font-size: 13px;
   color: #888;
+  margin-left: 10px;
 }
 
 .chart-view {
-  height: calc(100% - 70px);
+  height: calc(100% - 80px);
   overflow-y: auto;
 }
 
 .statistics-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 25px;
 }
 
 .stat-box {
-  width: calc(50% - 10px);
+  width: calc(50% - 15px);
   min-width: 300px;
-  height: 300px;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 15px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  height: 320px;
+  border: none;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  background-color: #ffffff;
 }
 
 .stat-box h3 {
   text-align: center;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
+  font-size: 18px;
+  color: #444;
+  font-weight: 600;
 }
 
 .chart-item {
   width: 100%;
-  height: calc(100% - 40px);
+  height: calc(100% - 45px);
 }
 
 .empty-day {
   text-align: center;
   color: #999;
-  padding: 40px 0;
+  padding: 50px 0;
+  font-size: 16px;
 }
 
 .loading {
   text-align: center;
-  padding: 20px 0;
+  padding: 30px 0;
   color: #888;
+  font-size: 16px;
+}
+
+.plant-thought {
+  background-color: #e8f5e9;
+  border-left: 4px solid #4caf50;
+}
+
+.thought-content {
+  font-style: italic;
+  color: #2e7d32;
+  font-size: 15px;
 }
 
 @media (max-width: 768px) {
@@ -835,18 +1095,16 @@ li.important {
     flex-direction: column;
   }
   
-  .echarts-calendar, .day-detail {
+  .custom-calendar, .day-detail {
     width: 100%;
   }
   
-  .echarts-calendar {
-    height: 400px;
+  .custom-calendar {
+    height: auto;
   }
   
   .day-detail {
-    border-left: none;
-    border-top: 1px solid #eee;
-    padding-top: 20px;
+    margin-top: 25px;
   }
   
   .stat-box {
