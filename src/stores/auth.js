@@ -201,6 +201,24 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = false
     }
   }
+
+  // 更新用户资料
+  const updateProfile = async (profileData) => {
+    try {
+      loading.value = true
+      error.value = null
+      
+      const response = await axios.put(`${API_URL}/auth/profile`, profileData)
+      user.value = { ...user.value, ...response.data }
+      return response.data
+    } catch (err) {
+      error.value = err.response?.data?.message || '更新个人资料失败，请稍后再试'
+      ElMessage.error(error.value)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
   
   return {
     // 状态
@@ -222,6 +240,7 @@ export const useAuthStore = defineStore('auth', () => {
     fetchUserInfo,
     logout,
     initAuth,
-    changePassword
+    changePassword,
+    updateProfile
   }
 }) 

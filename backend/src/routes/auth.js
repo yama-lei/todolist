@@ -138,7 +138,13 @@ router.get('/me', auth, async (req, res) => {
       _id: user._id,
       username: user.username,
       email: user.email,
-      createdAt: user.createdAt
+      createdAt: user.createdAt,
+      bio: user.bio,
+      avatar: user.avatar,
+      gender: user.gender || 'secret',
+      birthday: user.birthday,
+      location: user.location,
+      signature: user.signature
     });
   } catch (error) {
     console.error('获取用户信息失败:', error);
@@ -148,5 +154,72 @@ router.get('/me', auth, async (req, res) => {
     });
   }
 });
+
+// 更新个人资料
+router.put('/profile', auth, async (req, res) => {
+  try {
+    const { username, bio, avatar, gender, birthday, location, signature } = req.body;
+    const updates = {};
+    
+    if (username) updates.username = username;
+    if (bio !== undefined) updates.bio = bio;
+    if (avatar) updates.avatar = avatar;
+    if (gender && ['male', 'female', 'secret'].includes(gender)) updates.gender = gender;
+    if (birthday !== undefined) {
+      // 验证生日格式是否正确（如果提供了生日）
+      if (birthday && !isValidDate(birthday)) {
+        return res.status(400).json({
+          success: false,
+          message: '生日格式不正确'
+        });
+      }
+      updates.birthday = birthday;
+    }
+    if (location !== undefined) updates.location = location;
+    if (signature !== undefined) updates.signature = signature;
+    
+    const user = await Users.findOne({ _id: req.user.id });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+    
+    await Users.update(
+      { _id: req.user.id },
+      { $set: updates }
+    );
+    
+    const updatedUser = await Users.findOne({ _id: req.user.id });
+    
+    res.json({
+      _id: updatedUser._id,
+      username: updatedUser.username,
+      email: updatedUser.email,
+      bio: updatedUser.bio,
+      avatar: updatedUser.avatar,
+      createdAt: updatedUser.createdAt,
+      gender: updatedUser.gender || 'secret',
+      birthday: updatedUser.birthday,
+      location: updatedUser.location,
+      signature: updatedUser.signature
+    });
+  } catch (error) {
+    console.error('更新个人资料失败:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '更新个人资料失败'
+    });
+  }
+});
+
+// 辅助函数：验证日期格式
+function isValidDate(dateString) {
+  if (!dateString) return true; // 允许为空
+  const date = new Date(dateString);
+  return date instanceof Date && !isNaN(date) && date <= new Date();
+}
 
 module.exports = router; 

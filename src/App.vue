@@ -150,10 +150,7 @@ export default {
     // 个人资料页面
     const goToProfile = () => {
       showUserMenu.value = false
-      // router.push('/profile')
-      ElMessageBox.alert('个人资料功能正在开发中', '提示', {
-        confirmButtonText: '确定'
-      })
+      router.push('/profile')
     }
     
     // 设置页面
