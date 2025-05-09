@@ -221,48 +221,55 @@
             </div>
             
             <div class="plant-display">
-              <div class="plant-canvas-wrapper">
-                <WeatherCanvas :weather="weather" :width="300" :height="300" />
-                <div class="plant-emoji-container">
-                  <img :src="getPlantImage(plantStore.mainPlant)" class="plant-image" alt="植物图片" />
+              <div class="plant-speech-container">
+                <div class="plant-speech-bubble" v-if="showPlantSpeech">
+                  <div class="speech-icon" v-if="currentPlantThought.icon">{{ currentPlantThought.icon }}</div>
+                  <div class="speech-content">
+                    <p class="speech-text">{{ currentPlantThought.message }}</p>
+                    <div class="speech-meta">
+                      <span class="speech-time">{{ formatShortTime(currentPlantThought.timestamp) }}</span>
+                      <span class="speech-tag" v-if="currentPlantThought.tag">{{ currentPlantThought.tag }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
               
-              <div class="plant-details">
-                <div class="plant-stats">
-                  <el-tag type="success" size="large">等级: {{ plantStore.currentLevel }}</el-tag>
-                  <el-tag type="primary" size="large">状态: {{ getPlantStateText() }}</el-tag>
-                  <el-tag type="warning" size="large">心情: {{ getMoodText() }}</el-tag>
+              <div class="plant-main-container">
+                <div class="plant-canvas-wrapper">
+                  <WeatherCanvas :weather="weather" :width="300" :height="300" />
+                  <div class="plant-emoji-container">
+                    <img :src="getPlantImage(plantStore.mainPlant)" class="plant-image" alt="植物图片" />
+                  </div>
                 </div>
                 
-                <div class="plant-level-container">
-                  <div class="plant-level">经验值: <span class="level-value">{{ plantStore.mainPlant?.experience || 0 }}/{{ (plantStore.mainPlant?.level || 1) * 100 }}</span></div>
-                  <el-progress 
-                    :percentage="experiencePercentage" 
-                    :format="expFormat"
-                    :stroke-width="10"
-                    class="plant-exp-progress"
-                  />
-                </div>
-                
-                <div class="plant-actions">
-                  <el-button type="success" @click="refreshPlantThought">
-                    <el-icon><Refresh /></el-icon> 刷新心声
-                  </el-button>
-                  <el-button type="primary" @click="goToPlantChat">
-                    <el-icon><ChatDotRound /></el-icon> 与植物聊天
-                  </el-button>
+                <div class="plant-details">
+                  <div class="plant-stats">
+                    <el-tag type="success" size="large">等级: {{ plantStore.currentLevel }}</el-tag>
+                    <el-tag type="primary" size="large">状态: {{ getPlantStateText() }}</el-tag>
+                    <el-tag type="warning" size="large">心情: {{ getMoodText() }}</el-tag>
+                  </div>
+                  
+                  <div class="plant-level-container">
+                    <div class="plant-level">经验值: <span class="level-value">{{ plantStore.mainPlant?.experience || 0 }}/{{ (plantStore.mainPlant?.level || 1) * 100 }}</span></div>
+                    <el-progress 
+                      :percentage="experiencePercentage" 
+                      :format="expFormat"
+                      :stroke-width="10"
+                      class="plant-exp-progress"
+                    />
+                  </div>
+                  
+                  <div class="plant-actions">
+                    <el-button type="success" @click="listenToPlantThought">
+                      <el-icon><ChatLineRound /></el-icon> 聆听植物心声
+                    </el-button>
+                    <el-button type="primary" @click="goToPlantChat">
+                      <el-icon><ChatDotRound /></el-icon> 与植物聊天
+                    </el-button>
+                  </div>
                 </div>
               </div>
             </div>
-            
-            <PlantStatusMessage 
-              :message="currentPlantThought.message" 
-              :message-type="currentPlantThought.type"
-              :icon="currentPlantThought.icon"
-              :tag="currentPlantThought.tag"
-              :timestamp="currentPlantThought.timestamp"
-            />
           </div>
         </div>
       </div>
@@ -496,10 +503,9 @@ import { useTaskStore } from '../stores/task'
 import { usePlantStore } from '../stores/plant'
 import { format, formatDistance } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { Plus, Delete, Magic, ChatDotRound, Refresh, ArrowDown, Star, Clock, Menu, Close, DataAnalysis, Trophy, Lightning, Connection } from '@element-plus/icons-vue'
+import { Plus, Delete, Magic, ChatDotRound, Refresh, ArrowDown, Star, Clock, Menu, Close, DataAnalysis, Trophy, Lightning, Connection, ChatLineRound } from '@element-plus/icons-vue'
 import WeatherCanvas from '@/components/WeatherCanvas.vue'
 import PlantDialog from '@/components/PlantDialog.vue'
-import PlantStatusMessage from '@/components/PlantStatusMessage.vue'
 import draggable from 'vuedraggable'
 import { ElMessage } from 'element-plus'
 import insightsApi from '@/services/insightsApi'
@@ -526,7 +532,6 @@ export default {
   components: {
     WeatherCanvas,
     PlantDialog,
-    PlantStatusMessage,
     draggable,
     Plus,
     Delete,
@@ -541,7 +546,8 @@ export default {
     DataAnalysis,
     Trophy,
     Lightning,
-    Connection
+    Connection,
+    ChatLineRound
   },
   setup() {
     const router = useRouter()
@@ -1064,13 +1070,85 @@ export default {
     }
     
     // 刷新植物心声
-    const refreshPlantThought = () => {
-      generatePlantThought()
+    const listenToPlantThought = async () => {
+      if (!plantStore.mainPlant) {
+        ElMessage.warning('请先在花园中添加一个植物')
+        return
+      }
+      
+      // 检查植物ID是否有效
+      if (!plantStore.mainPlant._id && !plantStore.mainPlant.id) {
+        console.error('植物ID无效')
+        ElMessage.warning('植物信息不完整，请重新选择植物')
+        return
+      }
+      
+      const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
+      
+      try {
+        ElMessage.info('正在聆听植物的心声...')
+        
+        // 使用API生成心声，与PlantVoice.vue保持一致的参数
+        const context = {
+          weather: weather.value,
+          timeOfDay: getTimeOfDay(),
+          recentTasks: taskStore.completedTasks.slice(0, 3).map(task => ({
+            id: task._id || task.id,
+            title: task.title,
+            completed: true
+          }))
+        }
+        
+        // 调用store中的方法生成心声，与PlantVoice.vue完全相同的调用方式
+        const thought = await plantStore.generatePlantThought(plantId, context)
+        
+        if (thought) {
+          // 更新心声状态
+          currentPlantThought.message = thought.content
+          currentPlantThought.type = thought.type || 'mood'
+          currentPlantThought.icon = thought.icon || '🌱'
+          currentPlantThought.tag = thought.tag || '植物心语'
+          currentPlantThought.timestamp = new Date(thought.timestamp)
+          
+          // 显示气泡框
+          showPlantSpeech.value = true
+          
+          ElMessage({
+            message: '植物想和你说话了！',
+            type: 'success'
+          })
+          
+          // 延长悬浮气泡框显示时间
+          setTimeout(() => {
+            showPlantSpeech.value = false
+          }, 15000)
+        }
+      } catch (error) {
+        console.error('获取植物心声失败', error)
+        ElMessage.error('获取植物心声失败，植物好像有点害羞...')
+      }
+    }
+    
+    // 获取当前时间段，与PlantVoice.vue一致
+    const getTimeOfDay = () => {
+      const hour = new Date().getHours()
+      if (hour >= 5 && hour < 12) return 'morning'
+      if (hour >= 12 && hour < 18) return 'afternoon'
+      return 'evening'
     }
     
     // 跳转到植物聊天页面
     const goToPlantChat = () => {
       router.push('/plant-chat')
+    }
+    
+    // 在setup函数中添加
+    const showPlantSpeech = ref(false)
+    
+    // 格式化时间为简短格式
+    const formatShortTime = (time) => {
+      if (!time) return ''
+      return format(new Date(time), 'HH:mm')
     }
     
     return {
@@ -1125,9 +1203,11 @@ export default {
       showAiSummary,
       calculateSystemTaskCompletion,
       currentPlantThought,
-      refreshPlantThought,
+      listenToPlantThought,
       goToPlantChat,
-      aiSummaryData
+      aiSummaryData,
+      showPlantSpeech,
+      formatShortTime
     }
   }
 }
@@ -1697,57 +1777,217 @@ export default {
 .plant-display {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 24px;
-  flex: 1;
-  padding: 12px;
+  min-height: 480px; /* 确保有足够的高度 */
+  position: relative;
 }
 
-/* Canvas容器样式 */
+/* 新的容器将气泡框独立放置 */
+.plant-speech-container {
+  height: auto; /* 允许高度自动调整 */
+  min-height: 150px; /* 设置最小高度，避免空白 */
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  position: relative;
+  margin: 8px 0;
+}
+
+/* 植物和详情的主容器 */
+.plant-main-container {
+  display: flex;
+  flex-direction: column;
+}
+
 .plant-canvas-wrapper {
   position: relative;
   width: 300px;
   height: 300px;
-  overflow: hidden;
-  border-radius: 16px;
-  margin: 0 auto;
-}
-
-.plant-canvas-wrapper :deep(canvas) {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
+  margin-bottom: 15px;
+  left: 50%; /* 同步移动背景图层 */
+  transform: translateX(-50%);
 }
 
 .plant-emoji-container {
   position: absolute;
   top: 50%;
-  left: 50%;
+  left: 50%; /* 确保植物图标和背景图层同步移动 */
   transform: translate(-50%, -50%);
   z-index: 2;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 80%;
-  height: 80%;
 }
 
 .plant-image {
-  width: 100%;
-  height: 100%;
+  max-width: 180px;
+  max-height: 180px;
   object-fit: contain;
-  z-index: 3;
-  position: relative;
-  animation: float 3s ease-in-out infinite;
+  transition: all 0.5s ease;
 }
 
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
+/* 重新设计气泡样式，调整位置和尖端方向 */
+.plant-speech-bubble {
+  position: absolute;
+  left: 58%;
+  transform: translateX(-50%);
+  top: -20%;
+  background: linear-gradient(to bottom, #f9f9f9, #e0e0e0); /* 使用更柔和的渐变 */
+  border-radius: 50px 50px 60px 60px; /* 使用不规则的边框半径 */
+  padding: 20px 24px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1), 0 5px 10px rgba(0, 0, 0, 0.05); /* 增加多层阴影 */
+  max-width: 320px;
+  min-width: 240px;
+  z-index: 10;
+  border: none;
+  transform-origin: center bottom;
+  animation: bubble-appear 0.8s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  transition: all 0.3s ease;
+}
+
+/* 气泡箭头指向植物 */
+.plant-speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -12px; /* 确保箭头指向左下侧 */
+  left: 20px; /* 调整箭头位置 */
+  border-width: 12px 12px 0 12px; /* 修改箭头指向 */
+  border-style: solid;
+  border-color: #C8E6C9 transparent transparent transparent; /* 修改箭头颜色 */
+  filter: drop-shadow(-2px 2px 2px rgba(0, 0, 0, 0.05));
+}
+
+/* 添加气泡与植物茎干的视觉引导线 */
+.plant-speech-bubble::before {
+  display: none;
+}
+
+.speech-icon {
+  position: absolute;
+  top: -15px;
+  left: 15px;
+  background: linear-gradient(135deg, #42b983, #64d2ff);
+  color: white;
+  font-size: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  animation: spin-icon 1.2s ease-out;
+}
+
+.speech-content {
+  padding-top: 6px;
+}
+
+.speech-text {
+  margin: 0 0 12px 0;
+  font-size: 16px; /* 调整字号 */
+  line-height: 1.6;
+  color: #333;
+  font-weight: 500;
+}
+
+.speech-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #888;
+  border-top: 1px dashed #eee;
+  padding-top: 8px;
+}
+
+.speech-time {
+  color: #FBC02D; /* 时间戳使用新色号 */
+  font-weight: 500;
+}
+
+.speech-tag {
+  background: linear-gradient(135deg, rgba(66, 185, 131, 0.15), rgba(100, 210, 255, 0.15));
+  color: #42b983;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 9px; /* 缩小字号 */
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.speech-tag::before {
+  content: "🍃"; /* 添加叶脉图标 */
+  margin-right: 4px;
+  font-size: 11px;
+}
+
+/* 浮现动画，取代原来的slide-in-right */
+@keyframes bubble-appear {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+  }
+  70% {
+    transform: scale(1.05) translateY(-5px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 图标旋转动画 */
+@keyframes spin-icon {
+  0% {
+    transform: rotate(-45deg) scale(0.5);
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* 改进漂浮动画 */
+.plant-speech-bubble:hover {
+  transform: translateY(-3px) rotate(2deg); /* 鼠标悬停时产生浮动和旋转 */
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 1px 0 #C8E6C9;
+}
+
+/* 持续漂浮的动画 */
+.plant-speech-bubble {
+  animation: bubble-appear 0.8s cubic-bezier(0.18, 0.89, 0.32, 1.28),
+             float-bubble 3s ease-in-out infinite 0.8s;
+}
+
+@keyframes float-bubble {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* 为移动端添加响应式适配 */
+@media screen and (max-width: 768px) {
+  .plant-speech-bubble {
+    right: 5%;
+    width: 90%;
+    border-radius: 24px;
+    bottom: 10px;
+    top: unset;
+  }
+  
+  .plant-speech-bubble::after,
+  .plant-speech-bubble::before {
+    display: none;
+  }
+}
+
+/* 为横屏状态添加适配 */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  .plant-speech-bubble {
+    transform: scale(0.75);
+    transform-origin: right top;
+    top: 5%;
+    right: 8%;
+  }
 }
 
 .plant-details {
@@ -1982,4 +2222,4 @@ export default {
     height: auto;
   }
 }
-</style> 
+</style>

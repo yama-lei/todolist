@@ -95,6 +95,15 @@ const routes = [
       title: '重置密码',
       requiresGuest: true
     }
+  },
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('@/views/Profile.vue'),
+    meta: {
+      title: '个人资料',
+      requiresAuth: true
+    }
   }
 ]
 
