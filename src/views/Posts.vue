@@ -198,12 +198,17 @@
               :auto-upload="false"
               :on-change="handleFileChange"
               :on-remove="handleFileRemove"
+              :file-list="fileList"
+              :on-preview="handlePictureCardPreview"
             >
               <template #default>
                 <el-icon class="upload-icon"><Plus /></el-icon>
                 <span class="upload-text">添加图片</span>
               </template>
             </el-upload>
+            <el-dialog v-model="dialogVisible">
+              <img w-full :src="dialogImageUrl" alt="预览图片" />
+            </el-dialog>
           </div>
         </el-form-item>
       </el-form>
@@ -234,8 +239,9 @@ import {
   SmileFilled,
   Sunny
 } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElLoading } from 'element-plus'
 import TimeLinePage from '@/components/TimeLinePage.vue'
+import ossApi from '@/services/ossApi' // 导入OSS API服务
 
 const postStore = usePostStore()
 
@@ -247,11 +253,16 @@ const postType = ref('thought')
 const activeFilter = ref('all')
 const isEditing = ref(false)
 const editingPostId = ref(null)
+const fileList = ref([]) // 文件列表
+const dialogImageUrl = ref('') // 预览图片URL
+const dialogVisible = ref(false) // 预览对话框显示状态
+const uploadLoading = ref(false) // 上传加载状态
 
 const newPost = ref({
   title: '',
   content: '',
   images: [],
+  uploadFiles: [], // 清空上传文件列表
   location: '',
   mood: '',
   weather: '',
@@ -445,11 +456,14 @@ const resetForm = () => {
     title: '',
     content: '',
     images: [],
+    uploadFiles: [], // 清空上传文件列表
     location: '',
     mood: 'neutral',
     weather: 'sunny',
     type: postType.value
   }
+  // 清空文件列表
+  fileList.value = []
   locationVisible.value = false
   weatherVisible.value = false
   showMoodSelector.value = false
@@ -471,16 +485,74 @@ onMounted(() => {
   loadPosts()
 })
 
+// 处理图片预览
+const handlePictureCardPreview = (file) => {
+  dialogImageUrl.value = file.url || URL.createObjectURL(file.raw)
+  dialogVisible.value = true
+}
+
 // 处理文件选择
 const handleFileChange = (file) => {
-  newPost.value.images.push(file)
+  // 保留文件对象用于上传
+  if (!newPost.value.uploadFiles) {
+    newPost.value.uploadFiles = []
+  }
+  newPost.value.uploadFiles.push(file.raw)
+  
+  // 创建临时URL用于显示
+  const tempUrl = URL.createObjectURL(file.raw)
+  file.url = tempUrl // 添加临时URL用于预览
+  
+  // 只在上传成功后才会添加到最终的images数组
 }
 
 // 处理文件移除
 const handleFileRemove = (file) => {
-  const index = newPost.value.images.indexOf(file)
-  if (index !== -1) {
-    newPost.value.images.splice(index, 1)
+  // 移除上传文件列表中的文件
+  if (newPost.value.uploadFiles) {
+    const index = newPost.value.uploadFiles.findIndex(f => {
+      return f === file.raw
+    })
+    if (index !== -1) {
+      newPost.value.uploadFiles.splice(index, 1)
+    }
+  }
+  
+  // 如果已上传，则也从images中移除
+  if (file.url && file.url.startsWith('http')) {
+    const imageIndex = newPost.value.images.indexOf(file.url)
+    if (imageIndex !== -1) {
+      newPost.value.images.splice(imageIndex, 1)
+    }
+  }
+}
+
+// 上传所有选中的图片到OSS
+const uploadImages = async () => {
+  if (!newPost.value.uploadFiles || newPost.value.uploadFiles.length === 0) {
+    return []
+  }
+  
+  uploadLoading.value = true
+  try {
+    console.log('准备上传图片，数量:', newPost.value.uploadFiles.length);
+    
+    // 调用OSSApi上传多个文件
+    const imageUrls = await ossApi.uploadMultipleFiles(newPost.value.uploadFiles);
+    
+    console.log('图片上传成功，URL列表:', imageUrls);
+    
+    // 清空上传文件列表
+    newPost.value.uploadFiles = [];
+    
+    // 返回图片URL数组
+    return imageUrls || [];
+  } catch (error) {
+    console.error('上传图片失败:', error);
+    ElMessage.error(`上传图片失败: ${error.message || '未知错误'}`);
+    return [];
+  } finally {
+    uploadLoading.value = false;
   }
 }
 
@@ -500,7 +572,18 @@ const openPostDialog = (type = 'thought') => {
   isEditing.value = false
   editingPostId.value = null
   postType.value = type
-  newPost.value.type = type
+  newPost.value = {
+    title: '',
+    content: '',
+    images: [],
+    uploadFiles: [], // 确保上传文件列表为空
+    location: '',
+    mood: 'neutral',
+    weather: 'sunny',
+    type: type
+  }
+  // 清空文件列表
+  fileList.value = []
   showPostDialog.value = true
 }
 
@@ -515,12 +598,22 @@ const editPost = (post) => {
     title: post.title,
     content: post.description,
     images: post.galleryImages || [],
+    uploadFiles: [], // 新上传的文件初始为空
     location: post.location || '',
     mood: post.mood || '',
     weather: post.weather || '',
     type: post.postType,
     createdAt: post.time // 保留原始创建时间
   }
+  
+  // 准备文件列表显示已有图片
+  fileList.value = (post.galleryImages || []).map((url, index) => {
+    return {
+      name: `已有图片${index + 1}`,
+      url: url,
+      status: 'success'
+    }
+  })
   
   // 显示相关选项
   if (newPost.value.location) {
@@ -538,25 +631,55 @@ const handleSubmit = async () => {
   if (!isPostValid.value) return
   
   try {
-    let success
+    // 显示加载提示
+    const loadingInstance = ElLoading.service({
+      lock: true,
+      text: '正在处理图片和提交内容，请稍候...',
+      background: 'rgba(0, 0, 0, 0.7)'
+    })
+    
+    // 先上传所有选中的图片到OSS
+    let imageUrls = []
+    if (newPost.value.uploadFiles && newPost.value.uploadFiles.length > 0) {
+      imageUrls = await uploadImages()
+    }
+    
+    // 准备帖子数据，包含已上传的图片URL和原有图片（如果有）
+    let postImages = [...(newPost.value.images || [])]
+    
+    // 只添加新上传的图片URL
+    postImages = [...postImages, ...imageUrls]
+    
     const postData = {
       ...newPost.value,
+      images: postImages,
       // 只在新建时设置时间，编辑时保留原始时间
       createdAt: isEditing.value ? newPost.value.createdAt : new Date().toISOString()
     }
     
+    // 删除上传文件列表，避免发送到后端
+    delete postData.uploadFiles
+    
     console.log('准备提交的帖子数据:', postData);
     
+    let success
     if (isEditing.value) {
       success = await postStore.updatePost(editingPostId.value, postData)
     } else {
       success = await postStore.addCustomPost(postData)
     }
     
+    // 关闭加载提示
+    loadingInstance.close()
+    
     if (success) {
+      // 清空表单并关闭对话框
       resetForm()
       showPostDialog.value = false
+      // 重新加载帖子列表
       await loadPosts()
+      
+      ElMessage.success(isEditing.value ? '更新成功' : '发布成功')
     }
   } catch (error) {
     console.error('操作失败:', error)

@@ -1806,6 +1806,7 @@ export default {
   margin-bottom: 15px;
   left: 50%; /* 同步移动背景图层 */
   transform: translateX(-50%);
+  border-radius: 20px;
 }
 
 .plant-emoji-container {
