@@ -26,6 +26,7 @@ app.use('/api/plants', require('./routes/plants'));
 app.use('/api/posts', require('./routes/posts'));
 app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/insights', require('./routes/insights'));
+app.use('/api/oss', require('./routes/oss'));
 
 // 基础路由
 app.get('/', (req, res) => {
