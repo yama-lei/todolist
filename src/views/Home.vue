@@ -1118,10 +1118,10 @@ export default {
             type: 'success'
           })
           
-          // 8秒后自动隐藏气泡
+          // 延长悬浮气泡框显示时间
           setTimeout(() => {
             showPlantSpeech.value = false
-          }, 8000)
+          }, 15000)
         }
       } catch (error) {
         console.error('获取植物心声失败', error)
@@ -1783,12 +1783,14 @@ export default {
 
 /* 新的容器将气泡框独立放置 */
 .plant-speech-container {
-  height: 120px; /* 为气泡框预留固定高度 */
+  height: auto; /* 允许高度自动调整 */
+  min-height: 150px; /* 设置最小高度，避免空白 */
   width: 100%;
   display: flex;
   justify-content: center;
   align-items: flex-end;
   position: relative;
+  margin: 8px 0;
 }
 
 /* 植物和详情的主容器 */
@@ -1802,12 +1804,14 @@ export default {
   width: 300px;
   height: 300px;
   margin-bottom: 15px;
+  left: 50%; /* 同步移动背景图层 */
+  transform: translateX(-50%);
 }
 
 .plant-emoji-container {
   position: absolute;
   top: 50%;
-  left: 50%;
+  left: 50%; /* 确保植物图标和背景图层同步移动 */
   transform: translate(-50%, -50%);
   z-index: 2;
 }
@@ -1822,30 +1826,37 @@ export default {
 /* 重新设计气泡样式，调整位置和尖端方向 */
 .plant-speech-bubble {
   position: absolute;
-  left: 50%; /* 改为左侧定位 */
-  bottom: 0;
-  margin-left: 20px; /* 与植物保持距离 */
-  background-color: white;
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-  max-width: 300px;
+  left: 58%;
+  transform: translateX(-50%);
+  top: -20%;
+  background: linear-gradient(to bottom, #f9f9f9, #e0e0e0); /* 使用更柔和的渐变 */
+  border-radius: 50px 50px 60px 60px; /* 使用不规则的边框半径 */
+  padding: 20px 24px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1), 0 5px 10px rgba(0, 0, 0, 0.05); /* 增加多层阴影 */
+  max-width: 320px;
   min-width: 240px;
   z-index: 10;
-  animation: slide-in-right 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  border-left: 3px solid #42b983; /* 改为左侧边框 */
+  border: none;
+  transform-origin: center bottom;
+  animation: bubble-appear 0.8s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  transition: all 0.3s ease;
 }
 
-/* 修改气泡箭头指向左侧植物 */
+/* 气泡箭头指向植物 */
 .plant-speech-bubble::after {
   content: '';
   position: absolute;
-  top: 50%;
-  left: -12px; /* 箭头在左侧 */
-  transform: translateY(-50%);
-  border-width: 12px 12px 12px 0; /* 修改箭头指向 */
+  bottom: -12px; /* 确保箭头指向左下侧 */
+  left: 20px; /* 调整箭头位置 */
+  border-width: 12px 12px 0 12px; /* 修改箭头指向 */
   border-style: solid;
-  border-color: transparent white transparent transparent; /* 修改箭头颜色 */
+  border-color: #C8E6C9 transparent transparent transparent; /* 修改箭头颜色 */
+  filter: drop-shadow(-2px 2px 2px rgba(0, 0, 0, 0.05));
+}
+
+/* 添加气泡与植物茎干的视觉引导线 */
+.plant-speech-bubble::before {
+  display: none;
 }
 
 .speech-icon {
@@ -1862,6 +1873,7 @@ export default {
   justify-content: center;
   align-items: center;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  animation: spin-icon 1.2s ease-out;
 }
 
 .speech-content {
@@ -1870,7 +1882,7 @@ export default {
 
 .speech-text {
   margin: 0 0 12px 0;
-  font-size: 15px;
+  font-size: 16px; /* 调整字号 */
   line-height: 1.6;
   color: #333;
   font-weight: 500;
@@ -1887,7 +1899,8 @@ export default {
 }
 
 .speech-time {
-  color: #999;
+  color: #FBC02D; /* 时间戳使用新色号 */
+  font-weight: 500;
 }
 
 .speech-tag {
@@ -1895,34 +1908,86 @@ export default {
   color: #42b983;
   padding: 3px 10px;
   border-radius: 12px;
-  font-size: 11px;
+  font-size: 9px; /* 缩小字号 */
   font-weight: 600;
+  display: flex;
+  align-items: center;
 }
 
-/* 从左侧滑入的动画 */
-@keyframes slide-in-right {
+.speech-tag::before {
+  content: "🍃"; /* 添加叶脉图标 */
+  margin-right: 4px;
+  font-size: 11px;
+}
+
+/* 浮现动画，取代原来的slide-in-right */
+@keyframes bubble-appear {
   0% {
     opacity: 0;
-    transform: translateX(-30px);
+    transform: scale(0.8) translateY(10px);
   }
   70% {
-    transform: translateX(5px);
+    transform: scale(1.05) translateY(-5px);
   }
   100% {
     opacity: 1;
-    transform: translateX(0);
+    transform: scale(1) translateY(0);
   }
 }
 
-/* 修改漂浮动画方向 */
-.plant-speech-bubble {
-  animation: slide-in-right 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
-             float-side-right 3s ease-in-out infinite 0.5s;
+/* 图标旋转动画 */
+@keyframes spin-icon {
+  0% {
+    transform: rotate(-45deg) scale(0.5);
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(0) scale(1);
+    opacity: 1;
+  }
 }
 
-@keyframes float-side-right {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(5px); }
+/* 改进漂浮动画 */
+.plant-speech-bubble:hover {
+  transform: translateY(-3px) rotate(2deg); /* 鼠标悬停时产生浮动和旋转 */
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 1px 0 #C8E6C9;
+}
+
+/* 持续漂浮的动画 */
+.plant-speech-bubble {
+  animation: bubble-appear 0.8s cubic-bezier(0.18, 0.89, 0.32, 1.28),
+             float-bubble 3s ease-in-out infinite 0.8s;
+}
+
+@keyframes float-bubble {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* 为移动端添加响应式适配 */
+@media screen and (max-width: 768px) {
+  .plant-speech-bubble {
+    right: 5%;
+    width: 90%;
+    border-radius: 24px;
+    bottom: 10px;
+    top: unset;
+  }
+  
+  .plant-speech-bubble::after,
+  .plant-speech-bubble::before {
+    display: none;
+  }
+}
+
+/* 为横屏状态添加适配 */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  .plant-speech-bubble {
+    transform: scale(0.75);
+    transform-origin: right top;
+    top: 5%;
+    right: 8%;
+  }
 }
 
 .plant-details {
