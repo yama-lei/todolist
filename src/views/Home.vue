@@ -6,27 +6,56 @@
         <!-- -------------------------任务列表区--------------------------------------------------- -->
         <div class="tasks-section">
           <div class="tasks-header">
-            <h2 class="section-title">任务</h2>
+            <h2 class="section-title">任务中心</h2>
             <div class="task-actions">
               <button class="ai-insight-button" @click="showAiSummary">
                 <div class="ai-insight-icon">
                   <div class="ai-pulse"></div>
-                  <el-icon><Magic /></el-icon>
+                  <el-icon></el-icon>
                 </div>
-                <span>智能粘贴板</span>
-              </button>
-              <button class="ai-insight-button" @click="showAiSummary">
-                <div class="ai-insight-icon">
-                  <div class="ai-pulse"></div>
-                  <el-icon><Magic /></el-icon>
-                </div>
-                <span>AI洞察</span>
+                <span>智能总结</span>
               </button>
             </div>
           </div>
           
           <!-- 单列任务列表 -->
           <div class="task-list-container">
+              <!-- 任务完成情况分析 -->
+              <div class="task-summary-card">
+                <div class="summary-header">
+                  <el-icon><DataAnalysis /></el-icon>
+                  <span>任务完成情况</span>
+                </div>
+                <div class="summary-content">
+                  <div class="summary-stats">
+                    <div class="stat-item">
+                      <div class="stat-value">{{ taskStore.pendingTasks.length }}</div>
+                      <div class="stat-label">待办任务</div>
+                    </div>
+                    <div class="stat-item">
+                      <div class="stat-value">{{ todaySystemTasksCount }}</div>
+                      <div class="stat-label">今日健康任务</div>
+                    </div>
+                    <div class="stat-item">
+                      <div class="stat-value">{{ weeklyTasksCount }}</div>
+                      <div class="stat-label">未来一周任务</div>
+                    </div>
+                    <div class="stat-item">
+                      <div class="stat-value">{{ pendingImportantTasksCount }}</div>
+                      <div class="stat-label">重要待办</div>
+                    </div>
+                  </div>
+                  
+                  <div class="task-progress">
+                    <div class="progress-label">总体进度</div>
+                    <el-progress 
+                      :percentage="calculateTaskCompletionRate" 
+                      :stroke-width="8"
+                      :color="taskProgressColor"
+                    />
+                  </div>
+                </div>
+              </div>
 
               <!-- 个人任务区 -->
               <div class="task-group-section">
@@ -102,7 +131,11 @@
                
                <transition name="fade">
                  <div v-show="showSystemTasks" class="tasks-container">
+                   <div v-if="systemTasks.length === 0" class="empty-tasks">
+                     <el-empty description="暂无系统任务" />
+                   </div>
                    <div 
+                     v-else
                      v-for="task in systemTasks" 
                      :key="task.id" 
                      class="task-item system-task"
@@ -118,9 +151,6 @@
                      <div class="task-info" @click="task.completed ? null : viewSystemTask(task)">
                        <h3 class="task-title">{{ task.title }}</h3>
                        <p class="task-description">{{ task.description }}</p>
-                       <div class="task-reward">
-                         <el-tag type="warning" size="small">奖励: {{ task.reward }} 金币</el-tag>
-                       </div>
                      </div>
                    </div>
                  </div>
@@ -195,7 +225,7 @@
         <div class="plant-section">
           <div class="plant-container">
             <div class="plant-header">
-              <h2 class="section-title">{{ plantStore.mainPlant ? plantStore.mainPlant.name : '尚未添加植物' }}</h2>
+              <h2 class="section-title">{{ plantStore.mainPlant ? plantStore.mainPlant.name : '我的植物' }}</h2>
               <div class="plant-weather" v-if="plantStore.mainPlant">
                 <div class="weather-options">
                   <span 
@@ -236,7 +266,7 @@
               
               <div class="plant-main-container">
                 <div class="plant-canvas-wrapper">
-                  <WeatherCanvas :weather="weather" :width="300" :height="300" />
+                  <WeatherCanvas :weather="weather" :width="260" :height="260" />
                   <div class="plant-emoji-container">
                     <img :src="getPlantImage(plantStore.mainPlant)" class="plant-image" alt="植物图片" />
                   </div>
@@ -254,14 +284,14 @@
                     <el-progress 
                       :percentage="experiencePercentage" 
                       :format="expFormat"
-                      :stroke-width="10"
+                      :stroke-width="12"
                       class="plant-exp-progress"
                     />
                   </div>
                   
                   <div class="plant-actions">
                     <el-button type="success" @click="listenToPlantThought">
-                      <el-icon><ChatLineRound /></el-icon> 聆听植物心声
+                      <el-icon><ChatLineRound /></el-icon> 聆听心声
                     </el-button>
                     <el-button type="primary" @click="goToPlantChat">
                       <el-icon><ChatDotRound /></el-icon> 与植物聊天
@@ -415,9 +445,6 @@
           </el-form-item>
           <el-form-item label="完成于" v-if="editingTask.completedAt">
             <div>{{ formatDate(editingTask.completedAt) }}</div>
-          </el-form-item>
-          <el-form-item label="奖励" v-if="isSystemTask">
-            <el-tag type="warning" size="default">{{ editingTask.reward }} 金币</el-tag>
           </el-form-item>
         </el-form>
       </template>
@@ -758,19 +785,258 @@ export default {
       timestamp: new Date()
     })
     
+    // 添加预留心语数组
+    const reservedThoughts = ref([])
+    const showPlantSpeech = ref(false)
+    
+    // 预先加载植物心语
+    const preloadPlantThoughts = async () => {
+      if (!plantStore.mainPlant) return;
+      
+      const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id;
+      if (!plantId) return;
+      
+      try {
+        // 预先加载3条心语
+        for (let i = 0; i < 3; i++) {
+          const context = {
+            weather: weather.value,
+            timeOfDay: getTimeOfDay(),
+            recentTasks: taskStore.completedTasks.slice(0, 3).map(task => ({
+              id: task._id || task.id,
+              title: task.title,
+              completed: true
+            }))
+          };
+          
+          const thought = await plantStore.generatePlantThought(plantId, context);
+          if (thought) {
+            reservedThoughts.value.push(thought);
+            console.log('预加载植物心语成功');
+          }
+          
+          // 间隔一段时间，避免API限制
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      } catch (error) {
+        console.error('预加载植物心语失败:', error);
+      }
+    };
+    
+    // 优化后的植物心语显示函数
+    const listenToPlantThought = async () => {
+      if (!plantStore.mainPlant) {
+        ElMessage.warning('请先在花园中添加一个植物')
+        return
+      }
+      
+      // 检查植物ID是否有效
+      if (!plantStore.mainPlant._id && !plantStore.mainPlant.id) {
+        console.error('植物ID无效')
+        ElMessage.warning('植物信息不完整，请重新选择植物')
+        return
+      }
+      
+      const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
+      
+      try {
+        //ElMessage.info('正在聆听植物的心声...')
+        
+        // 直接显示已预加载的心语
+        if (reservedThoughts.value.length > 0) {
+          const thought = reservedThoughts.value.shift()
+          currentPlantThought.message = thought.content
+          currentPlantThought.type = thought.type || 'mood'
+          currentPlantThought.icon = thought.icon || '🌱'
+          currentPlantThought.tag = thought.tag || '植物心语'
+          currentPlantThought.timestamp = new Date(thought.timestamp)
+          showPlantSpeech.value = true
+          
+          ElMessage({
+            message: '植物想和你说话了！',
+            type: 'success'
+          })
+          
+          // 延长悬浮气泡框显示时间
+          setTimeout(() => {
+            showPlantSpeech.value = false
+          }, 15000)
+          
+          // 异步补充新的预加载心语
+          setTimeout(() => {
+            replenishThoughts(plantId)
+          }, 100)
+        } else {
+          // 如果没有预加载的心语，实时获取一条
+          const context = {
+            weather: weather.value,
+            timeOfDay: getTimeOfDay(),
+            recentTasks: taskStore.completedTasks.slice(0, 3).map(task => ({
+              id: task._id || task.id,
+              title: task.title,
+              completed: true
+            }))
+          }
+          
+          const newThought = await plantStore.generatePlantThought(plantId, context)
+          
+          if (newThought) {
+            currentPlantThought.message = newThought.content
+            currentPlantThought.type = newThought.type || 'mood'
+            currentPlantThought.icon = newThought.icon || '🌱'
+            currentPlantThought.tag = newThought.tag || '植物心语'
+            currentPlantThought.timestamp = new Date(newThought.timestamp)
+            showPlantSpeech.value = true
+            
+            ElMessage({
+              message: '植物想和你说话了！',
+              type: 'success'
+            })
+            
+            // 延长悬浮气泡框显示时间
+            setTimeout(() => {
+              showPlantSpeech.value = false
+            }, 15000)
+            
+            // 开始预加载
+            setTimeout(() => {
+              preloadPlantThoughts()
+            }, 100)
+          }
+        }
+      } catch (error) {
+        console.error('获取植物心声失败', error)
+        ElMessage.error('获取植物心声失败，植物好像有点害羞...')
+      }
+    }
+    
+    // 补充心语函数
+    const replenishThoughts = async (plantId) => {
+      try {
+        // 确保预加载队列保持在3条
+        const needToAdd = 3 - reservedThoughts.value.length
+        
+        for (let i = 0; i < needToAdd; i++) {
+          const context = {
+            weather: weather.value,
+            timeOfDay: getTimeOfDay(),
+            recentTasks: taskStore.completedTasks.slice(0, 3).map(task => ({
+              id: task._id || task.id,
+              title: task.title,
+              completed: true
+            }))
+          }
+          
+          const thought = await plantStore.generatePlantThought(plantId, context)
+          if (thought) {
+            reservedThoughts.value.push(thought)
+            console.log('补充植物心语成功')
+          }
+          
+          // 间隔一段时间，避免API限制
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+      } catch (error) {
+        console.error('补充植物心语失败:', error)
+      }
+    }
+    
+    // 监听主植物变化，预加载心语
+    watch(() => plantStore.mainPlant, async (newMainPlant) => {
+      if (newMainPlant) {
+        weather.value = newMainPlant.weather || 'sunny'
+        
+        try {
+          const plantId = newMainPlant._id || newMainPlant.id
+          if (plantId) {
+            const thoughts = await plantStore.fetchPlantThoughts(plantId)
+            plantStore.thoughts = thoughts.map(thought => ({
+              type: 'plant',
+              content: thought.content,
+              timestamp: thought.timestamp
+            }))
+            
+            // 植物变更后，清空之前的预加载心语并重新预加载
+            reservedThoughts.value = []
+            setTimeout(() => {
+              preloadPlantThoughts()
+            }, 1000)
+          }
+        } catch (error) {
+          console.error('更新植物心声失败', error)
+        }
+      }
+    }, { immediate: true })
+    
+    // 初始化时，预加载植物心语
+    onMounted(async () => {
+      try {
+        await Promise.all([
+          taskStore.fetchTasks(),
+          taskStore.fetchSystemTasks()
+        ])
+        console.log('首页任务数据加载成功')
+        
+        // 预加载植物心语
+        setTimeout(() => {
+          preloadPlantThoughts()
+        }, 2000)
+      } catch (error) {
+        console.error('加载任务数据失败:', error)
+      }
+    })
+    
     // 完成任务
-    const completeTask = (id) => {
-      taskStore.completeTask(id)
-      if (plantStore.mainPlant) {
-        plantStore.gainExperience(plantStore.mainPlant.id, 20)
+    const completeTask = async (id) => {
+      try {
+        await taskStore.completeTask(id)
+        if (plantStore.mainPlant) {
+          const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
+          if (plantId) {
+            await plantStore.gainExperience(plantId, 20)
+            
+            // 重新获取植物信息以更新状态
+            await plantStore.fetchPlants()
+            
+            // 更新主植物引用，确保UI更新
+            if (plantStore.plants && plantStore.plants.length > 0) {
+              const updatedPlant = plantStore.plants.find(p => (p._id === plantId || p.id === plantId))
+              if (updatedPlant) {
+                plantStore.setMainPlant(updatedPlant)
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('完成任务失败:', error)
+        ElMessage.error('完成任务失败，请重试')
       }
     }
     
     // 完成系统任务
-    const completeSystemTask = (id) => {
-      taskStore.completeSystemTask(id)
-      if (plantStore.mainPlant) {
-        plantStore.gainExperience(plantStore.mainPlant.id, 30)
+    const completeSystemTask = async (id) => {
+      try {
+        await taskStore.completeSystemTask(id)
+        if (plantStore.mainPlant) {
+          const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
+          if (plantId) {
+            await plantStore.gainExperience(plantId, 30)
+            
+            // 重新获取植物信息以更新状态
+            await plantStore.fetchPlants()
+            
+            // 更新主植物引用，确保UI更新
+            if (plantStore.plants && plantStore.plants.length > 0) {
+              const updatedPlant = plantStore.plants.find(p => (p._id === plantId || p.id === plantId))
+              if (updatedPlant) {
+                plantStore.setMainPlant(updatedPlant)
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('完成系统任务失败:', error)
+        ElMessage.error('完成系统任务失败，请重试')
       }
     }
     
@@ -806,36 +1072,6 @@ export default {
         }
       }
     }
-    
-    // 监听主植物变化
-    watch(() => plantStore.mainPlant, async (newMainPlant) => {
-      if (newMainPlant) {
-        // 更新天气状态
-        weather.value = newMainPlant.weather || 'sunny';
-        
-        // 更新植物心声
-        try {
-          const plantId = newMainPlant._id || newMainPlant.id;
-          if (plantId) {
-            const thoughts = await plantStore.fetchPlantThoughts(plantId);
-            plantStore.thoughts = thoughts.map(thought => ({
-              type: 'plant',
-              content: thought.content,
-              timestamp: thought.timestamp
-            }));
-          }
-        } catch (error) {
-          console.error('更新植物心声失败:', error);
-        }
-      }
-    }, { immediate: true });
-
-    // 初始化天气状态
-    onMounted(() => {
-      if (plantStore.mainPlant) {
-        weather.value = plantStore.mainPlant.weather || 'sunny';
-      }
-    });
     
     // 格式化日期
     const formatDate = (dateString) => {
@@ -959,8 +1195,8 @@ export default {
         
         isAiSummaryLoading.value = false
       } catch (error) {
-        console.error('获取AI洞察失败:', error)
-        ElMessage.error('获取AI洞察数据失败，请稍后再试')
+        console.error('获取智能总结失败:', error)
+        ElMessage.error('获取智能总结数据失败，请稍后再试')
         isAiSummaryLoading.value = false
       }
     }
@@ -1069,66 +1305,6 @@ export default {
       currentPlantThought.timestamp = new Date()
     }
     
-    // 刷新植物心声
-    const listenToPlantThought = async () => {
-      if (!plantStore.mainPlant) {
-        ElMessage.warning('请先在花园中添加一个植物')
-        return
-      }
-      
-      // 检查植物ID是否有效
-      if (!plantStore.mainPlant._id && !plantStore.mainPlant.id) {
-        console.error('植物ID无效')
-        ElMessage.warning('植物信息不完整，请重新选择植物')
-        return
-      }
-      
-      const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
-      
-      try {
-        ElMessage.info('正在聆听植物的心声...')
-        
-        // 使用API生成心声，与PlantVoice.vue保持一致的参数
-        const context = {
-          weather: weather.value,
-          timeOfDay: getTimeOfDay(),
-          recentTasks: taskStore.completedTasks.slice(0, 3).map(task => ({
-            id: task._id || task.id,
-            title: task.title,
-            completed: true
-          }))
-        }
-        
-        // 调用store中的方法生成心声，与PlantVoice.vue完全相同的调用方式
-        const thought = await plantStore.generatePlantThought(plantId, context)
-        
-        if (thought) {
-          // 更新心声状态
-          currentPlantThought.message = thought.content
-          currentPlantThought.type = thought.type || 'mood'
-          currentPlantThought.icon = thought.icon || '🌱'
-          currentPlantThought.tag = thought.tag || '植物心语'
-          currentPlantThought.timestamp = new Date(thought.timestamp)
-          
-          // 显示气泡框
-          showPlantSpeech.value = true
-          
-          ElMessage({
-            message: '植物想和你说话了！',
-            type: 'success'
-          })
-          
-          // 延长悬浮气泡框显示时间
-          setTimeout(() => {
-            showPlantSpeech.value = false
-          }, 15000)
-        }
-      } catch (error) {
-        console.error('获取植物心声失败', error)
-        ElMessage.error('获取植物心声失败，植物好像有点害羞...')
-      }
-    }
-    
     // 获取当前时间段，与PlantVoice.vue一致
     const getTimeOfDay = () => {
       const hour = new Date().getHours()
@@ -1142,14 +1318,75 @@ export default {
       router.push('/plant-chat')
     }
     
-    // 在setup函数中添加
-    const showPlantSpeech = ref(false)
-    
     // 格式化时间为简短格式
     const formatShortTime = (time) => {
       if (!time) return ''
       return format(new Date(time), 'HH:mm')
     }
+    
+    // 计算任务完成率
+    const calculateTaskCompletionRate = computed(() => {
+      const completedCount = taskStore.completedTasks.length
+      const totalCount = taskStore.pendingTasks.length + taskStore.completedTasks.length
+      if (totalCount === 0) return 0
+      return Math.round((completedCount / totalCount) * 100)
+    })
+    
+    // 计算重要待办任务数量
+    const pendingImportantTasksCount = computed(() => {
+      return taskStore.pendingTasks.filter(task => task.important).length
+    })
+    
+    // 任务进度颜色
+    const taskProgressColor = computed(() => {
+      const completedCount = taskStore.completedTasks.length
+      const totalCount = taskStore.pendingTasks.length + taskStore.completedTasks.length
+      if (totalCount === 0) return '#409EFF'
+      const progress = (completedCount / totalCount) * 100
+      return progress < 50 ? '#409EFF' : progress < 75 ? '#F7BA2A' : '#67C23A'
+    })
+    
+    // 今日健康任务数量
+    const todaySystemTasksCount = computed(() => {
+      // 如果系统任务为空或未定义，返回0
+      if (!taskStore.systemTasks || !taskStore.systemTasks.length) return 0;
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // 设置为今天的开始时间
+      
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1); // 明天的开始时间
+      
+      return taskStore.systemTasks.filter(task => {
+        // 检查任务是否有截止日期
+        if (!task.deadline) return false;
+        
+        const taskDate = new Date(task.deadline);
+        // 检查任务截止日期是否为今天
+        return taskDate >= today && taskDate < tomorrow;
+      }).length;
+    });
+    
+    // 未来一周任务数量
+    const weeklyTasksCount = computed(() => {
+      // 如果系统任务为空或未定义，返回0
+      if (!taskStore.systemTasks || !taskStore.systemTasks.length) return 0;
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // 设置为今天的开始时间
+      
+      const nextWeek = new Date(today);
+      nextWeek.setDate(nextWeek.getDate() + 7); // 一周后的时间
+      
+      return taskStore.systemTasks.filter(task => {
+        // 检查任务是否有截止日期
+        if (!task.deadline) return false;
+        
+        const taskDate = new Date(task.deadline);
+        // 检查任务截止日期是否在未来一周内
+        return taskDate >= today && taskDate < nextWeek;
+      }).length;
+    });
     
     return {
       taskStore,
@@ -1207,7 +1444,12 @@ export default {
       goToPlantChat,
       aiSummaryData,
       showPlantSpeech,
-      formatShortTime
+      formatShortTime,
+      calculateTaskCompletionRate,
+      pendingImportantTasksCount,
+      taskProgressColor,
+      todaySystemTasksCount,
+      weeklyTasksCount
     }
   }
 }
@@ -1215,7 +1457,7 @@ export default {
 
 <style scoped>
 .home-page {
-  padding: 20px;
+  padding: 12px;
   min-height: 100vh;
 }
 
@@ -1226,129 +1468,180 @@ export default {
 
 .grid-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 30px;
+  grid-template-columns: 60% 40%;
+  gap: 20px;
 }
 
 /* 任务区域样式 */
 .tasks-section {
-  border-radius: 12px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   background-color: #fff;
-  padding: 24px;
-  max-height: calc(100vh - 70px);
+  padding: 20px;
+  max-height: calc(100vh - 50px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.03);
 }
 
 .tasks-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #f0f2f5;
+  padding-bottom: 12px;
   flex-shrink: 0;
 }
 
 .section-title {
-  font-size: 22px;
+  font-size: 20px;
   margin: 0;
   color: #303133;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title::before {
+  content: '';
+  display: block;
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(to bottom, #42b983, #2d9cdb);
+  border-radius: 2px;
 }
 
 .task-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
 /* AI总结按钮美化 */
 .ai-insight-button {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 12px;
-  font-weight: 600;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 13px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  background: linear-gradient(135deg, #6e8efb, #a777e3);
+  transition: all 0.2s ease;
+  background: linear-gradient(135deg, #6e8efb, #a777e3)
+;  background-color: #f5f8fa;
   border: none;
-  box-shadow: 0 4px 12px rgba(110, 142, 251, 0.3);
+  box-shadow: 0 2px 6px rgba(110, 142, 251, 0.2);
   color: white;
 }
 
 .ai-insight-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(110, 142, 251, 0.4);
-  background: linear-gradient(135deg, #5d7df9, #9665dc);
+  box-shadow: 0 4px 8px rgba(110, 142, 251, 0.3);
 }
 
 .ai-insight-button:active {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(110, 142, 251, 0.35);
+  box-shadow: 0 2px 4px rgba(110, 142, 251, 0.25);
 }
 
-.ai-insight-icon {
+/* 植物区域样式改进 */
+.plant-section {
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  background-color: #fff;
+  padding: 20px;
+  position: sticky;
+  top: 12px;
+  height: calc(100vh - 50px);
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.plant-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  position: relative;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #f0f2f5;
+  padding-bottom: 12px;
 }
 
-.ai-pulse {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: #4de9ff;
-  box-shadow: 0 0 10px #4de9ff;
-  animation: pulse 1.5s infinite;
+.plant-header .section-title {
+  color: #42b983;
 }
 
-@keyframes pulse {
-  0% {
-    transform: scale(0.5);
-    opacity: 0.7;
-  }
-  50% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(0.5);
-    opacity: 0.7;
+/* 响应式设计优化 */
+@media screen and (max-width: 1200px) {
+  .grid-layout {
+    grid-template-columns: 55% 45%;
+    gap: 15px;
   }
 }
 
-/* 任务列表容器样式 - 可滚动 */
+@media screen and (max-width: 992px) {
+  .grid-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .plant-section {
+    position: static;
+    height: auto;
+    max-height: 600px;
+  }
+  
+  .tasks-section, 
+  .plant-section {
+    padding: 16px;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .home-page {
+    padding: 8px;
+  }
+  
+  .task-actions {
+    flex-direction: column;
+  }
+  
+  .ai-insight-button {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+}
+
 .task-list-container {
   flex: 1;
   overflow-y: auto;
-  padding-right: 8px;
+  padding-right: 6px;
   display: flex;
   flex-direction: column;
   padding-bottom: 70px; /* 为固定的添加任务按钮留出空间 */
+  scroll-behavior: smooth;
 }
 
 .task-list-container::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 .task-list-container::-webkit-scrollbar-thumb {
-  background-color: #dcdfe6;
-  border-radius: 3px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+}
+
+.task-list-container::-webkit-scrollbar-track {
+  background-color: transparent;
 }
 
 /* 任务分组样式 */
 .task-group-section {
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px dashed #dcdfe6;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #edf0f5;
   flex-shrink: 0;
 }
 
@@ -1359,17 +1652,20 @@ export default {
 .group-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
-  padding: 8px 0;
+  padding: 6px 4px;
   color: #606266;
   font-weight: 600;
   font-size: 14px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+  transition: all 0.2s;
+  border-radius: 6px;
 }
 
 .group-header:hover {
   color: #409EFF;
+  background-color: rgba(64, 158, 255, 0.05);
 }
 
 .rotate-icon {
@@ -1378,140 +1674,105 @@ export default {
 }
 
 .tasks-container {
-  padding-left: 8px;
+  padding-left: 6px;
 }
 
 .vertical-task-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding-top: 8px;
+  gap: 10px;
+  padding-top: 6px;
 }
 
 .empty-tasks {
-  padding: 16px;
+  padding: 12px;
   text-align: center;
   color: #909399;
 }
 
 /* 任务项样式 */
 .task-item {
-  padding: 10px;
-  border-radius: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
   background-color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  transition: all 0.3s ease;
+  gap: 10px;
+  transition: all 0.2s ease;
   border-left: 3px solid #409EFF;
   position: relative;
 }
 
 .task-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
 }
 
 .task-item.system-task {
   border-left-color: #67C23A;
-  background-color: #f8fff8;
+  background-color: #f9fdf9;
 }
 
 .task-item.important {
   border-left-color: #F7BA2A;
-  background-color: #fffbf0;
+  background-color: #fffdf7;
 }
 
 .task-item.completed {
-  background-color: #f5f7fa;
+  background-color: #f7f8fa;
   border-left-color: #909399;
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .task-checkbox {
-  padding-top: 3px;
-}
-
-.task-checkbox :deep(.el-checkbox__inner) {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #409EFF;
-  transition: all 0.3s ease;
-}
-
-.task-checkbox :deep(.el-checkbox__inner:hover) {
-  border-color: #66b1ff;
-  transform: scale(1.1);
-}
-
-.task-checkbox :deep(.el-checkbox__inner.is-checked) {
-  background-color: #409EFF;
-  border-color: #409EFF;
-  box-shadow: 0 0 8px rgba(64, 158, 255, 0.4);
-}
-
-.task-checkbox :deep(.el-checkbox__inner.is-checked:hover) {
-  background-color: #66b1ff;
-  border-color: #66b1ff;
-  transform: scale(1.1);
-}
-
-.task-checkbox :deep(.el-checkbox__input.is-checked .el-checkbox__inner::after) {
-  border-color: #fff;
-  width: 6px;
-  height: 10px;
-  left: 6px;
-  top: 2px;
+  padding-top: 2px;
 }
 
 .drag-handle {
   cursor: move;
-  color: #a0a0a0;
+  color: #c0c4cc;
   padding: 2px;
+  margin-right: -4px;
 }
 
 .drag-handle:hover {
   color: #606266;
 }
 
-.task-info {
-  flex: 1;
-  cursor: pointer;
-}
-
 .task-title-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .task-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: #303133;
-}
-
-.star-icon {
-  cursor: pointer;
-  font-size: 18px;
-  z-index: 2; /* 确保星标在最上层 */
+  line-height: 1.4;
 }
 
 .task-description {
-  margin: 0 0 8px 0;
-  font-size: 14px;
+  margin: 0 0 6px 0;
+  font-size: 13px;
   color: #606266;
   line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .task-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 8px;
+  margin-top: 6px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .task-deadline {
@@ -1520,11 +1781,11 @@ export default {
 }
 
 .task-reward {
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .task-completed-time {
-  margin-top: 6px;
+  margin-top: 4px;
   font-size: 12px;
   color: #909399;
 }
@@ -1535,8 +1796,8 @@ export default {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 16px 24px;
-  background: linear-gradient(0deg, rgba(255,255,255,1) 70%, rgba(255,255,255,0.8) 90%, rgba(255,255,255,0) 100%);
+  padding: 12px 20px 16px;
+  background: linear-gradient(0deg, rgba(255,255,255,1) 75%, rgba(255,255,255,0.9) 90%, rgba(255,255,255,0) 100%);
   z-index: 10;
 }
 
@@ -1544,28 +1805,28 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 14px;
+  padding: 12px;
   border-radius: 30px;
   border: none;
   background: linear-gradient(135deg, #42b983, #2d9cdb);
   color: white;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(66, 185, 131, 0.3);
+  box-shadow: 0 3px 12px rgba(66, 185, 131, 0.25);
 }
 
 .add-task-fixed-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(66, 185, 131, 0.4);
+  box-shadow: 0 6px 18px rgba(66, 185, 131, 0.35);
 }
 
 .add-task-fixed-button:active {
   transform: translateY(1px);
-  box-shadow: 0 2px 10px rgba(66, 185, 131, 0.3);
+  box-shadow: 0 2px 8px rgba(66, 185, 131, 0.3);
 }
 
 /* 新任务表单覆盖层 */
@@ -1749,14 +2010,15 @@ export default {
 
 /* 植物区域样式 - 固定不滚动 */
 .plant-section {
-  border-radius: 12px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   background-color: #fff;
-  padding: 24px;
+  padding: 20px;
   position: sticky;
-  top: 20px;
-  height: calc(100vh - 70px);
+  top: 12px;
+  height: calc(100vh - 50px);
   overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.03);
 }
 
 .plant-container {
@@ -1769,75 +2031,83 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #f0f2f5;
+  padding-bottom: 12px;
 }
 
 .plant-display {
   display: flex;
   flex-direction: column;
-  min-height: 480px; /* 确保有足够的高度 */
+  min-height: 450px;
   position: relative;
+  margin-top: 5px;
 }
 
 /* 新的容器将气泡框独立放置 */
 .plant-speech-container {
-  height: auto; /* 允许高度自动调整 */
-  min-height: 150px; /* 设置最小高度，避免空白 */
+  height: auto;
+  min-height: 120px;
   width: 100%;
   display: flex;
   justify-content: center;
-  align-items: flex-end;
+  align-items: center;
   position: relative;
-  margin: 8px 0;
+  margin: 0 0 10px;
 }
 
 /* 植物和详情的主容器 */
 .plant-main-container {
   display: flex;
   flex-direction: column;
+  align-items: center;
 }
 
 .plant-canvas-wrapper {
   position: relative;
-  width: 300px;
-  height: 300px;
-  margin-bottom: 15px;
-  left: 50%; /* 同步移动背景图层 */
-  transform: translateX(-50%);
-  border-radius: 20px;
+  width: 260px;
+  height: 260px;
+  margin-bottom: 20px;
+  transform: translateX(0);
+  left: unset;
+  border-radius: 50%;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  border: 8px solid #fff;
+  background: linear-gradient(145deg, #f0f4f8, #e6f7ff);
 }
 
 .plant-emoji-container {
   position: absolute;
   top: 50%;
-  left: 50%; /* 确保植物图标和背景图层同步移动 */
-  transform: translate(-50%, -50%);
+  left: 50%;
+  transform: translate(-50%, -52%);
   z-index: 2;
 }
 
 .plant-image {
-  max-width: 180px;
-  max-height: 180px;
+  max-width: 160px;
+  max-height: 160px;
   object-fit: contain;
   transition: all 0.5s ease;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.15));
 }
 
 /* 重新设计气泡样式，调整位置和尖端方向 */
 .plant-speech-bubble {
   position: absolute;
-  left: 58%;
+  left: 50%;
   transform: translateX(-50%);
-  top: -20%;
-  background: linear-gradient(to bottom, #f9f9f9, #e0e0e0); /* 使用更柔和的渐变 */
-  border-radius: 50px 50px 60px 60px; /* 使用不规则的边框半径 */
-  padding: 20px 24px;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1), 0 5px 10px rgba(0, 0, 0, 0.05); /* 增加多层阴影 */
-  max-width: 320px;
-  min-width: 240px;
+  top: 0;
+  background: linear-gradient(to bottom, #ffffff, #f2f7f4);
+  border-radius: 18px;
+  padding: 15px 18px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08), 0 3px 6px rgba(0, 0, 0, 0.06);
+  max-width: 280px;
+  width: 95%;
+  min-width: 220px;
   z-index: 10;
-  border: none;
+  border: 1px solid rgba(76, 175, 80, 0.2);
   transform-origin: center bottom;
   animation: bubble-appear 0.8s cubic-bezier(0.18, 0.89, 0.32, 1.28);
   transition: all 0.3s ease;
@@ -1847,17 +2117,12 @@ export default {
 .plant-speech-bubble::after {
   content: '';
   position: absolute;
-  bottom: -12px; /* 确保箭头指向左下侧 */
-  left: 20px; /* 调整箭头位置 */
-  border-width: 12px 12px 0 12px; /* 修改箭头指向 */
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 10px 10px 0 10px;
   border-style: solid;
-  border-color: #C8E6C9 transparent transparent transparent; /* 修改箭头颜色 */
-  filter: drop-shadow(-2px 2px 2px rgba(0, 0, 0, 0.05));
-}
-
-/* 添加气泡与植物茎干的视觉引导线 */
-.plant-speech-bubble::before {
-  display: none;
+  border-color: #f2f7f4 transparent transparent transparent;
 }
 
 .speech-icon {
@@ -1866,26 +2131,26 @@ export default {
   left: 15px;
   background: linear-gradient(135deg, #42b983, #64d2ff);
   color: white;
-  font-size: 20px;
-  width: 36px;
-  height: 36px;
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
   animation: spin-icon 1.2s ease-out;
 }
 
 .speech-content {
-  padding-top: 6px;
+  padding-top: 4px;
 }
 
 .speech-text {
-  margin: 0 0 12px 0;
-  font-size: 16px; /* 调整字号 */
+  margin: 0 0 10px 0;
+  font-size: 14px;
   line-height: 1.6;
-  color: #333;
+  color: #3c4043;
   font-weight: 500;
 }
 
@@ -1893,65 +2158,41 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: 11px;
   color: #888;
-  border-top: 1px dashed #eee;
-  padding-top: 8px;
+  border-top: 1px dashed #e8f5e9;
+  padding-top: 6px;
 }
 
 .speech-time {
-  color: #FBC02D; /* 时间戳使用新色号 */
+  color: #FBC02D;
   font-weight: 500;
 }
 
 .speech-tag {
   background: linear-gradient(135deg, rgba(66, 185, 131, 0.15), rgba(100, 210, 255, 0.15));
   color: #42b983;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 9px; /* 缩小字号 */
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 9px;
   font-weight: 600;
   display: flex;
   align-items: center;
 }
 
-.speech-tag::before {
-  content: "🍃"; /* 添加叶脉图标 */
-  margin-right: 4px;
-  font-size: 11px;
-}
-
-/* 浮现动画，取代原来的slide-in-right */
+/* 浮现动画 */
 @keyframes bubble-appear {
   0% {
     opacity: 0;
-    transform: scale(0.8) translateY(10px);
+    transform: translateX(-50%) scale(0.8) translateY(10px);
   }
   70% {
-    transform: scale(1.05) translateY(-5px);
+    transform: translateX(-50%) scale(1.05) translateY(-5px);
   }
   100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translateX(-50%) scale(1) translateY(0);
   }
-}
-
-/* 图标旋转动画 */
-@keyframes spin-icon {
-  0% {
-    transform: rotate(-45deg) scale(0.5);
-    opacity: 0;
-  }
-  100% {
-    transform: rotate(0) scale(1);
-    opacity: 1;
-  }
-}
-
-/* 改进漂浮动画 */
-.plant-speech-bubble:hover {
-  transform: translateY(-3px) rotate(2deg); /* 鼠标悬停时产生浮动和旋转 */
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 1px 0 #C8E6C9;
 }
 
 /* 持续漂浮的动画 */
@@ -1961,8 +2202,8 @@ export default {
 }
 
 @keyframes float-bubble {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-3px); }
 }
 
 /* 为移动端添加响应式适配 */
@@ -1995,18 +2236,30 @@ export default {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
+  padding: 0 12px;
 }
 
 .plant-stats {
   display: flex;
   justify-content: center;
-  gap: 16px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
+.plant-stats .el-tag {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
 .plant-level-container {
-  margin-bottom: 15px;
+  margin-bottom: 12px;
+  background-color: #f5f9f7;
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
 }
 
 .plant-level {
@@ -2014,53 +2267,81 @@ export default {
   color: #666;
   margin-bottom: 8px;
   text-align: center;
+  font-weight: 500;
 }
 
 .level-value {
   font-weight: bold;
-  color: #4caf50;
+  color: #42b983;
 }
 
 .plant-exp-progress :deep(.el-progress-bar__outer) {
-  border-radius: 10px;
-  background-color: #f0f0f0;
+  border-radius: 12px;
+  height: 12px !important;
+  background-color: rgba(76, 175, 80, 0.2);
 }
 
 .plant-exp-progress :deep(.el-progress-bar__inner) {
-  border-radius: 10px;
+  border-radius: 12px;
   background: linear-gradient(90deg, #81c784, #4caf50);
-}
-
-.weather-options {
-  display: flex;
-  gap: 15px;
-}
-
-.weather-option {
-  font-size: 22px;
-  cursor: pointer;
-  opacity: 0.5;
-  transition: all 0.3s;
-  filter: grayscale(0.6);
-}
-
-.weather-option:hover {
-  transform: scale(1.2);
-  opacity: 0.8;
-  filter: grayscale(0);
-}
-
-.weather-option.active {
-  opacity: 1;
-  transform: scale(1.2);
-  filter: grayscale(0);
 }
 
 .plant-actions {
   display: flex;
   justify-content: center;
-  gap: 12px;
-  margin-top: 12px;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.plant-actions .el-button {
+  border-radius: 24px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 植物天气选择器优化 */
+.plant-weather {
+  display: flex;
+  align-items: center;
+}
+
+.weather-options {
+  display: flex;
+  gap: 10px;
+  background-color: #f5f7fa;
+  padding: 5px;
+  border-radius: 30px;
+}
+
+.weather-option {
+  font-size: 20px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: all 0.3s;
+  filter: grayscale(0.6);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.weather-option:hover {
+  transform: scale(1.1);
+  opacity: 0.8;
+  filter: grayscale(0);
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+.weather-option.active {
+  opacity: 1;
+  transform: scale(1.1);
+  filter: grayscale(0);
+  background-color: white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 /* AI 总结对话框样式 */
@@ -2221,6 +2502,117 @@ export default {
   .plant-section {
     position: static;
     height: auto;
+  }
+}
+
+/* 任务完成情况分析卡片 */
+.task-summary-card {
+  background-color: #f9fafc;
+  border-radius: 14px;
+  margin-bottom: 18px;
+  padding: 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.summary-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: #606266;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.summary-header .el-icon {
+  font-size: 18px;
+  color: #409EFF;
+}
+
+.summary-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.summary-stats {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 4px;
+}
+
+.task-summary-card .stat-item {
+  flex: 1;
+  min-width: 70px;
+  background-color: white;
+  border-radius: 10px;
+  padding: 10px 8px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+}
+
+.task-summary-card .stat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+}
+
+.task-summary-card .stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #409EFF;
+  margin-bottom: 4px;
+}
+
+.task-summary-card .stat-value:nth-child(2n) {
+  color: #67C23A;
+}
+
+.task-summary-card .stat-value:nth-child(3n) {
+  color: #F7BA2A;
+}
+
+.task-summary-card .stat-value:nth-child(4n) {
+  color: #F56C6C;
+}
+
+.task-summary-card .stat-label {
+  font-size: 12px;
+  color: #909399;
+  white-space: nowrap;
+}
+
+.task-progress {
+  margin-top: 4px;
+}
+
+.progress-label {
+  font-size: 13px;
+  color: #606266;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.task-progress .el-progress--line {
+  margin-bottom: 0;
+}
+
+@media screen and (max-width: 576px) {
+  .task-summary-card .stat-item {
+    min-width: 60px;
+    padding: 8px 6px;
+  }
+  
+  .task-summary-card .stat-value {
+    font-size: 18px;
+  }
+  
+  .task-summary-card .stat-label {
+    font-size: 11px;
   }
 }
 </style>

@@ -15,8 +15,14 @@
         </div>
         <div class="plant-level">
           <div class="level-badge">Lv.{{ plantStore.currentPlant?.level || 1 }}</div>
-                </div>
-              </div>
+        </div>
+        <div class="clear-chat">
+          <el-button type="text" @click="clearConversation" :disabled="!conversations || conversations.length <= 1">
+            <el-icon><Delete /></el-icon>
+            清空对话
+          </el-button>
+        </div>
+      </div>
       
       <div class="message-container card">
         <div class="messages-list" ref="messagesList">
@@ -96,7 +102,8 @@
 import { ref, onMounted, nextTick, watch, computed } from 'vue'
 import { usePlantStore } from '../stores/plant'
 import { format } from 'date-fns'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete } from '@element-plus/icons-vue'
 
 export default {
   name: 'PlantChatPage',
@@ -178,6 +185,32 @@ export default {
       }
     }
     
+    // 清空对话
+    const clearConversation = () => {
+      ElMessageBox.confirm('确定要清空所有对话记录吗？此操作不可恢复。', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(async () => {
+        if (!plantStore.currentPlant) return;
+        
+        const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id;
+        try {
+          // 调用清空对话的API
+          await plantStore.clearConversations(plantId);
+          
+          // 设置为默认欢迎消息
+          plantStore.conversations = [defaultWelcomeMessage];
+          ElMessage.success('对话已清空');
+        } catch (error) {
+          console.error('清空对话失败:', error);
+          ElMessage.error('清空对话失败');
+        }
+      }).catch(() => {
+        // 用户取消操作
+      });
+    }
+    
     // 发送消息
     const sendMessage = async () => {
       if (!messageInput.value.trim() || loading.value) return
@@ -222,8 +255,8 @@ export default {
         // 滚动到底部
         await scrollToBottom()
         
-        // 调用API发送消息
-        await plantStore.sendMessage(plantId, message)
+        // 调用API发送消息，设置skipUserMessage为true，因为已经添加过用户消息了
+        await plantStore.sendMessage(plantId, message, true)
         
         // 再次滚动到底部（显示植物回复）
         await scrollToBottom()
@@ -324,7 +357,8 @@ export default {
       formatTime,
       handleEnterPress,
       sendMessage,
-      sendSuggestion
+      sendSuggestion,
+      clearConversation
     }
   }
 }
@@ -412,6 +446,7 @@ export default {
 .plant-level {
   display: flex;
   align-items: center;
+  margin-right: 15px;
 }
 
 .level-badge {
@@ -422,6 +457,16 @@ export default {
   padding: 5px 10px;
   border-radius: 20px;
   box-shadow: 0 2px 4px rgba(64, 158, 255, 0.3);
+}
+
+.clear-chat {
+  color: #909399;
+  font-size: 0.85rem;
+}
+
+.clear-chat .el-button {
+  font-size: 0.85rem;
+  padding: 4px 8px;
 }
 
 .message-container {
@@ -638,5 +683,11 @@ export default {
   .message-bubble {
     max-width: 85%;
   }
+  
+  .clear-chat {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
 }
-</style> 
+</style>

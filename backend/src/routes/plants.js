@@ -529,13 +529,17 @@ router.get('/:id/conversations', auth, async (req, res) => {
     const before = req.query.before ? new Date(req.query.before) : null;
     
     let messages = conversation.messages || [];
+    
+    // 确保消息按时间戳排序（从早到晚）
+    messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
     if (before) {
       messages = messages.filter(msg => new Date(msg.timestamp) < before);
     }
     
-    // 只返回限制数量的消息
+    // 只返回限制数量的消息，按时间顺序排列
     const hasMore = messages.length > limit;
-    messages = messages.slice(-limit).reverse();
+    messages = messages.slice(-limit);
     
     res.json({
       success: true,
@@ -639,6 +643,44 @@ router.post('/:id/conversations', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || '生成植物回复失败'
+    });
+  }
+});
+
+// 清空与植物的对话
+router.delete('/:id/conversations', auth, async (req, res) => {
+  try {
+    const plant = await Plants.findOne({ _id: req.params.id, userId: req.user.id });
+    
+    if (!plant) {
+      return res.status(404).json({
+        success: false,
+        message: '植物不存在'
+      });
+    }
+    
+    // 查找对话
+    const conversation = await Conversations.findOne({ 
+      plantId: req.params.id, 
+      userId: req.user.id 
+    });
+    
+    if (conversation) {
+      // 清空对话消息
+      await Conversations.update(
+        { _id: conversation._id },
+        { $set: { messages: [] } }
+      );
+    }
+    
+    res.json({
+      success: true,
+      message: '对话已清空'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 });
