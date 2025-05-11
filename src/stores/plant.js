@@ -356,7 +356,7 @@ export const usePlantStore = defineStore('plant', {
     },
     
     // 发送消息给植物并获取回复
-    async sendMessage(id, message, context = {}) {
+    async sendMessage(id, message, skipUserMessage = false) {
       try {
         // 检查ID是否有效
         if (!id) {
@@ -369,17 +369,20 @@ export const usePlantStore = defineStore('plant', {
         const plantId = typeof id === 'object' ? id._id : id
         console.log('准备发送消息，使用ID:', plantId)
         
-        const response = await plantApi.sendMessage(plantId, message, context)
+        const response = await plantApi.sendMessage(plantId, message, {})
         
-        // 添加用户消息和植物回复到对话列表
-        const userMessage = {
-          id: Date.now().toString(),
-          sender: 'user',
-          content: message,
-          timestamp: new Date().toISOString()
+        // 只有当skipUserMessage为false时才添加用户消息
+        if (!skipUserMessage) {
+          const userMessage = {
+            id: Date.now().toString(),
+            sender: 'user',
+            content: message,
+            timestamp: new Date().toISOString()
+          }
+          this.conversations.push(userMessage)
         }
         
-        this.conversations.push(userMessage)
+        // 添加植物回复到对话列表
         this.conversations.push(response.response)
         
         // 返回植物的回复消息对象，确保有完整的消息属性
@@ -388,6 +391,33 @@ export const usePlantStore = defineStore('plant', {
         console.error('发送消息失败:', error)
         ElMessage.error('发送消息失败')
         return null
+      }
+    },
+    
+    // 清空与植物的对话
+    async clearConversations(id) {
+      try {
+        // 检查ID是否有效
+        if (!id) {
+          console.error('植物ID无效')
+          ElMessage.warning('植物ID无效，无法清空对话')
+          return false
+        }
+        
+        // 获取正确的ID, MongoDB使用_id作为主键
+        const plantId = typeof id === 'object' ? id._id : id
+        console.log('准备清空对话，使用ID:', plantId)
+        
+        // 调用API清空对话
+        await plantApi.clearConversations(plantId)
+        
+        // 清空本地对话记录
+        this.conversations = []
+        return true
+      } catch (error) {
+        console.error('清空对话失败:', error)
+        ElMessage.error('清空对话失败')
+        return false
       }
     },
     

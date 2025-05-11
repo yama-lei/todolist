@@ -177,6 +177,17 @@ const plantApi = {
       message,
       context
     });
+  },
+  
+  // 清空与植物的对话
+  clearConversations(id) {
+    if (!id) {
+      console.error('API调用错误: 无法清空对话，ID无效', id);
+      return Promise.reject(new Error('无效的植物ID'));
+    }
+    console.log('API请求: 清空与植物的对话, ID:', id);
+    
+    return api.delete(`/plants/${id}/conversations`);
   }
 };
 
