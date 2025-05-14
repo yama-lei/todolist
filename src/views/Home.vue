@@ -2,7 +2,6 @@
   <div class="home-page">
     <div class="container">
       <div class="grid-layout">
-        
         <!-- -------------------------任务列表区--------------------------------------------------- -->
         <div class="tasks-section">
           <div class="tasks-header">
@@ -1002,7 +1001,7 @@ export default {
             if (plantStore.plants && plantStore.plants.length > 0) {
               const updatedPlant = plantStore.plants.find(p => (p._id === plantId || p.id === plantId))
               if (updatedPlant) {
-                plantStore.setMainPlant(updatedPlant)
+                plantStore.setCurrentPlant(updatedPlant)
               }
             }
           }
@@ -1029,7 +1028,7 @@ export default {
             if (plantStore.plants && plantStore.plants.length > 0) {
               const updatedPlant = plantStore.plants.find(p => (p._id === plantId || p.id === plantId))
               if (updatedPlant) {
-                plantStore.setMainPlant(updatedPlant)
+                plantStore.setCurrentPlant(updatedPlant)
               }
             }
           }
@@ -1358,12 +1357,15 @@ export default {
       tomorrow.setDate(tomorrow.getDate() + 1); // 明天的开始时间
       
       return taskStore.systemTasks.filter(task => {
-        // 检查任务是否有截止日期
-        if (!task.deadline) return false;
+        // 检查任务是否已完成
+        if (!task.completed) return false;
         
-        const taskDate = new Date(task.deadline);
-        // 检查任务截止日期是否为今天
-        return taskDate >= today && taskDate < tomorrow;
+        // 检查任务是否有完成时间
+        if (!task.completedAt) return false;
+        
+        // 检查任务完成时间是否在今天
+        const completedDate = new Date(task.completedAt);
+        return completedDate >= today && completedDate < tomorrow;
       }).length;
     });
     

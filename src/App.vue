@@ -17,8 +17,8 @@
         <el-aside width="220px" class="sidebar">
           <div class="logo-container">
             <div class="logo">
-              <el-icon><Sunny /></el-icon>
-              <span>植物日记</span>
+              <img src="https://yamapicgo.oss-cn-nanjing.aliyuncs.com/picgoImage/icon-rmbg.png" alt="logo" class="logo-image">
+              <span>植语心声</span>
             </div>
           </div>
           <el-menu
@@ -105,7 +105,6 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import axios from 'axios'
-
 export default {
   name: 'App',
   components: {
@@ -419,5 +418,10 @@ body {
   height: 100%;
   object-fit: cover;
   opacity: 0.3;
+}
+.logo-image {
+  width: 30%;
+  height: 30%;
+  object-fit: cover;
 }
 </style>

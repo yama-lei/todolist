@@ -79,6 +79,7 @@ export const usePostStore = defineStore('post', () => {
       // 确保保留原始创建时间
       const dataToSubmit = {
         ...postData,
+        // 如果提供了创建时间就使用它，否则使用当前时间
         createdAt: postData.createdAt || new Date().toISOString()
       };
       console.log('更新帖子数据:', dataToSubmit);

@@ -2,7 +2,7 @@
 <template>
   <div class="timeline-container">
     <div class="timeline">
-      <div v-for="(story, index) in stories" :key="story.id" class="timeline-item">
+      <div v-for="(story, index) in sortedStories" :key="story.id" class="timeline-item">
         <div class="timeline-date">
           <div class="date-bubble">{{ formatDate(story.time) }}</div>
           <div class="time-text">{{ formatTime(story.time) }}</div>
@@ -86,7 +86,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { usePostStore } from '../stores/post'
 import { Delete, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -97,7 +97,13 @@ const props = defineProps({
     default: () => []
   }
 })
-
+const sortedStories = computed(() => {
+  return [...props.stories].sort((a, b) => {
+    const dateA = new Date(a.time).getTime()
+    const dateB = new Date(b.time).getTime()
+    return dateB - dateA // 降序排列（最新在前）
+  })
+})
 const postStore = usePostStore()
 const deleteDialogVisible = ref(false)
 const postToDelete = ref(null)

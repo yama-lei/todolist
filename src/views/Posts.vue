@@ -386,9 +386,9 @@ const filteredPosts = computed(() => {
   
   // 按日期排序（降序）
   result.sort((a, b) => {
-    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
-    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
-    return dateB - dateA
+    const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0
+    const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0
+    return dateA - dateB
   })
   
   return result.map(post => {
@@ -425,7 +425,7 @@ const filteredPosts = computed(() => {
     }
     
     return {
-      time: post.createdAt, // 直接使用后端返回的创建时间
+      time: post.updatedAt, // 直接使用后端返回的创建时间
       title: title,
       description: description,
       imageSrc: post.images && post.images.length > 0 ? post.images[0] : null,
@@ -653,7 +653,7 @@ const handleSubmit = async () => {
     const postData = {
       ...newPost.value,
       images: postImages,
-      // 只在新建时设置时间，编辑时保留原始时间
+      // 设置创建时间：编辑时保留原始时间，新建时设置当前时间
       createdAt: isEditing.value ? newPost.value.createdAt : new Date().toISOString()
     }
     

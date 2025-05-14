@@ -14,7 +14,7 @@
       </div>
       
       <div class="action-bar card">
-        <el-button type="primary" @click="generateThought" class="generate-btn">
+        <el-button type="primary" @click="generateThought" class="generate-btn" :loading="loading">
           <el-icon><ChatLineRound /></el-icon>
           生成新的植物心声
         </el-button>
@@ -40,7 +40,7 @@
       <div class="thoughts-list">
         <div v-if="!plantStore.thoughts || plantStore.thoughts.length === 0" class="empty-thoughts card">
           <el-empty description="还没有植物心声，点击上方按钮生成吧！">
-            <el-button type="primary" @click="generateThought" class="empty-btn">
+            <el-button type="primary" @click="generateThought" class="empty-btn" :loading="loading">
               <el-icon><ChatLineRound /></el-icon> 生成第一条心声
             </el-button>
           </el-empty>
@@ -57,8 +57,14 @@
               <div class="thought-date">{{ formatDate(thought.timestamp) }}</div>
               <div class="thought-content">{{ thought.content }}</div>
               <div class="thought-footer">
-                <el-button type="text" size="small" @click="likeThought(thought.id)" class="like-btn">
-                  <el-icon><Star /></el-icon> 收藏
+                <el-button 
+                  type="text" 
+                  size="small" 
+                  @click="toggleLikeThought(thought)" 
+                  class="like-btn"
+                  :class="{ 'liked': thought.liked }"
+                >
+                  <el-icon><Star /></el-icon> {{ thought.liked ? '已收藏' : '收藏' }}
                 </el-button>
               </div>
             </div>
@@ -77,6 +83,7 @@ import { usePostStore } from '../stores/post'
 import { format } from 'date-fns'
 import { ChatLineRound, Star } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { plantApi } from '../services/api'
 
 export default {
   name: 'PlantVoicePage',
@@ -139,10 +146,12 @@ export default {
       const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
       
       try {
+        loading.value = true
         // 使用API生成心声
         const context = {
           weather: plantStore.currentPlant.weather || 'sunny',
           timeOfDay: getTimeOfDay(),
+          mood: plantMood.value,
           recentTasks: taskStore.completedTasks.slice(0, 3).map(task => ({
             id: task._id || task.id,
             title: task.title,
@@ -161,6 +170,8 @@ export default {
       } catch (error) {
         console.error('生成植物心声失败', error)
         ElMessage.error('生成植物心声失败')
+      } finally {
+        loading.value = false
       }
     }
     
@@ -230,14 +241,47 @@ export default {
       return plantStore.currentPlant.emoji || '🌱'
     }
     
-    // 收藏心声（实际功能待实现）
-    const likeThought = (id) => {
-      // 这里可以添加实际的收藏逻辑，使用id参数
-      console.log('收藏心声ID:', id)
-      ElMessage({
-        message: '已收藏此心声',
-        type: 'success'
-      })
+    // 收藏/取消收藏心声
+    const toggleLikeThought = async (thought) => {
+      if (!thought || !thought.id) {
+        console.error('心声对象无效')
+        ElMessage.warning('无法操作，心声信息无效')
+        return
+      }
+      
+      if (!plantStore.currentPlant) {
+        ElMessage.warning('请先选择一个植物')
+        return
+      }
+      
+      const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
+      
+      try {
+        loading.value = true
+        
+        if (thought.liked) {
+          // 取消收藏
+          await plantApi.unlikeThought(plantId, thought.id)
+          thought.liked = false
+          ElMessage({
+            message: '已取消收藏',
+            type: 'info'
+          })
+        } else {
+          // 收藏心声
+          await plantApi.likeThought(plantId, thought.id)
+          thought.liked = true
+          ElMessage({
+            message: '已收藏此心声',
+            type: 'success'
+          })
+        }
+      } catch (error) {
+        console.error('操作心声收藏失败:', error)
+        ElMessage.error('操作失败，请稍后重试')
+      } finally {
+        loading.value = false
+      }
     }
     
     onMounted(async () => {
@@ -256,11 +300,20 @@ export default {
         }
         
         const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
-        await plantStore.fetchPlantThoughts(plantId)
         
-        // 如果没有心声，自动生成一条
-        if (plantStore.thoughts.length === 0) {
-          generateThought()
+        try {
+          loading.value = true
+          await plantStore.fetchPlantThoughts(plantId)
+          
+          // 如果没有心声，自动生成一条
+          if (plantStore.thoughts.length === 0) {
+            await generateThought()
+          }
+        } catch (error) {
+          console.error('获取植物心声失败:', error)
+          ElMessage.error('获取植物心声失败')
+        } finally {
+          loading.value = false
         }
       }
     })
@@ -268,11 +321,12 @@ export default {
     return {
       plantStore,
       plantMood,
+      loading,
       generateThought,
       updateMood,
       formatDate,
       getPlantEmoji,
-      likeThought
+      toggleLikeThought
     }
   }
 }
@@ -469,6 +523,11 @@ export default {
 
 .like-btn:hover {
   background-color: rgba(66, 185, 131, 0.1);
+}
+
+.like-btn.liked {
+  color: #ff9800;
+  background-color: rgba(255, 152, 0, 0.1);
 }
 
 .thought-fade-enter-active, .thought-fade-leave-active {
