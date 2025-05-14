@@ -6,7 +6,7 @@
         <button @click="prevMonth" class="nav-btn">
           <i class="fas fa-chevron-left"></i>
         </button>
-        <span>{{ currentYear }}年{{ currentMonth + 1 }}月</span>
+        <span class="current-month">{{ currentYear }}年{{ currentMonth + 1 }}月</span>
         <button @click="nextMonth" class="nav-btn">
           <i class="fas fa-chevron-right"></i>
         </button>
@@ -30,7 +30,8 @@
             :class="{ 
               'empty': !day.date, 
               'selected': selectedDate === day.date,
-              'has-events': day.taskCount && day.taskCount.total > 0
+              'has-events': day.taskCount && day.taskCount.total > 0,
+              'today': day.date === getCurrentDate()
             }"
             @click="day.date && selectDate(day.date)"
           >
@@ -74,9 +75,9 @@
           <div class="day-posts" v-if="dayData.posts && dayData.posts.length > 0">
             <h3>说说 & 日记 ({{ dayData.posts.length }})</h3>
             <ul>
-              <li v-for="post in dayData.posts" :key="post.id">
+              <li v-for="post in dayData.posts" :key="post.id" :class="{ 'diary-post': post.type === 'diary', 'thought-post': post.type !== 'diary' }">
                 <span class="post-type">{{ post.type === 'diary' ? '📝' : '💬' }}</span>
-                <span class="post-title">{{ post.title }}</span>
+                <span class="post-title">{{ post.title || '无标题' }}</span>
                 <span class="post-time">{{ formatTime(post.createdAt) }}</span>
               </li>
             </ul>
@@ -158,6 +159,10 @@ export default {
     this.fetchCalendarData();
   },
   methods: {
+    getCurrentDate() {
+      const now = new Date();
+      return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+    },
     async fetchCalendarData() {
       this.loading = true;
       try {
@@ -197,9 +202,14 @@ export default {
             this.initStatisticsCharts();
           }
           
-          // 默认选中当月第一天
-          if (this.calendarDays && this.calendarDays.length > 0) {
-            // 找到第一个有日期的日历单元格（即当月第一天）
+          // 默认选中当前日期，如果当月有当前日期
+          const today = this.getCurrentDate();
+          const dayInCurrentMonth = this.calendarDays.find(day => day.date === today);
+          
+          if (dayInCurrentMonth) {
+            this.selectDate(today);
+          } else {
+            // 否则选择第一个有日期的日历单元格
             const firstDay = this.calendarDays.find(day => day.date);
             if (firstDay && firstDay.date) {
               this.selectDate(firstDay.date);
@@ -788,8 +798,9 @@ export default {
   height: 100%;
   padding: 30px;
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  background-color: var(--background-color, #f9f9f9);
+  background: linear-gradient(135deg, #f0f7fa 0%, #f8fbf4 100%);
   min-height: 100vh;
+  color: #424242;
 }
 
 .calendar-header {
@@ -798,59 +809,81 @@ export default {
   align-items: center;
   margin-bottom: 30px;
   padding-bottom: 15px;
-  border-bottom: 1px solid #eeeeee;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .calendar-header h1 {
-  font-size: 28px;
-  font-weight: 600;
-  color: #333;
+  font-size: 32px;
+  font-weight: 700;
+  color: #2e7d32;
   margin: 0;
+  background: linear-gradient(90deg, #2e7d32, #43a047);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .calendar-nav {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 20px;
   font-size: 18px;
   font-weight: 500;
 }
 
+.current-month {
+  font-size: 20px;
+  color: #424242;
+  font-weight: 600;
+  min-width: 110px;
+  text-align: center;
+}
+
 .nav-btn {
   background: none;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 8px 15px;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 12px;
+  padding: 10px 16px;
   cursor: pointer;
   transition: all 0.3s;
-  color: #555;
+  color: #4caf50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .nav-btn:hover {
-  background-color: #f0f0f0;
-  border-color: #ccc;
+  background-color: rgba(76, 175, 80, 0.1);
+  border-color: #4caf50;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .view-toggle {
   display: flex;
-  gap: 10px;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
 .view-toggle button {
-  padding: 8px 18px;
-  border: 1px solid #ddd;
+  padding: 10px 20px;
+  border: none;
   background: none;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
   font-weight: 500;
-  color: #555;
+  color: #666;
+  font-size: 15px;
 }
 
 .view-toggle button.active {
   background-color: #4caf50;
   color: white;
-  border-color: #4caf50;
   box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
 }
 
@@ -864,10 +897,12 @@ export default {
   width: 65%;
   min-height: 450px;
   background-color: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
-  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  padding: 25px;
   overflow: hidden;
+  transition: all 0.3s;
+  backdrop-filter: blur(10px);
 }
 
 .calendar-weekdays {
@@ -875,52 +910,56 @@ export default {
   grid-template-columns: repeat(7, 1fr);
   text-align: center;
   font-weight: bold;
-  margin-bottom: 10px;
-  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 15px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   padding-bottom: 10px;
 }
 
 .weekday {
   padding: 10px;
-  color: #666;
-  font-size: 14px;
+  color: #757575;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .calendar-days {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  grid-gap: 8px;
+  grid-gap: 10px;
 }
 
 .calendar-day {
   aspect-ratio: 1;
-  border-radius: 8px;
+  border-radius: 16px;
   border: 1px solid #f0f0f0;
-  padding: 8px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s;
   background-color: #fff;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 .calendar-day:hover:not(.empty) {
   background-color: #f9f9f9;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.07);
+  border-color: rgba(76, 175, 80, 0.2);
 }
 
 .calendar-day.empty {
-  background-color: #f9f9f9;
+  background-color: rgba(249, 249, 249, 0.5);
   cursor: default;
-  opacity: 0.5;
+  opacity: 0.4;
+  border: 1px dashed #e0e0e0;
 }
 
 .calendar-day.selected {
   border: 2px solid #4caf50;
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.25);
+  box-shadow: 0 6px 15px rgba(76, 175, 80, 0.25);
   background-color: #e8f5e9;
 }
 
@@ -928,28 +967,85 @@ export default {
   background-color: #f1f8e9;
 }
 
+.calendar-day.today {
+  background-color: #e8f5e9;
+  border: 2px solid #4caf50;
+  position: relative;
+}
+
+.calendar-day.today .day-number {
+  color: #2e7d32;
+  font-weight: 700;
+}
+
+.calendar-day.today::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #2e7d32, #4caf50);
+  border-radius: 4px 4px 0 0;
+}
+
+.calendar-day.has-events::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  height: 8px;
+  width: 8px;
+  border-radius: 50%;
+  background-color: #4caf50;
+}
+
 .day-number {
   font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 4px;
-  color: #333;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #424242;
 }
 
 .day-indicators {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 11px;
+  gap: 5px;
+  font-size: 12px;
 }
 
 .task-indicator {
   color: #4caf50;
-  font-weight: 500;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  background-color: rgba(76, 175, 80, 0.1);
+  padding: 2px 6px;
+  border-radius: 20px;
+  font-size: 10px;
+}
+
+.task-indicator::before {
+  content: '📋';
+  margin-right: 3px;
+  font-size: 10px;
 }
 
 .post-indicator {
   color: #ff9800;
-  font-weight: 500;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  background-color: rgba(255, 152, 0, 0.1);
+  padding: 2px 6px;
+  border-radius: 20px;
+  font-size: 10px;
+}
+
+.post-indicator::before {
+  content: '📝';
+  margin-right: 3px;
+  font-size: 10px;
 }
 
 .day-detail {
@@ -958,29 +1054,75 @@ export default {
   overflow-y: auto;
   height: 100%;
   background-color: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s;
+  backdrop-filter: blur(10px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(76, 175, 80, 0.3) transparent;
+}
+
+.day-detail::-webkit-scrollbar {
+  width: 6px;
+}
+
+.day-detail::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.day-detail::-webkit-scrollbar-thumb {
+  background-color: rgba(76, 175, 80, 0.3);
+  border-radius: 6px;
 }
 
 .day-detail h2 {
-  border-bottom: 1px solid #eeeeee;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   padding-bottom: 15px;
   margin-bottom: 20px;
-  font-size: 20px;
-  color: #333;
-  font-weight: 600;
+  font-size: 22px;
+  color: #2e7d32;
+  font-weight: 700;
+  position: relative;
+}
+
+.day-detail h2::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 80px;
+  height: 3px;
+  background: linear-gradient(90deg, #2e7d32, #4caf50);
+  border-radius: 3px;
 }
 
 .day-tasks, .day-posts, .day-thoughts {
-  margin-bottom: 25px;
+  margin-bottom: 30px;
   padding: 0 5px;
 }
 
 .day-tasks h3, .day-posts h3, .day-thoughts h3 {
-  font-size: 17px;
-  color: #444;
+  font-size: 18px;
+  color: #424242;
   margin-bottom: 15px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.day-tasks h3::before {
+  content: '📋';
+  margin-right: 8px;
+}
+
+.day-posts h3::before {
+  content: '📝';
+  margin-right: 8px;
+}
+
+.day-thoughts h3::before {
+  content: '🌱';
+  margin-right: 8px;
 }
 
 ul {
@@ -989,29 +1131,41 @@ ul {
 }
 
 li {
-  padding: 12px 16px;
-  margin-bottom: 10px;
-  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 12px;
+  border-radius: 12px;
   background-color: #f9f9f9;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s;
 }
 
 li:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
 }
 
 li.completed {
   text-decoration: line-through;
   opacity: 0.7;
+  background-color: rgba(76, 175, 80, 0.05);
 }
 
 li.important {
   border-left: 4px solid #ff5722;
+  background-color: rgba(255, 87, 34, 0.05);
+}
+
+li.diary-post {
+  border-left: 4px solid #4caf50;
+  background-color: rgba(76, 175, 80, 0.05);
+}
+
+li.thought-post {
+  border-left: 4px solid #ff9800;
+  background-color: rgba(255, 152, 0, 0.05);
 }
 
 .task-icon, .post-type, .thought-icon {
@@ -1026,13 +1180,32 @@ li.important {
 
 .task-time, .post-time {
   font-size: 13px;
-  color: #888;
+  color: #757575;
   margin-left: 10px;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 3px 8px;
+  border-radius: 20px;
 }
 
 .chart-view {
   height: calc(100% - 80px);
   overflow-y: auto;
+  padding: 15px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(76, 175, 80, 0.3) transparent;
+}
+
+.chart-view::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chart-view::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chart-view::-webkit-scrollbar-thumb {
+  background-color: rgba(76, 175, 80, 0.3);
+  border-radius: 6px;
 }
 
 .statistics-container {
@@ -1044,20 +1217,40 @@ li.important {
 .stat-box {
   width: calc(50% - 15px);
   min-width: 300px;
-  height: 320px;
+  height: 350px;
   border: none;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  border-radius: 20px;
+  padding: 25px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
   background-color: #ffffff;
+  transition: all 0.3s;
+}
+
+.stat-box:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
 }
 
 .stat-box h3 {
   text-align: center;
   margin-bottom: 20px;
-  font-size: 18px;
-  color: #444;
+  font-size: 20px;
+  color: #2e7d32;
   font-weight: 600;
+  position: relative;
+  padding-bottom: 10px;
+}
+
+.stat-box h3::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #2e7d32, #4caf50);
+  border-radius: 3px;
 }
 
 .chart-item {
@@ -1067,16 +1260,48 @@ li.important {
 
 .empty-day {
   text-align: center;
-  color: #999;
-  padding: 50px 0;
+  color: #9e9e9e;
+  padding: 60px 0;
   font-size: 16px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 12px;
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+}
+
+.empty-day::before {
+  content: '🌿';
+  font-size: 32px;
 }
 
 .loading {
   text-align: center;
-  padding: 30px 0;
-  color: #888;
+  padding: 40px 0;
+  color: #757575;
   font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading::after {
+  content: '';
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-left: 10px;
+  border: 3px solid rgba(76, 175, 80, 0.3);
+  border-radius: 50%;
+  border-top-color: #4caf50;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .plant-thought {
@@ -1091,6 +1316,10 @@ li.important {
 }
 
 @media (max-width: 768px) {
+  .calendar-container {
+    padding: 20px 15px;
+  }
+  
   .calendar-view {
     flex-direction: column;
   }
@@ -1105,10 +1334,39 @@ li.important {
   
   .day-detail {
     margin-top: 25px;
+    max-height: 500px;
   }
   
   .stat-box {
     width: 100%;
+  }
+  
+  .calendar-header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+  
+  .view-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .calendar-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .calendar-day {
+    padding: 5px;
+  }
+  
+  .day-number {
+    font-size: 16px;
+  }
+  
+  .day-indicators {
+    font-size: 9px;
   }
 }
 </style> 

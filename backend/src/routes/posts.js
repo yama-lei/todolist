@@ -14,11 +14,32 @@ router.get('/', auth, async (req, res) => {
     
     const posts = await Posts.find(query, { createdAt: -1 });
     
-    // 确保日期格式正确
-    const formattedPosts = posts.map(post => ({
-      ...post,
-      createdAt: post.createdAt ? new Date(post.createdAt).toISOString() : new Date().toISOString()
-    }));
+    // 确保日期格式正确，但不修改原始日期值
+    const formattedPosts = posts.map(post => {
+      // 只处理日期格式，不创建新日期对象
+      let formattedCreatedAt = post.createdAt;
+      
+      // 如果没有创建时间，才设置为当前时间
+      if (!formattedCreatedAt) {
+        formattedCreatedAt = new Date().toISOString();
+      } else if (typeof formattedCreatedAt === 'string') {
+        // 如果已经是字符串格式，确保是有效的ISO格式
+        try {
+          const date = new Date(formattedCreatedAt);
+          if (!isNaN(date.getTime())) {
+            // 只有在日期有效时才格式化，否则保留原始值
+            formattedCreatedAt = date.toISOString();
+          }
+        } catch (e) {
+          console.error('无效的日期格式:', formattedCreatedAt);
+        }
+      }
+      
+      return {
+        ...post,
+        createdAt: formattedCreatedAt
+      };
+    });
     
     res.json({
       success: true,
@@ -113,7 +134,7 @@ router.get('/:id', auth, async (req, res) => {
 // 更新帖子
 router.put('/:id', auth, async (req, res) => {
   try {
-    const { title, content, images, location, mood, weather } = req.body;
+    const { title, content, images, location, mood, weather, createdAt } = req.body;
     const updates = {};
     
     if (title !== undefined) updates.title = title;
@@ -122,6 +143,10 @@ router.put('/:id', auth, async (req, res) => {
     if (location !== undefined) updates.location = location;
     if (mood !== undefined) updates.mood = mood;
     if (weather !== undefined) updates.weather = weather;
+    if (createdAt !== undefined) updates.createdAt = createdAt;
+    
+    // 设置更新时间
+    updates.updatedAt = new Date().toISOString();
     
     const post = await Posts.findOne({ _id: req.params.id, userId: req.user.id });
     

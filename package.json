@@ -56,5 +56,9 @@
     "last 2 versions",
     "not dead",
     "not ie 11"
-  ]
+  ],
+  "build":{
+    "productName": "植语心声",
+    "icon": "public/icon.png"
+  }
 }
