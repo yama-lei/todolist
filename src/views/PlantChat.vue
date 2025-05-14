@@ -49,7 +49,7 @@
                 </span>
               </div>
               <div class="message-bubble">
-                <div class="message-content">{{ message.content }}</div>
+                <div class="message-content" v-html="formatMessageContent(message.content)"></div>
                 <div class="message-time">{{ formatTime(message.timestamp) }}</div>
               </div>
             </div>
@@ -104,6 +104,7 @@ import { usePlantStore } from '../stores/plant'
 import { format } from 'date-fns'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
+import { marked } from 'marked'
 
 export default {
   name: 'PlantChatPage',
@@ -343,6 +344,16 @@ export default {
       }
     })
     
+    // 格式化消息内容，支持Markdown
+    const formatMessageContent = (content) => {
+      try {
+        return marked(content)
+      } catch (error) {
+        console.error('Markdown解析失败:', error)
+        return content
+      }
+    }
+    
     return {
       plantStore,
       messagesList,
@@ -358,7 +369,8 @@ export default {
       handleEnterPress,
       sendMessage,
       sendSuggestion,
-      clearConversation
+      clearConversation,
+      formatMessageContent
     }
   }
 }
@@ -689,5 +701,49 @@ export default {
     top: 10px;
     right: 10px;
   }
+}
+
+/* 添加Markdown样式 */
+:deep(.message-content) {
+  line-height: 1.6;
+}
+
+:deep(.message-content p) {
+  margin: 0;
+}
+
+:deep(.message-content a) {
+  color: #409EFF;
+  text-decoration: none;
+}
+
+:deep(.message-content a:hover) {
+  text-decoration: underline;
+}
+
+:deep(.message-content code) {
+  background-color: #f6f6f6;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+:deep(.message-content pre) {
+  background-color: #f6f6f6;
+  padding: 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+:deep(.message-content blockquote) {
+  margin: 8px 0;
+  padding-left: 12px;
+  border-left: 4px solid #ddd;
+  color: #666;
+}
+
+:deep(.message-content ul), :deep(.message-content ol) {
+  margin: 8px 0;
+  padding-left: 20px;
 }
 </style>
