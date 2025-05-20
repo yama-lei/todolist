@@ -256,8 +256,8 @@ export default {
     }
     
     // 完成用户任务
-    const completeUserTask = (taskId) => {
-      taskStore.completeTask(taskId)
+    const completeUserTask = async (taskId) => {
+      await taskStore.completeTask(taskId)
     }
     
     // 编辑任务

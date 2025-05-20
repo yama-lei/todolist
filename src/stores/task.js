@@ -53,6 +53,8 @@ export const useTaskStore = defineStore('task', () => {
       
       // 添加到本地状态
       tasks.value.push(response.task)
+      
+      // 不再给创建任务增加经验值
       ElMessage.success('任务创建成功')
     } catch (error) {
       ElMessage.error('创建任务失败')
@@ -77,7 +79,26 @@ export const useTaskStore = defineStore('task', () => {
         tasks.value = tasks.value.filter(t => t._id !== id)
       }
       
-      ElMessage.success('任务已完成')
+      // 增加植物经验值
+      const plantStore = usePlantStore()
+      if (plantStore.plants && plantStore.plants.length > 0) {
+        // 获取主植物
+        const mainPlant = plantStore.plants.find(p => p.isMainPlant)
+        if (mainPlant) {
+          const plantId = mainPlant._id || mainPlant.id
+          if (plantId) {
+            // 根据任务是否重要，增加不同的经验值
+            // 普通任务25点，重要任务50点
+            const expAmount = task && task.important ? 50 : 25;
+            await plantStore.gainExperience(plantId, expAmount)
+            
+            // 显示具体获得的经验值
+            ElMessage.success(`任务已完成，获得 ${expAmount} 点经验值！`)
+          }
+        }
+      } else {
+        ElMessage.success('任务已完成')
+      }
     } catch (error) {
       ElMessage.error('完成任务失败')
     }
@@ -100,9 +121,20 @@ export const useTaskStore = defineStore('task', () => {
         systemTasks.value[index].completed = true
       }
       
-      // 显示奖励信息
+      // 如果后端已经处理了经验值奖励，则显示相应的提示
       if (response.rewards) {
         ElMessage.success(`完成任务获得 ${response.rewards.experience} 点经验`)
+      } 
+      // 如果后端没有处理经验值奖励，则在前端处理
+      else {
+        // 获取主植物
+        const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
+        if (plantId) {
+          // 系统任务固定增加35点经验值
+          const expAmount = 35;
+          await plantStore.gainExperience(plantId, expAmount)
+          ElMessage.success(`完成系统任务获得 ${expAmount} 点经验值`)
+        }
       }
       
       return true
