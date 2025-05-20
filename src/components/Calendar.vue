@@ -138,7 +138,6 @@ export default {
       statistics: null,
       selectedDate: null,
       dayData: null,
-      calendarChart: null,
       taskPieChart: null,
       weekdayBarChart: null,
       postsPieChart: null,
@@ -466,125 +465,6 @@ export default {
       };
     },
     
-    initCalendarChart() {
-      if (this.calendarChart) {
-        this.calendarChart.dispose();
-      }
-      
-      this.calendarChart = echarts.init(this.$refs.calendar);
-      
-      const calendarData = this.calendarData;
-      if (!calendarData || !calendarData.days) return;
-      
-      const daysData = calendarData.days.map(day => {
-        return [
-          day.date,
-          day.taskCount ? day.taskCount.total : 0,
-          day.posts ? day.posts.length : 0
-        ];
-      });
-      
-      const taskData = daysData.map(item => [item[0], item[1]]);
-      const postData = daysData.map(item => [item[0], item[2]]);
-      
-      const option = {
-        tooltip: {
-          trigger: 'item',
-          formatter: (params) => {
-            const date = params.value[0];
-            const tasks = params.value[1];
-            const posts = this.calendarData.days.find(d => d.date === date)?.posts?.length || 0;
-            const pendingTasks = this.calendarData.days.find(d => d.date === date)?.taskCount?.pending || 0;
-            
-            return `<div>
-                      <div>${date}</div>
-                      <div>待办事项: ${tasks} (未完成: ${pendingTasks})</div>
-                      <div>说说/日记: ${posts}</div>
-                    </div>`;
-          }
-        },
-        visualMap: {
-          show: false,
-          min: 0,
-          max: 10,
-          calculable: true,
-          seriesIndex: [0],
-          inRange: {
-            color: ['#ebedf0', '#c6e48b', '#7bc96f', '#239a3b', '#196127']
-          }
-        },
-        calendar: {
-          top: 50,
-          left: 50,
-          right: 30,
-          bottom: 20,
-          cellSize: [60, 60],
-          orient: 'horizontal',
-          splitLine: {
-            lineStyle: {
-              color: '#e0e0e0',
-              width: 1
-            }
-          },
-          range: `${this.currentYear}-${(this.currentMonth + 1).toString().padStart(2, '0')}`,
-          itemStyle: {
-            borderWidth: 1,
-            borderColor: '#f5f5f5'
-          },
-          yearLabel: { show: false },
-          monthLabel: { show: false },
-          dayLabel: {
-            nameMap: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'],
-            firstDay: 1,
-            color: '#606060',
-            fontSize: 12,
-            margin: 10
-          }
-        },
-        series: [
-          {
-            type: 'heatmap',
-            coordinateSystem: 'calendar',
-            data: taskData,
-            label: {
-              show: true,
-              formatter: function(params) {
-                return params.value[0].split('-')[2];
-              },
-              fontSize: 16,
-              fontWeight: 'bold',
-              color: '#303030'
-            },
-            itemStyle: {
-              borderRadius: 4
-            }
-          },
-          {
-            type: 'scatter',
-            coordinateSystem: 'calendar',
-            data: postData,
-            symbolSize: (val) => {
-              return val[1] > 0 ? 8 : 0;
-            },
-            itemStyle: {
-              color: '#ff9800'
-            },
-            zlevel: 2
-          }
-        ]
-      };
-      
-      this.calendarChart.setOption(option);
-      
-      this.calendarChart.on('click', (params) => {
-        if (params.componentType === 'series') {
-          const date = params.value[0];
-          this.selectedDate = date;
-          this.fetchDayData(date);
-        }
-      });
-    },
-    
     initStatisticsCharts() {
       if (!this.statistics) return;
       
@@ -758,10 +638,6 @@ export default {
         this.$nextTick(() => {
           this.initStatisticsCharts();
         });
-      } else {
-        this.$nextTick(() => {
-          this.initCalendarChart();
-        });
       }
     },
     
@@ -776,9 +652,6 @@ export default {
     }
   },
   beforeDestroy() {
-    if (this.calendarChart) {
-      this.calendarChart.dispose();
-    }
     if (this.taskPieChart) {
       this.taskPieChart.dispose();
     }

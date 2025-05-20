@@ -277,12 +277,30 @@ export default {
     
     // 经验格式化
     const expFormat = (percentage) => {
-      if (!selectedPlantForDialog.value) return ''
+      // 修复：通过percentage可以找到对应的植物，不需要依赖selectedPlantForDialog
+      // 在进度条中显示时，会传入当前实际的percentage
       const plant = plantStore.plants.find(p => 
-        (p._id === selectedPlantForDialog.value._id) || 
-        (p.id === selectedPlantForDialog.value.id)
+        calculatePlantExp(p) === percentage
       )
-      if (!plant) return ''
+      
+      // 如果找不到匹配的植物，返回百分比
+      if (!plant) {
+        // 回退到通过selectedPlantForDialog查找植物
+        if (selectedPlantForDialog.value) {
+          const fallbackPlant = plantStore.plants.find(p => 
+            (p._id === selectedPlantForDialog.value._id) || 
+            (p.id === selectedPlantForDialog.value.id)
+          )
+          if (fallbackPlant) {
+            const currentExp = fallbackPlant.experience || 0
+            const level = fallbackPlant.level || 1
+            const nextLevelExp = level * 100
+            return `${currentExp}/${nextLevelExp}`
+          }
+        }
+        return `${Math.round(percentage)}%`
+      }
+      
       const currentExp = plant.experience || 0
       const level = plant.level || 1
       const nextLevelExp = level * 100

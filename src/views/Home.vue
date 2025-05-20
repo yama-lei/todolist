@@ -988,21 +988,19 @@ export default {
     // 完成任务
     const completeTask = async (id) => {
       try {
+        // 经验值增加逻辑已经在taskStore.completeTask中处理
         await taskStore.completeTask(id)
-        if (plantStore.mainPlant) {
+        
+        // 重新获取植物信息以更新状态
+        await plantStore.fetchPlants()
+        
+        // 更新主植物引用，确保UI更新
+        if (plantStore.mainPlant && plantStore.plants && plantStore.plants.length > 0) {
           const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
           if (plantId) {
-            await plantStore.gainExperience(plantId, 20)
-            
-            // 重新获取植物信息以更新状态
-            await plantStore.fetchPlants()
-            
-            // 更新主植物引用，确保UI更新
-            if (plantStore.plants && plantStore.plants.length > 0) {
-              const updatedPlant = plantStore.plants.find(p => (p._id === plantId || p.id === plantId))
-              if (updatedPlant) {
-                plantStore.setCurrentPlant(updatedPlant)
-              }
+            const updatedPlant = plantStore.plants.find(p => (p._id === plantId || p.id === plantId))
+            if (updatedPlant) {
+              plantStore.setCurrentPlant(updatedPlant)
             }
           }
         }
@@ -1015,21 +1013,19 @@ export default {
     // 完成系统任务
     const completeSystemTask = async (id) => {
       try {
+        // 系统任务的经验值奖励在后端处理，为reward/2点经验值
         await taskStore.completeSystemTask(id)
-        if (plantStore.mainPlant) {
+        
+        // 重新获取植物信息以更新状态
+        await plantStore.fetchPlants()
+        
+        // 更新主植物引用，确保UI更新
+        if (plantStore.mainPlant && plantStore.plants && plantStore.plants.length > 0) {
           const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
           if (plantId) {
-            await plantStore.gainExperience(plantId, 30)
-            
-            // 重新获取植物信息以更新状态
-            await plantStore.fetchPlants()
-            
-            // 更新主植物引用，确保UI更新
-            if (plantStore.plants && plantStore.plants.length > 0) {
-              const updatedPlant = plantStore.plants.find(p => (p._id === plantId || p.id === plantId))
-              if (updatedPlant) {
-                plantStore.setCurrentPlant(updatedPlant)
-              }
+            const updatedPlant = plantStore.plants.find(p => (p._id === plantId || p.id === plantId))
+            if (updatedPlant) {
+              plantStore.setCurrentPlant(updatedPlant)
             }
           }
         }
