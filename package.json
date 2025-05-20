@@ -1,7 +1,13 @@
 {
-  "name": "todolist",
+  "name": "zhiyuxinsheng",
+  "productName": "植语心声",
   "version": "0.1.0",
   "private": true,
+  "description": "一个帮助用户管理任务和记录心情的应用",
+  "author": {
+    "name": "yama-lei",
+    "email": "yama-lei@example.com"
+  },
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
@@ -9,7 +15,8 @@
     "electron:build": "vue-cli-service electron:build",
     "electron:serve": "vue-cli-service electron:serve",
     "postinstall": "electron-builder install-app-deps",
-    "postuninstall": "electron-builder install-app-deps"
+    "postuninstall": "electron-builder install-app-deps",
+    "release": "electron-builder --publish=always"
   },
   "main": "background.js",
   "dependencies": {
@@ -56,9 +63,5 @@
     "last 2 versions",
     "not dead",
     "not ie 11"
-  ],
-  "build":{
-    "productName": "植语心声",
-    "icon": "public/icon.png"
-  }
+  ]
 }

@@ -49,7 +49,37 @@
                 </span>
               </div>
               <div class="message-bubble">
-                <div class="message-content">{{ message.content }}</div>
+                <div class="message-content">
+                  <!-- 用户消息直接显示 -->
+                  <template v-if="message.sender === 'user'">
+                    {{ message.content }}
+                  </template>
+                  
+                  <!-- 植物消息分段显示或使用打字机效果 -->
+                  <template v-else>
+                    <!-- 判断是否是当前正在打字的消息 -->
+                    <template v-if="currentTypingMessageId === message.id">
+                      <!-- 已显示的段落 -->
+                      <div v-for="(segment, index) in displayedSegments" :key="index" class="message-segment">
+                        {{ segment }}
+                      </div>
+                      <!-- 当前正在打字的段落 -->
+                      <div class="typing-segment">{{ currentTypingText }}</div>
+                      <!-- 后续段落指示器 -->
+                      <div v-if="remainingSegmentsCount > 0" class="more-segments-indicator">
+                        <div class="dot-flashing"></div>
+                      </div>
+                    </template>
+                    <!-- 已完成打字的消息 -->
+                    <template v-else>
+                      <div v-for="(segment, index) in splitMessageIntoSegments(message.content)" 
+                           :key="index" 
+                           class="message-segment">
+                        {{ segment }}
+                      </div>
+                    </template>
+                  </template>
+                </div>
                 <div class="message-time">{{ formatTime(message.timestamp) }}</div>
               </div>
             </div>
@@ -112,6 +142,18 @@ const messagesList = ref(null)
 const messageInput = ref('')
 const loading = ref(false)
 const showSuggestions = ref(true)
+
+// 打字机效果相关状态
+const currentTypingMessageId = ref(null)
+const currentTypingText = ref('')
+const displayedSegments = ref([])
+const remainingSegmentsCount = ref(0)
+const typeInterval = ref(null)
+const segmentDisplayInterval = ref(null)
+const allMessageSegments = ref([])
+const currentSegmentIndex = ref(0)
+const typingSpeed = 50 // 打字速度(毫秒/字符)
+const segmentDelay = 1000 // 段落之间的延迟(毫秒)
 
 // 用户头像
 const userAvatar = computed(() => {
@@ -200,12 +242,15 @@ const clearConversation = () => {
     
     const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id;
     try {
+      // 停止任何正在进行的打字效果
+      stopTypingEffect();
+      
       // 调用清空对话的API
       await plantStore.clearConversations(plantId);
       
       // 设置为默认欢迎消息
       plantStore.conversations = [defaultWelcomeMessage];
-      ElMessage.success('对话已清空');
+      ElMessage.success('对话已清空，将开始新的对话');
     } catch (error) {
       console.error('清空对话失败:', error);
       ElMessage.error('清空对话失败');
@@ -215,12 +260,123 @@ const clearConversation = () => {
   });
 }
 
+// 将消息拆分为段落
+const splitMessageIntoSegments = (message) => {
+  if (!message) return [];
+  // 按双换行或单换行分割
+  return message.split(/\n\n|\n/).filter(segment => segment.trim() !== '');
+}
+
+// 开始打字效果
+const startTypingEffect = (message) => {
+  // 停止任何正在进行的打字效果
+  stopTypingEffect();
+  
+  // 设置当前正在打字的消息ID
+  currentTypingMessageId.value = message.id;
+  
+  // 将消息拆分为段落
+  allMessageSegments.value = splitMessageIntoSegments(message.content);
+  
+  // 重置状态
+  displayedSegments.value = [];
+  currentSegmentIndex.value = 0;
+  currentTypingText.value = '';
+  remainingSegmentsCount.value = allMessageSegments.value.length;
+  
+  // 开始展示第一段
+  displayNextSegment();
+}
+
+// 显示下一段落
+const displayNextSegment = () => {
+  if (currentSegmentIndex.value >= allMessageSegments.value.length) {
+    // 所有段落都已显示完成
+    finishTypingMessage();
+    return;
+  }
+  
+  const currentSegment = allMessageSegments.value[currentSegmentIndex.value];
+  let charIndex = 0;
+  
+  // 清除之前的打字效果定时器
+  if (typeInterval.value) clearInterval(typeInterval.value);
+  
+  // 逐字显示当前段落
+  typeInterval.value = setInterval(() => {
+    if (charIndex <= currentSegment.length) {
+      currentTypingText.value = currentSegment.substring(0, charIndex);
+      charIndex++;
+      scrollToBottom();
+    } else {
+      // 当前段落打字完成
+      clearInterval(typeInterval.value);
+      
+      // 将完成的段落添加到已显示段落数组
+      displayedSegments.value.push(currentSegment);
+      currentTypingText.value = '';
+      
+      // 更新剩余段落数
+      remainingSegmentsCount.value--;
+      
+      // 移动到下一段
+      currentSegmentIndex.value++;
+      
+      // 延迟一会儿再显示下一段
+      if (currentSegmentIndex.value < allMessageSegments.value.length) {
+        segmentDisplayInterval.value = setTimeout(displayNextSegment, segmentDelay);
+      } else {
+        // 所有段落都已显示完成
+        finishTypingMessage();
+      }
+    }
+  }, typingSpeed);
+}
+
+// 完成消息的打字效果
+const finishTypingMessage = () => {
+  // 清除定时器
+  if (typeInterval.value) {
+    clearInterval(typeInterval.value);
+    typeInterval.value = null;
+  }
+  
+  if (segmentDisplayInterval.value) {
+    clearTimeout(segmentDisplayInterval.value);
+    segmentDisplayInterval.value = null;
+  }
+  
+  // 重置状态
+  currentTypingMessageId.value = null;
+}
+
+// 停止任何正在进行的打字效果
+const stopTypingEffect = () => {
+  if (typeInterval.value) {
+    clearInterval(typeInterval.value);
+    typeInterval.value = null;
+  }
+  
+  if (segmentDisplayInterval.value) {
+    clearTimeout(segmentDisplayInterval.value);
+    segmentDisplayInterval.value = null;
+  }
+  
+  currentTypingMessageId.value = null;
+}
+
 // 发送消息
 const sendMessage = async () => {
   if (!messageInput.value.trim() || loading.value) return
   
   if (!plantStore.currentPlant) {
     ElMessage.warning('请先在花园中选择一个植物')
+    return
+  }
+  
+  // 检查用户是否已登录
+  if (!localStorage.getItem('token')) {
+    ElMessage.warning('请先登录再与植物对话')
     return
   }
   
@@ -260,13 +416,22 @@ const sendMessage = async () => {
     await scrollToBottom()
     
     // 调用API发送消息，设置skipUserMessage为true，因为已经添加过用户消息了
-    await plantStore.sendMessage(plantId, message, true)
+    const response = await plantStore.sendMessage(plantId, message, true)
     
-    // 再次滚动到底部（显示植物回复）
+    if (!response) {
+      throw new Error('发送消息失败')
+    }
+    
+    // 再次滚动到底部
     await scrollToBottom()
+    
+    // 启动打字机效果
+    await nextTick()
+    startTypingEffect(response)
+    
   } catch (error) {
     console.error('发送消息失败:', error)
-    ElMessage.error('发送消息失败')
+    ElMessage.error('发送消息失败，请稍后再试')
   } finally {
     loading.value = false
   }
@@ -294,6 +459,9 @@ watch(() => plantStore.conversations.length, async () => {
 // 监听主植物变化
 watch(() => plantStore.mainPlant, async (newMainPlant) => {
   if (newMainPlant) {
+    // 停止任何正在进行的打字效果
+    stopTypingEffect();
+    
     // 更新当前植物
     plantStore.currentPlant = newMainPlant;
     
@@ -307,7 +475,7 @@ watch(() => plantStore.mainPlant, async (newMainPlant) => {
       }
     } catch (error) {
       console.error('获取对话历史失败:', error);
-      ElMessage.error('获取对话历史失败');
+      ElMessage.info('获取对话历史失败，请稍后再试')
     } finally {
       loading.value = false;
     }
@@ -346,10 +514,16 @@ onMounted(async () => {
       }
     } catch (error) {
       console.error('获取对话历史失败:', error)
+      ElMessage.info('获取对话历史失败，请稍后再试')
     } finally {
       loading.value = false
       await scrollToBottom()
     }
+  }
+  
+  // 组件销毁时清除所有定时器
+  return () => {
+    stopTypingEffect();
   }
 })
 </script>
@@ -724,6 +898,77 @@ onMounted(async () => {
 .send-btn:disabled {
   opacity: 0.6;
   background: linear-gradient(135deg, #9e9e9e 0%, #bdbdbd 100%);
+}
+
+/* 添加新样式 */
+.message-segment {
+  margin-bottom: 8px;
+}
+
+.message-segment:last-child {
+  margin-bottom: 0;
+}
+
+.typing-segment {
+  min-height: 1.5em;
+  display: inline-block;
+  position: relative;
+}
+
+.more-segments-indicator {
+  text-align: center;
+  padding: 5px 0;
+  height: 20px;
+}
+
+.dot-flashing {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  margin: 0 auto;
+  border-radius: 5px;
+  background-color: #4CAF50;
+  color: #4CAF50;
+  animation: dot-flashing 1s infinite linear alternate;
+  animation-delay: 0.5s;
+}
+
+.dot-flashing::before, .dot-flashing::after {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  top: 0;
+}
+
+.dot-flashing::before {
+  left: -15px;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #4CAF50;
+  color: #4CAF50;
+  animation: dot-flashing 1s infinite alternate;
+  animation-delay: 0s;
+}
+
+.dot-flashing::after {
+  left: 15px;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #4CAF50;
+  color: #4CAF50;
+  animation: dot-flashing 1s infinite alternate;
+  animation-delay: 1s;
+}
+
+@keyframes dot-flashing {
+  0% {
+    background-color: #4CAF50;
+  }
+  50%, 100% {
+    background-color: rgba(76, 175, 80, 0.2);
+  }
 }
 
 @media (max-width: 768px) {

@@ -107,6 +107,56 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+// 获取近一个月帖子合集
+router.get('/recent', auth, async (req, res) => {
+  try {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    
+    const posts = await Posts.find({
+      userId: req.user.id,
+      createdAt: { $gte: oneMonthAgo.toISOString() }
+    }, { createdAt: -1 });
+    
+    // 格式化帖子数据
+    const formattedPosts = posts.map(post => {
+      let createdAt;
+      try {
+        // 确保日期字符串是有效的
+        if (typeof post.createdAt === 'string' && post.createdAt.includes('T')) {
+          createdAt = new Date(post.createdAt);
+        } else {
+          createdAt = new Date();
+        }
+        
+        // 检查日期是否有效
+        if (isNaN(createdAt.getTime())) {
+          createdAt = new Date();
+        }
+      } catch (e) {
+        createdAt = new Date();
+      }
+      
+      return {
+        title: post.title || '',
+        content: post.content || '',
+        createdAt: `${createdAt.getMonth() + 1}月${createdAt.getDate()}日`,
+        mood: post.mood || 'neutral'
+      };
+    });
+    
+    res.json({
+      success: true,
+      posts: formattedPosts
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 // 获取帖子详情
 router.get('/:id', auth, async (req, res) => {
   try {

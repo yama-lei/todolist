@@ -95,7 +95,7 @@ export default {
             // 短暂延迟后跳转到登录页
             setTimeout(() => {
               router.push('/login')
-            }, 3000)
+            }, 3001)
           } catch (error) {
             // 错误已在authStore中处理
             console.error('发送重置邮件失败:', error)

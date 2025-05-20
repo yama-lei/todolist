@@ -1,6 +1,6 @@
 const express = require('express');
 const auth = require('../middleware/auth');
-const { SystemTasks, UserSystemTasks, Plants } = require('../utils/localDB');
+const { SystemTasks, UserSystemTasks, Plants, Users } = require('../utils/localDB');
 const router = express.Router();
 
 // 获取所有系统任务
@@ -242,6 +242,32 @@ router.put('/:id/complete', auth, async (req, res) => {
     };
     
     await UserSystemTasks.insert(userSystemTask);
+    
+    // 更新用户的任务统计
+    const user = await Users.findOne({ _id: req.user.id });
+    if (user) {
+      const todayStr = today.toISOString().split('T')[0];
+      
+      if (!user.dailyTaskStats) {
+        user.dailyTaskStats = [];
+      }
+
+      const todayStats = user.dailyTaskStats.find(stat => stat.date === todayStr);
+      if (todayStats) {
+        todayStats.completed += 1;
+      } else {
+        user.dailyTaskStats.push({
+          date: todayStr,
+          total: 1,
+          completed: 1
+        });
+      }
+
+      await Users.update(
+        { _id: req.user.id },
+        { $set: { dailyTaskStats: user.dailyTaskStats } }
+      );
+    }
     
     // 给主植物增加经验值
     const mainPlant = await Plants.findOne({ 

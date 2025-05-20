@@ -8,7 +8,7 @@
       <!-- 添加视频背景 -->
       <div class="video-background">
         <video autoplay muted loop playsinline>
-          <source src="@/assets/videos/test.mp4" type="video/mp4">
+          <source src="@/assets/videos/bg1.mp4" type="video/mp4">
         </video>
       </div>
       

@@ -7,7 +7,7 @@ export const usePlantStore = defineStore('plant', {
     plants: [],
     currentPlant: null,
     loading: false,
-      thoughts: [],
+    thoughts: [],
     conversations: [],
     hasMoreConversations: false
   }),
@@ -369,8 +369,6 @@ export const usePlantStore = defineStore('plant', {
         const plantId = typeof id === 'object' ? id._id : id
         console.log('准备发送消息，使用ID:', plantId)
         
-        const response = await plantApi.sendMessage(plantId, message, {})
-        
         // 只有当skipUserMessage为false时才添加用户消息
         if (!skipUserMessage) {
           const userMessage = {
@@ -382,10 +380,13 @@ export const usePlantStore = defineStore('plant', {
           this.conversations.push(userMessage)
         }
         
+        // 调用后端API发送消息
+        const response = await plantApi.sendMessage(plantId, message, {})
+        
         // 添加植物回复到对话列表
         this.conversations.push(response.response)
         
-        // 返回植物的回复消息对象，确保有完整的消息属性
+        // 返回植物的回复消息对象
         return response.response
       } catch (error) {
         console.error('发送消息失败:', error)

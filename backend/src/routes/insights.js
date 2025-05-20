@@ -1,7 +1,7 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const { Tasks, Posts, Plants } = require('../utils/localDB');
-const DeepSeekClient = require('../utils/apiClient');
+const { DeepSeekClient } = require('../utils/apiClient');
 const deepSeekClient = new DeepSeekClient();
 const { parseAIResponse, generateFallbackAnalysis } = require('../utils/parseAIResponse');
 const router = express.Router();

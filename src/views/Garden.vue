@@ -179,7 +179,7 @@ export default {
         2: plant3Level2,
         3: plant3Level3
       },
-      '白百何': {
+      '白百合': {
         1: plant4Level1,
         2: plant4Level2,
         3: plant4Level3
@@ -193,36 +193,32 @@ export default {
     
     // 获取植物图片
     const getPlantImage = (plant) => {
+      if (!plant || !plant.type) {
+        return plant1Level1 // 返回默认图片
+      }
+
       const type = plant.type.trim() // 移除可能存在的前后空格
       const level = plant.level || 1
       
       // 检查植物类型和等级限制
-      const clamplLevel = Math.min(Math.max(level, 1), 3) // 限制等级在1-3之间
+      const clampLevel = Math.min(Math.max(level, 1), 3) // 限制等级在1-3之间
       
       // 根据植物类型返回对应图片
-      if (type === '玫瑰') {
-        return plantImages['玫瑰'][clamplLevel]
-      } else if (type === '仙人掌') {
-        return plantImages['仙人掌'][clamplLevel]
-      } else if (type === '郁金香') {
-        return plantImages['郁金香'][clamplLevel]
-      } else if (type === '白百何') {
-        return plantImages['白百何'][clamplLevel]
-      } else if (type === '向日葵') {
-        return plantImages['向日葵'][clamplLevel]
+      const plantTypeImages = plantImages[type]
+      if (!plantTypeImages) {
+        return plant1Level1 // 如果找不到对应类型的图片，返回默认图片
       }
-      
-      // 默认返回第一张图片
-      return plant1Level1
+
+      return plantTypeImages[clampLevel] || plant1Level1 // 如果找不到对应等级的图片，返回默认图片
     }
     
     // 所有植物列表 (已解锁)
     const allPlants = reactive([
       { id: 'plant1', name: '绯色絮语', type: '玫瑰', emoji: '🌹', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
       { id: 'plant2', name: '沙屿星芒', type: '仙人掌', emoji: '🌵', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
-      { id: 'plant3', name: '冰爵士', type: ' 郁金香', emoji: '🌸', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
-      { id: 'plant4', name: '云归处', type: ' 白百何', emoji: '🌲', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
-      { id: 'plant5', name: '日轮礼赞', type: ' 向日葵', emoji: '🌻', level: 1, experience: 0, weather: 'sunny', isMainPlant: false }
+      { id: 'plant3', name: '冰爵士', type: '郁金香', emoji: '🌸', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
+      { id: 'plant4', name: '云归处', type: '白百何', emoji: '🌲', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
+      { id: 'plant5', name: '日轮礼赞', type: '向日葵', emoji: '🌻', level: 1, experience: 0, weather: 'sunny', isMainPlant: false }
     ])
     
     // 加载植物列表

@@ -43,7 +43,7 @@ app.use((err, req, res, next) => {
 });
 
 // 启动服务器
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`服务器运行在端口: ${PORT}`);
 });

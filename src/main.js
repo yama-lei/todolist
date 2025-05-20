@@ -9,8 +9,8 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import axios from 'axios'
 import { useAuthStore } from './stores/auth'
 
-// 默认配置
-axios.defaults.baseURL = process.env.VUE_APP_API_URL || 'http://localhost:3000/api'
+    // 默认配置
+    axios.defaults.baseURL = process.env.VUE_APP_API_URL || 'http://115.175.12.31/plantodo/api'
 
 // 创建Pinia实例
 const pinia = createPinia()

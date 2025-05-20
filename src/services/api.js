@@ -2,8 +2,8 @@ import axios from 'axios';
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: process.env.VUE_APP_API_URL || 'http://localhost:3000/api',
-  timeout: 30000,
+  baseURL: process.env.VUE_APP_API_URL || 'http://115.175.12.31/plantodo/api',
+  timeout: 30010,
   headers: {
     'Content-Type': 'application/json'
   }

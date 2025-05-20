@@ -3,6 +3,82 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+// Dify API客户端类
+class DifyClient {
+  constructor() {
+    this.apiKey = process.env.DIFY_API_KEY || 'app-gjfyF1qlTYDpj4x8hGKFUuXC';
+    this.baseURL = 'https://api.dify.ai/v1';
+    this.client = axios.create({
+      baseURL: this.baseURL,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`
+      },
+      timeout: 30000
+    });
+  }
+
+  /**
+   * 发送消息给Dify API并获取回复
+   * @param {string} message - 用户消息
+   * @param {string} plantType - 植物类型
+   * @param {string} userToken - 用户认证token
+   * @param {string} conversationId - 会话ID（可选）
+   * @param {string} plantId - 植物ID（用作用户标识）
+   * @returns {Promise<Object>} - Dify的响应
+   */
+  async sendMessage(message, plantType, userToken, conversationId, plantId) {
+    try {
+      const requestBody = {
+        query: message,
+        inputs: {
+          plantType: plantType || '未知植物',
+          authorization: userToken
+        },
+        response_mode: 'blocking',
+        user: plantId || 'anonymous_user'
+      };
+
+      // 如果有对话ID，添加到请求中
+      if (conversationId) {
+        requestBody.conversation_id = conversationId;
+      }
+
+      console.log('发送消息到Dify API:', { 
+        message, 
+        plantType, 
+        hasToken: !!userToken,
+        conversationId: conversationId || '新会话',
+        plantId 
+      });
+      
+      const response = await this.client.post('/chat-messages', requestBody);
+      
+      console.log('Dify API响应:', {
+        responseStatus: response.status,
+        conversationId: response.data.conversation_id,
+        messageId: response.data.message_id
+      });
+      
+      return {
+        answer: response.data.answer,
+        conversation_id: response.data.conversation_id,
+        message_id: response.data.message_id
+      };
+    } catch (error) {
+      console.error('Dify API调用失败:', error.message);
+      
+      // 如果有详细的错误响应，记录下来
+      if (error.response) {
+        console.error('错误状态码:', error.response.status);
+        console.error('错误数据:', error.response.data);
+      }
+      
+      throw new Error(`Dify API错误: ${error.message}`);
+    }
+  }
+}
+
 // DeepSeek API客户端类
 class DeepSeekClient {
   constructor() {
@@ -230,4 +306,7 @@ ${context.recentTasks ? context.recentTasks.map(task => `- ${task.title}`).join(
   }
 }
 
-module.exports = DeepSeekClient; 
+module.exports = {
+  DeepSeekClient,
+  DifyClient
+}; 

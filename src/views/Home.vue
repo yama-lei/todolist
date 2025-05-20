@@ -32,8 +32,8 @@
                       <div class="stat-label">待办任务</div>
                     </div>
                     <div class="stat-item">
-                      <div class="stat-value">{{ todaySystemTasksCount }}</div>
-                      <div class="stat-label">今日健康任务</div>
+                      <div class="stat-value">{{ todayCompletedTasksCount }}</div>
+                      <div class="stat-label">今日完成</div>
                     </div>
                     <div class="stat-item">
                       <div class="stat-value">{{ weeklyTasksCount }}</div>
@@ -302,6 +302,7 @@
           </div>
         </div>
       </div>
+      
     </div>
     
     <!-- AI 总结对话框 -->
@@ -535,6 +536,7 @@ import PlantDialog from '@/components/PlantDialog.vue'
 import draggable from 'vuedraggable'
 import { ElMessage } from 'element-plus'
 import insightsApi from '@/services/insightsApi'
+import axios from 'axios'
 
 // 导入植物图片
 import plant1Level1 from '@/assets/images/plant/1-1.png'
@@ -580,12 +582,37 @@ export default {
     const taskStore = useTaskStore()
     const plantStore = usePlantStore()
     
+    // 添加今日完成任务数量的状态
+    const todayCompletedTasksCount = ref(0)
+    
+    // 获取今日完成任务数量
+    const fetchTodayCompletedTasks = async () => {
+      try {
+        const today = new Date()
+        const formattedDate = format(today, 'yyyy-MM-dd')
+        
+        const response = await axios.get('/api/auth/stats', {
+          params: {
+            startDate: formattedDate,
+            endDate: formattedDate
+          }
+        })
+        
+        if (response.data.success && response.data.taskCount.length > 0) {
+          todayCompletedTasksCount.value = response.data.taskCount[0].completed || 0
+        }
+      } catch (error) {
+        console.error('获取今日完成任务数量失败:', error)
+      }
+    }
+    
     // 在组件挂载时获取任务数据
     onMounted(async () => {
       try {
         await Promise.all([
           taskStore.fetchTasks(),
-          taskStore.fetchSystemTasks()
+          taskStore.fetchSystemTasks(),
+          fetchTodayCompletedTasks() // 添加获取今日完成任务数量
         ])
         console.log('首页任务数据加载成功')
       } catch (error) {
@@ -788,16 +815,32 @@ export default {
     const reservedThoughts = ref([])
     const showPlantSpeech = ref(false)
     
-    // 预先加载植物心语
+    // 添加时间控制变量
+    const lastThoughtTime = ref(0)
+    const THOUGHT_INTERVAL = 5 * 60 * 1000 // 5分钟间隔
+    
     const preloadPlantThoughts = async () => {
       if (!plantStore.mainPlant) return;
       
       const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id;
       if (!plantId) return;
       
+      // 检查时间间隔
+      const now = Date.now()
+      if (now - lastThoughtTime.value < THOUGHT_INTERVAL) {
+        console.log('距离上次加载心语时间间隔太短，跳过预加载')
+        return
+      }
+      
       try {
+        // 如果已经有足够的预加载心语，就不再加载
+        if (reservedThoughts.value.length >= 3) {
+          console.log('已有足够的预加载心语')
+          return
+        }
+        
         // 预先加载3条心语
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 3 - reservedThoughts.value.length; i++) {
           const context = {
             weather: weather.value,
             timeOfDay: getTimeOfDay(),
@@ -812,6 +855,7 @@ export default {
           if (thought) {
             reservedThoughts.value.push(thought);
             console.log('预加载植物心语成功');
+            lastThoughtTime.value = now
           }
           
           // 间隔一段时间，避免API限制
@@ -909,11 +953,19 @@ export default {
       }
     }
     
-    // 补充心语函数
+    // 优化补充心语函数
     const replenishThoughts = async (plantId) => {
       try {
+        // 检查时间间隔
+        const now = Date.now()
+        if (now - lastThoughtTime.value < THOUGHT_INTERVAL) {
+          console.log('距离上次加载心语时间间隔太短，跳过补充')
+          return
+        }
+        
         // 确保预加载队列保持在3条
         const needToAdd = 3 - reservedThoughts.value.length
+        if (needToAdd <= 0) return
         
         for (let i = 0; i < needToAdd; i++) {
           const context = {
@@ -930,9 +982,9 @@ export default {
           if (thought) {
             reservedThoughts.value.push(thought)
             console.log('补充植物心语成功')
+            lastThoughtTime.value = now
           }
           
-          // 间隔一段时间，避免API限制
           await new Promise(resolve => setTimeout(resolve, 500))
         }
       } catch (error) {
@@ -940,29 +992,16 @@ export default {
       }
     }
     
-    // 监听主植物变化，预加载心语
+    // 修改监听主植物变化的逻辑
     watch(() => plantStore.mainPlant, async (newMainPlant) => {
       if (newMainPlant) {
         weather.value = newMainPlant.weather || 'sunny'
         
-        try {
-          const plantId = newMainPlant._id || newMainPlant.id
-          if (plantId) {
-            const thoughts = await plantStore.fetchPlantThoughts(plantId)
-            plantStore.thoughts = thoughts.map(thought => ({
-              type: 'plant',
-              content: thought.content,
-              timestamp: thought.timestamp
-            }))
-            
-            // 植物变更后，清空之前的预加载心语并重新预加载
-            reservedThoughts.value = []
-            setTimeout(() => {
-              preloadPlantThoughts()
-            }, 1000)
-          }
-        } catch (error) {
-          console.error('更新植物心声失败', error)
+        // 只在没有预加载心语时才触发预加载
+        if (reservedThoughts.value.length === 0) {
+          setTimeout(() => {
+            preloadPlantThoughts()
+          }, 2000)
         }
       }
     }, { immediate: true })
@@ -977,9 +1016,21 @@ export default {
         console.log('首页任务数据加载成功')
         
         // 预加载植物心语
-        setTimeout(() => {
-          preloadPlantThoughts()
-        }, 2000)
+        if (plantStore.mainPlant) {
+          const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
+          if (plantId) {
+            const thoughts = await plantStore.fetchPlantThoughts(plantId)
+            plantStore.thoughts = thoughts.map(thought => ({
+              type: 'plant', 
+              content: thought.content,
+              timestamp: thought.timestamp
+            }))
+            
+            setTimeout(() => {
+              preloadPlantThoughts()
+            }, 2000)
+          }
+        }
       } catch (error) {
         console.error('加载任务数据失败:', error)
       }
@@ -989,6 +1040,9 @@ export default {
     const completeTask = async (id) => {
       try {
         await taskStore.completeTask(id)
+        // 更新今日完成任务数量
+        todayCompletedTasksCount.value++
+        
         if (plantStore.mainPlant) {
           const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
           if (plantId) {
@@ -1016,6 +1070,9 @@ export default {
     const completeSystemTask = async (id) => {
       try {
         await taskStore.completeSystemTask(id)
+        // 更新今日完成任务数量
+        todayCompletedTasksCount.value++
+        
         if (plantStore.mainPlant) {
           const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
           if (plantId) {
@@ -1095,7 +1152,7 @@ export default {
         2: plant3Level2,
         3: plant3Level3
       },
-      '白百何': {
+      '白百合': {
         1: plant4Level1,
         2: plant4Level2,
         3: plant4Level3
@@ -1371,23 +1428,39 @@ export default {
     
     // 未来一周任务数量
     const weeklyTasksCount = computed(() => {
-      // 如果系统任务为空或未定义，返回0
-      if (!taskStore.systemTasks || !taskStore.systemTasks.length) return 0;
-      
       const today = new Date();
       today.setHours(0, 0, 0, 0); // 设置为今天的开始时间
       
       const nextWeek = new Date(today);
       nextWeek.setDate(nextWeek.getDate() + 7); // 一周后的时间
       
-      return taskStore.systemTasks.filter(task => {
-        // 检查任务是否有截止日期
-        if (!task.deadline) return false;
-        
-        const taskDate = new Date(task.deadline);
-        // 检查任务截止日期是否在未来一周内
-        return taskDate >= today && taskDate < nextWeek;
-      }).length;
+      // 统计未来一周内有截止日期的系统任务（未完成）
+      const systemTasksCount = (taskStore.systemTasks || [])
+        .filter(task => {
+          // 只统计未完成的任务
+          if (task.completed) return false;
+          
+          // 没有截止日期的任务不计入
+          if (!task.deadline) return false;
+          
+          const taskDate = new Date(task.deadline);
+          // 检查任务截止日期是否在未来一周内
+          return taskDate >= today && taskDate < nextWeek;
+        }).length;
+      
+      // 统计未来一周内有截止日期的个人任务（未完成）
+      const personalTasksCount = taskStore.pendingTasks
+        .filter(task => {
+          // 没有截止日期的任务不计入
+          if (!task.deadline) return false;
+          
+          const taskDate = new Date(task.deadline);
+          // 检查任务截止日期是否在未来一周内
+          return taskDate >= today && taskDate < nextWeek;
+        }).length;
+      
+      // 返回系统任务和个人任务的总和
+      return systemTasksCount + personalTasksCount;
     });
     
     return {
@@ -1451,7 +1524,8 @@ export default {
       pendingImportantTasksCount,
       taskProgressColor,
       todaySystemTasksCount,
-      weeklyTasksCount
+      weeklyTasksCount,
+      todayCompletedTasksCount
     }
   }
 }
