@@ -30,16 +30,33 @@
             :class="{ 
               'empty': !day.date, 
               'selected': selectedDate === day.date,
-              'has-events': day.taskCount && day.taskCount.total > 0,
+              'has-pending-tasks': day.taskCount && day.taskCount.pending > 0,
+              'has-completed-tasks': day.taskCount && day.taskCount.completed > 0,
               'today': day.date === getCurrentDate()
             }"
             @click="day.date && selectDate(day.date)"
           >
             <template v-if="day.date">
               <div class="day-number">{{ getDayNumber(day.date) }}</div>
+              <div class="task-dots" v-if="day.taskCount && (day.taskCount.pending > 0 || day.taskCount.completed > 0)">
+                <span 
+                  v-for="i in Math.min(day.taskCount.pending, 3)" 
+                  :key="`pending-${i}`" 
+                  class="task-dot pending" 
+                  :class="{'important': hasImportantPendingTask(day)}"
+                ></span>
+                <span 
+                  v-for="i in Math.min(day.taskCount.completed, 3)" 
+                  :key="`completed-${i}`" 
+                  class="task-dot completed"
+                ></span>
+              </div>
               <div class="day-indicators">
-                <span class="task-indicator" v-if="day.taskCount && day.taskCount.total > 0">
-                  {{ day.taskCount.total }}任务
+                <span class="task-indicator pending" v-if="day.taskCount && day.taskCount.pending > 0">
+                  {{ day.taskCount.pending }}待办
+                </span>
+                <span class="task-indicator completed" v-if="day.taskCount && day.taskCount.completed > 0">
+                  {{ day.taskCount.completed }}已完成
                 </span>
                 <span class="post-indicator" v-if="day.posts && day.posts.length > 0">
                   {{ day.posts.length }}条记录
@@ -53,22 +70,54 @@
       <div v-if="selectedDate" class="day-detail">
         <h2>{{ formatSelectedDate }}</h2>
         <div v-if="dayData">
-          <div class="day-tasks" v-if="dayData.tasks && dayData.tasks.length > 0">
-            <h3>待办事项 ({{ dayData.statistics?.totalTasks || 0 }})</h3>
+          <!-- 待办任务部分 -->
+          <div class="day-tasks pending-tasks-section" v-if="pendingTasks.length > 0">
+            <h3>待完成任务 ({{ pendingTasks.length }})</h3>
             <ul>
-              <li v-for="task in dayData.tasks" :key="task.id" :class="{ completed: task.completed, important: task.important }">
-                <span class="task-icon" v-if="task.important">⭐</span>
-                <span class="task-title">{{ task.title }}</span>
-                <span class="task-time" v-if="task.deadline">{{ formatTime(task.deadline) }}</span>
+              <li v-for="task in pendingTasks" :key="task.id" :class="{ important: task.important }" class="pending-task">
+                <div class="task-content">
+                  <span class="task-icon" v-if="task.important">⭐</span>
+                  <span class="task-icon" v-else>📌</span>
+                  <span class="task-title">{{ task.title }}</span>
+                </div>
+                <div class="task-time-container">
+                  <span class="task-time task-deadline" v-if="task.deadline">
+                    <span v-if="isOverdue(task.deadline)">已截止: </span>
+                    <span v-else>截止: </span>
+                    {{ formatFullDateTime(task.deadline) }}
+                  </span>
+                </div>
               </li>
             </ul>
           </div>
+          
+          <!-- 已完成任务部分 -->
+          <div class="day-tasks completed-tasks-section" v-if="completedTasks.length > 0">
+            <h3>已完成任务 ({{ completedTasks.length }})</h3>
+            <ul>
+              <li v-for="task in completedTasks" :key="task.id" :class="{ important: task.important }" class="completed-task">
+                <div class="task-content">
+                  <span class="task-icon" v-if="task.important">⭐</span>
+                  <span class="task-icon" v-else>✅</span>
+                  <span class="task-title">{{ task.title }}</span>
+                </div>
+                <div class="task-time-container">
+                  <span class="task-time task-deadline" v-if="task.deadline">截止: {{ formatFullDateTime(task.deadline) }}</span>
+                  <span class="task-time task-completed" v-if="task.completedAt">完成: {{ formatFullDateTime(task.completedAt) }}</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+          
           <div class="day-tasks" v-if="dayData.systemTasks && dayData.systemTasks.length > 0">
             <h3>系统任务 ({{ dayData.systemTasks.length }})</h3>
             <ul>
-              <li v-for="task in dayData.systemTasks" :key="task.id" class="completed">
-                <span class="task-title">{{ task.title }}</span>
-                <span class="task-time" v-if="task.completedAt">{{ formatTime(task.completedAt) }}</span>
+              <li v-for="task in dayData.systemTasks" :key="task.id" class="system-task">
+                <div class="task-content">
+                  <span class="task-icon">🔄</span>
+                  <span class="task-title">{{ task.title }}</span>
+                </div>
+                <span class="task-time" v-if="task.completedAt">完成: {{ formatFullDateTime(task.completedAt) }}</span>
               </li>
             </ul>
           </div>
@@ -85,9 +134,9 @@
           <div class="day-thoughts" v-if="dayData.plantThoughts && dayData.plantThoughts.length > 0">
             <h3>植物心声</h3>
             <ul>
-              <li v-for="thought in dayData.plantThoughts" :key="thought.id" class="plant-thought">
-                <span class="thought-icon">{{ thought.icon }}</span>
-                <span class="thought-content">{{ thought.content }}</span>
+              <li class="plant-thought">
+                <span class="thought-icon">{{ randomPlantThought.icon }}</span>
+                <span class="thought-content">{{ randomPlantThought.content }}</span>
               </li>
             </ul>
           </div>
@@ -143,7 +192,10 @@ export default {
       postsPieChart: null,
       loading: false,
       useMockData: false,
-      calendarDays: []
+      calendarDays: [],
+      randomPlantThought: null,
+      pendingTasks: [],
+      completedTasks: []
     };
   },
   computed: {
@@ -179,7 +231,13 @@ export default {
             }
           });
           
-          this.calendarData = response.data;
+          // 处理后端返回的数据，确保任务在正确的日期显示
+          const data = response.data;
+          if (data && data.days) {
+            this.processTasksForCalendar(data.days);
+          }
+          
+          this.calendarData = data;
           
           const statsResponse = await axios.get('/calendar/statistics', {
             params: {
@@ -220,6 +278,71 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    
+    // 处理任务显示逻辑，确保任务在正确的日期显示
+    processTasksForCalendar(days) {
+      // 创建一个日期到天数据的映射
+      const dateMap = {};
+      days.forEach(day => {
+        dateMap[day.date] = day;
+        
+        // 确保每一天都有tasks属性
+        if (!day.tasks) {
+          day.tasks = [];
+        }
+      });
+      
+      // 处理所有任务
+      const allTasks = [];
+      days.forEach(day => {
+        if (day.tasks && day.tasks.length > 0) {
+          day.tasks.forEach(task => {
+            allTasks.push({...task});
+          });
+          // 清空原来的任务列表，后面会重新分配
+          day.tasks = [];
+        }
+      });
+      
+      // 重新分配任务到正确的日期
+      allTasks.forEach(task => {
+        // 获取任务的截止日期和完成日期
+        const deadlineDate = task.deadline ? this.extractDate(task.deadline) : null;
+        const completedDate = task.completedAt ? this.extractDate(task.completedAt) : null;
+        
+        // 判断任务应该显示在哪一天
+        if (!task.completed && deadlineDate && dateMap[deadlineDate]) {
+          // 未完成任务显示在截止日期
+          dateMap[deadlineDate].tasks.push(task);
+        } else if (task.completed && completedDate && dateMap[completedDate]) {
+          // 已完成任务显示在完成日期
+          dateMap[completedDate].tasks.push(task);
+        }
+      });
+      
+      // 更新每天的任务计数
+      days.forEach(day => {
+        if (!day.taskCount) {
+          day.taskCount = {
+            total: 0,
+            completed: 0,
+            pending: 0
+          };
+        }
+        
+        const pendingTasks = day.tasks.filter(t => !t.completed);
+        const completedTasks = day.tasks.filter(t => t.completed);
+        
+        day.taskCount.total = day.tasks.length;
+        day.taskCount.completed = completedTasks.length;
+        day.taskCount.pending = pendingTasks.length;
+      });
+    },
+    
+    // 提取日期部分
+    extractDate(dateTimeString) {
+      return dateTimeString.split('T')[0];
     },
 
     generateCalendarDays() {
@@ -282,11 +405,75 @@ export default {
           });
           
           this.dayData = response.data;
+          
+          // 重新处理当日的任务数据，确保任务在正确的位置显示
+          this.processDayTasks(date);
+        }
+        
+        // 生成随机植物心声
+        if (this.dayData && this.dayData.plantThoughts && this.dayData.plantThoughts.length > 0) {
+          const randomIndex = Math.floor(Math.random() * this.dayData.plantThoughts.length);
+          this.randomPlantThought = this.dayData.plantThoughts[randomIndex];
+        } else {
+          this.randomPlantThought = null;
         }
       } catch (error) {
         console.error('获取日期详情失败', error);
         this.dayData = null;
+        this.randomPlantThought = null;
+        this.pendingTasks = [];
+        this.completedTasks = [];
       }
+    },
+    
+    // 处理单日任务数据，确保任务在正确的位置显示
+    processDayTasks(selectedDate) {
+      if (!this.dayData) {
+        this.dayData = { tasks: [] };
+      }
+      
+      if (!this.calendarData || !this.calendarData.days) return;
+      
+      // 创建原始任务的副本，以便重新分配
+      const allTasks = [];
+      this.calendarData.days.forEach(day => {
+        if (day.tasks && day.tasks.length > 0) {
+          day.tasks.forEach(task => {
+            allTasks.push({...task});
+          });
+        }
+      });
+      
+      // 找到应该显示在当天的任务
+      const todayTasks = [];
+      
+      allTasks.forEach(task => {
+        const deadlineDate = task.deadline ? this.extractDate(task.deadline) : null;
+        const completedDate = task.completedAt ? this.extractDate(task.completedAt) : null;
+        
+        // 待办任务显示在截止日期
+        if (!task.completed && deadlineDate === selectedDate) {
+          todayTasks.push(task);
+        }
+        
+        // 已完成任务显示在完成日期
+        if (task.completed && completedDate === selectedDate) {
+          todayTasks.push(task);
+        }
+      });
+      
+      // 更新dayData中的任务
+      this.dayData.tasks = todayTasks;
+      
+      // 更新侧边栏中的待办和已完成任务列表
+      this.pendingTasks = todayTasks.filter(task => !task.completed);
+      this.completedTasks = todayTasks.filter(task => task.completed);
+      
+      console.log(`处理日期 ${selectedDate} 的任务:`, {
+        总任务: todayTasks.length,
+        待办: this.pendingTasks.length,
+        已完成: this.completedTasks.length
+      });
     },
     
     getMockMonthlyData() {
@@ -295,51 +482,87 @@ export default {
       const month = this.currentMonth + 1;
       const daysInMonth = new Date(year, month, 0).getDate();
       
+      // 首先创建当月所有日期
       for (let day = 1; day <= daysInMonth; day++) {
         const date = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
         
-        const totalTasks = Math.floor(Math.random() * 6);
-        const completedTasks = Math.floor(Math.random() * (totalTasks + 1));
-        
-        const postCount = Math.floor(Math.random() * 3);
-        
-        const dayEntry = {
+        days.push({
           date: date,
           taskCount: {
-            total: totalTasks,
-            completed: completedTasks,
-            pending: totalTasks - completedTasks
+            total: 0,
+            completed: 0,
+            pending: 0
           },
-          tasks: []
+          tasks: [],
+          posts: []
+        });
+      }
+      
+      // 生成随机任务，并将其放在正确的日期
+      const totalTasks = 20; // 模拟20个任务
+      const taskDates = {};
+      
+      for (let i = 0; i < totalTasks; i++) {
+        // 随机选择一个日期作为截止日期
+        const deadlineDay = Math.floor(Math.random() * daysInMonth) + 1;
+        const deadlineDate = `${year}-${month.toString().padStart(2, '0')}-${deadlineDay.toString().padStart(2, '0')}`;
+        
+        // 决定任务是否完成
+        const isCompleted = Math.random() > 0.5;
+        
+        // 如果完成，选择一个完成日期（可能与截止日期不同）
+        let completedDate = null;
+        if (isCompleted) {
+          const completedDay = Math.max(1, Math.min(daysInMonth, deadlineDay + Math.floor(Math.random() * 5) - 2));
+          completedDate = `${year}-${month.toString().padStart(2, '0')}-${completedDay.toString().padStart(2, '0')}`;
+        }
+        
+        const task = {
+          id: `task-${i}`,
+          title: `任务 ${i + 1}`,
+          description: `这是任务 ${i + 1} 的描述`,
+          deadline: `${deadlineDate}T${Math.floor(10 + Math.random() * 8)}:00:00Z`,
+          completed: isCompleted,
+          important: Math.random() > 0.7
         };
         
-        for (let i = 0; i < totalTasks; i++) {
-          const isCompleted = i < completedTasks;
-          dayEntry.tasks.push({
-            id: `task-${date}-${i}`,
-            title: `任务 ${i + 1}`,
-            description: `这是${month}月${day}日的任务 ${i + 1}`,
-            deadline: `${date}T${Math.floor(10 + Math.random() * 8)}:00:00Z`,
-            completed: isCompleted,
-            important: Math.random() > 0.7
-          });
+        if (isCompleted) {
+          task.completedAt = `${completedDate}T${Math.floor(10 + Math.random() * 8)}:${Math.floor(Math.random() * 60)}:00Z`;
         }
         
-        const posts = [];
+        // 决定任务显示的日期
+        const displayDate = isCompleted ? completedDate : deadlineDate;
+        
+        // 将任务添加到正确的日期
+        const dayData = days.find(d => d.date === displayDate);
+        if (dayData) {
+          dayData.tasks.push(task);
+        }
+      }
+      
+      // 更新每天的任务计数
+      days.forEach(day => {
+        // 添加随机日记/说说
+        const postCount = Math.floor(Math.random() * 2);
         for (let i = 0; i < postCount; i++) {
           const isFirstPost = i === 0;
-          posts.push({
-            id: `post-${date}-${i}`,
-            title: isFirstPost ? `${month}月${day}日记录` : `${month}月${day}日随想`,
+          day.posts.push({
+            id: `post-${day.date}-${i}`,
+            title: isFirstPost ? `${month}月${day.date.split('-')[2]}日记录` : `${month}月${day.date.split('-')[2]}日随想`,
             type: isFirstPost ? 'diary' : 'thought',
             mood: ['happy', 'excited', 'calm', 'sad'][Math.floor(Math.random() * 4)],
-            createdAt: `${date}T${Math.floor(10 + Math.random() * 12)}:${Math.floor(Math.random() * 60)}:00Z`
+            createdAt: `${day.date}T${Math.floor(10 + Math.random() * 12)}:${Math.floor(Math.random() * 60)}:00Z`
           });
         }
         
-        dayEntry.posts = posts;
-        days.push(dayEntry);
-      }
+        // 更新任务计数
+        const pendingTasks = day.tasks.filter(t => !t.completed);
+        const completedTasks = day.tasks.filter(t => t.completed);
+        
+        day.taskCount.total = day.tasks.length;
+        day.taskCount.completed = completedTasks.length;
+        day.taskCount.pending = pendingTasks.length;
+      });
       
       return {
         success: true,
@@ -384,20 +607,34 @@ export default {
       const dateObj = new Date(date);
       const dayOfWeek = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][dateObj.getDay()];
       
-      return {
+      const mockDayData = {
         success: true,
         date: date,
         dayOfWeek: dayOfWeek,
-        tasks: dayData.tasks,
+        tasks: dayData.tasks || [],
         systemTasks: systemTasks,
-        posts: dayData.posts,
+        posts: dayData.posts || [],
         plantThoughts: plantThoughts,
         statistics: {
-          completionRate: dayData.taskCount.total > 0 ? (dayData.taskCount.completed / dayData.taskCount.total) * 100 : 100,
-          totalTasks: dayData.taskCount.total,
-          completedTasks: dayData.taskCount.completed
+          completionRate: dayData.taskCount?.total > 0 ? (dayData.taskCount.completed / dayData.taskCount.total) * 100 : 100,
+          totalTasks: dayData.taskCount?.total || 0,
+          completedTasks: dayData.taskCount?.completed || 0
         }
       };
+      
+      // 生成随机植物心声
+      if (mockDayData.plantThoughts && mockDayData.plantThoughts.length > 0) {
+        const randomIndex = Math.floor(Math.random() * mockDayData.plantThoughts.length);
+        this.randomPlantThought = mockDayData.plantThoughts[randomIndex];
+      } else {
+        this.randomPlantThought = null;
+      }
+      
+      // 分离待办和已完成任务
+      this.pendingTasks = mockDayData.tasks.filter(task => !task.completed);
+      this.completedTasks = mockDayData.tasks.filter(task => task.completed);
+      
+      return mockDayData;
     },
     
     getMockStatistics() {
@@ -649,6 +886,22 @@ export default {
     getLastDayOfMonth(year, month) {
       const lastDay = new Date(year, month + 1, 0).getDate();
       return `${year}-${(month + 1).toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+    },
+    
+    isOverdue(deadline) {
+      const today = new Date();
+      const deadlineDate = new Date(deadline);
+      return deadlineDate < today;
+    },
+    
+    hasImportantPendingTask(day) {
+      if (!day || !day.tasks) return false;
+      return day.tasks.some(task => !task.completed && task.important);
+    },
+    
+    formatFullDateTime(timestamp) {
+      const date = new Date(timestamp);
+      return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
     }
   },
   beforeDestroy() {
@@ -841,8 +1094,7 @@ export default {
 }
 
 .calendar-day.today {
-  background-color: #e8f5e9;
-  border: 2px solid #4caf50;
+  background-color: white;
   position: relative;
 }
 
@@ -873,6 +1125,44 @@ export default {
   background-color: #4caf50;
 }
 
+.calendar-day.has-pending-tasks {
+  background-color: rgba(33, 150, 243, 0.05);
+}
+
+.calendar-day.has-completed-tasks {
+  background-color: rgba(76, 175, 80, 0.05);
+}
+
+.calendar-day.has-pending-tasks.has-completed-tasks {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.05) 0%, rgba(76, 175, 80, 0.05) 100%);
+}
+
+.task-dots {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  margin: 4px 0;
+}
+
+.task-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.task-dot.pending {
+  background-color: #2196f3;
+}
+
+.task-dot.pending.important {
+  background-color: #ff9800;
+  transform: scale(1.2);
+}
+
+.task-dot.completed {
+  background-color: #4caf50;
+}
+
 .day-number {
   font-size: 18px;
   font-weight: 700;
@@ -896,10 +1186,27 @@ export default {
   padding: 2px 6px;
   border-radius: 20px;
   font-size: 10px;
+  margin-bottom: 2px;
 }
 
-.task-indicator::before {
+.task-indicator.pending {
+  color: #2196f3;
+  background-color: rgba(33, 150, 243, 0.1);
+}
+
+.task-indicator.pending::before {
   content: '📋';
+  margin-right: 3px;
+  font-size: 10px;
+}
+
+.task-indicator.completed {
+  color: #4caf50;
+  background-color: rgba(76, 175, 80, 0.1);
+}
+
+.task-indicator.completed::before {
+  content: '✅';
   margin-right: 3px;
   font-size: 10px;
 }
@@ -1052,12 +1359,31 @@ li.thought-post {
 }
 
 .task-time, .post-time {
-  font-size: 13px;
+  font-size: 12px;
   color: #757575;
   margin-left: 10px;
   background: rgba(0, 0, 0, 0.04);
   padding: 3px 8px;
   border-radius: 20px;
+  white-space: nowrap;
+}
+
+.task-time-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  min-width: 220px;
+}
+
+.task-deadline {
+  color: #f44336;
+  font-weight: 500;
+}
+
+.task-completed {
+  color: #4caf50;
+  font-weight: 500;
 }
 
 .chart-view {
@@ -1186,6 +1512,72 @@ li.thought-post {
   font-style: italic;
   color: #2e7d32;
   font-size: 15px;
+}
+
+.task-subheader {
+  font-size: 15px;
+  color: #757575;
+  margin: 15px 0 10px;
+  padding-left: 8px;
+  border-left: 3px solid #e0e0e0;
+}
+
+li.pending-task {
+  background-color: rgba(33, 150, 243, 0.05);
+  border-left: 4px solid #2196f3;
+}
+
+li.pending-task.important {
+  background-color: rgba(255, 152, 0, 0.1);
+  border-left: 4px solid #ff9800;
+  position: relative;
+}
+
+li.pending-task.important::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 15px 15px 0;
+  border-color: transparent #ff9800 transparent transparent;
+}
+
+li.completed-task {
+  background-color: rgba(76, 175, 80, 0.05);
+  border-left: 4px solid #4caf50;
+  opacity: 0.8;
+}
+
+li.completed-task.important {
+  background-color: rgba(156, 39, 176, 0.05);
+  border-left: 4px solid #9c27b0;
+  position: relative;
+}
+
+li.completed-task.important::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 15px 15px 0;
+  border-color: transparent #9c27b0 transparent transparent;
+}
+
+li.system-task {
+  background-color: rgba(0, 188, 212, 0.05);
+  border-left: 4px solid #00bcd4;
+}
+
+.task-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
 }
 
 @media (max-width: 768px) {
