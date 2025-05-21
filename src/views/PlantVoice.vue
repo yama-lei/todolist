@@ -49,8 +49,8 @@
         <div v-else>
           <transition-group name="thought-fade">
             <div 
-              v-for="thought in plantStore.thoughts" 
-              :key="thought.id" 
+              v-for="(thought, index) in plantStore.thoughts" 
+              :key="thought.id || thought._id || index" 
               class="thought-card card"
             >
               <div class="thought-bubble"></div>
@@ -99,6 +99,9 @@ export default {
     const plantMood = ref(plantStore.currentPlant?.mood || 'neutral')
     const loading = ref(false)
     
+    // 添加一个标志来追踪是否是初始加载
+    const isInitialLoad = ref(true)
+    
     // 监听主植物变化
     watch(() => plantStore.mainPlant, async (newMainPlant) => {
       if (newMainPlant) {
@@ -115,8 +118,8 @@ export default {
             loading.value = true;
             await plantStore.fetchPlantThoughts(plantId);
             
-            // 如果没有心声，自动生成一条
-            if (plantStore.thoughts.length === 0) {
+            // 如果没有心声，且不是由 onMounted 触发的，才自动生成一条
+            if (plantStore.thoughts.length === 0 && !isInitialLoad.value) {
               await generateThought();
             }
           }
@@ -136,17 +139,17 @@ export default {
         return
       }
       
-      // 检查植物ID是否有效
-      if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
+      const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
+      if (!plantId) {
         console.error('植物ID无效')
         ElMessage.warning('植物信息不完整，请重新选择植物')
         return
       }
       
-      const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
-      
       try {
         loading.value = true
+        console.log('开始生成植物心声，植物ID:', plantId)
+        
         // 使用API生成心声
         const context = {
           weather: plantStore.currentPlant.weather || 'sunny',
@@ -159,7 +162,10 @@ export default {
           }))
         }
         
+        console.log('生成植物心声的上下文:', context)
+        
         const thought = await plantStore.generatePlantThought(plantId, context)
+        console.log('生成植物心声的结果:', thought)
         
         if (thought) {
           ElMessage({
@@ -190,24 +196,19 @@ export default {
         return
       }
       
-      // 检查植物ID是否有效
-      if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
+      const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
+      if (!plantId) {
         console.error('植物ID无效')
         ElMessage.warning('植物信息不完整，请重新选择植物')
         return
       }
-      
-      const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
       
       try {
         loading.value = true
         const updatedPlant = await plantStore.updatePlant(plantId, { mood })
         
         if (updatedPlant) {
-          // 更新本地状态
           plantMood.value = mood
-          
-          // 根据心情显示不同的提示
           const moodMessages = {
             happy: '植物看起来很开心！',
             neutral: '植物心情平静',
@@ -222,7 +223,6 @@ export default {
       } catch (error) {
         console.error('更新植物心情失败:', error)
         ElMessage.error('更新植物心情失败，请稍后重试')
-        // 恢复原来的心情值
         plantMood.value = plantStore.currentPlant.mood || 'neutral'
       } finally {
         loading.value = false
@@ -243,7 +243,7 @@ export default {
     
     // 收藏/取消收藏心声
     const toggleLikeThought = async (thought) => {
-      if (!thought || !thought.id) {
+      if (!thought?.id) {
         console.error('心声对象无效')
         ElMessage.warning('无法操作，心声信息无效')
         return
@@ -255,26 +255,23 @@ export default {
       }
       
       const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
+      if (!plantId) {
+        console.error('植物ID无效')
+        ElMessage.warning('植物信息不完整，请重新选择植物')
+        return
+      }
       
       try {
         loading.value = true
         
         if (thought.liked) {
-          // 取消收藏
           await plantApi.unlikeThought(plantId, thought.id)
           thought.liked = false
-          ElMessage({
-            message: '已取消收藏',
-            type: 'info'
-          })
+          ElMessage({ message: '已取消收藏', type: 'info' })
         } else {
-          // 收藏心声
           await plantApi.likeThought(plantId, thought.id)
           thought.liked = true
-          ElMessage({
-            message: '已收藏此心声',
-            type: 'success'
-          })
+          ElMessage({ message: '已收藏此心声', type: 'success' })
         }
       } catch (error) {
         console.error('操作心声收藏失败:', error)
@@ -284,29 +281,25 @@ export default {
       }
     }
     
+    // 检查植物ID是否有效
+    const checkPlantId = (plant) => {
+      if (!plant) return false
+      return !!(plant._id || plant.id)
+    }
+    
     onMounted(async () => {
-      // 确保有植物数据
       if (!plantStore.currentPlant) {
         await plantStore.fetchPlants()
       }
       
-      // 如果有植物，加载心声历史
-      if (plantStore.currentPlant) {
-        // 检查植物ID是否有效
-        if (!plantStore.currentPlant._id && !plantStore.currentPlant.id) {
-          console.error('植物ID无效')
-          ElMessage.warning('植物信息不完整，请重新选择植物')
-          return
-        }
-        
+      if (plantStore.currentPlant && checkPlantId(plantStore.currentPlant)) {
         const plantId = plantStore.currentPlant._id || plantStore.currentPlant.id
         
         try {
           loading.value = true
           await plantStore.fetchPlantThoughts(plantId)
           
-          // 如果没有心声，自动生成一条
-          if (plantStore.thoughts.length === 0) {
+          if (plantStore.thoughts.length === 0 && isInitialLoad.value) {
             await generateThought()
           }
         } catch (error) {
@@ -314,6 +307,7 @@ export default {
           ElMessage.error('获取植物心声失败')
         } finally {
           loading.value = false
+          isInitialLoad.value = false
         }
       }
     })

@@ -254,7 +254,16 @@
                 <div class="plant-speech-bubble" v-if="showPlantSpeech">
                   <div class="speech-icon" v-if="currentPlantThought.icon">{{ currentPlantThought.icon }}</div>
                   <div class="speech-content">
-                    <p class="speech-text">{{ currentPlantThought.message }}</p>
+                    <p class="speech-text">
+                      <!-- 已显示的文本 -->
+                      <span v-for="(segment, index) in displayedSegments" :key="index" class="message-segment">
+                        {{ segment }}
+                      </span>
+                      <!-- 当前正在打字的文本 -->
+                      <span class="typing-segment">{{ currentTypingText }}</span>
+                      <!-- 打字指示器 -->
+                      <span v-if="isTyping" class="typing-cursor">|</span>
+                    </p>
                     <div class="speech-meta">
                       <span class="speech-time">{{ formatShortTime(currentPlantThought.timestamp) }}</span>
                       <span class="speech-tag" v-if="currentPlantThought.tag">{{ currentPlantThought.tag }}</span>
@@ -524,7 +533,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTaskStore } from '../stores/task'
 import { usePlantStore } from '../stores/plant'
@@ -818,9 +827,10 @@ export default {
     // 添加时间控制变量
     const lastThoughtTime = ref(0)
     const THOUGHT_INTERVAL = 5 * 60 * 1000 // 5分钟间隔
+    const isPreloading = ref(false) // 添加预加载状态标记
     
     const preloadPlantThoughts = async () => {
-      if (!plantStore.mainPlant) return;
+      if (!plantStore.mainPlant || isPreloading.value) return;
       
       const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id;
       if (!plantId) return;
@@ -833,6 +843,8 @@ export default {
       }
       
       try {
+        isPreloading.value = true
+        
         // 如果已经有足够的预加载心语，就不再加载
         if (reservedThoughts.value.length >= 3) {
           console.log('已有足够的预加载心语')
@@ -863,6 +875,8 @@ export default {
         }
       } catch (error) {
         console.error('预加载植物心语失败:', error);
+      } finally {
+        isPreloading.value = false
       }
     };
     
@@ -883,8 +897,6 @@ export default {
       const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
       
       try {
-        //ElMessage.info('正在聆听植物的心声...')
-        
         // 直接显示已预加载的心语
         if (reservedThoughts.value.length > 0) {
           const thought = reservedThoughts.value.shift()
@@ -895,6 +907,9 @@ export default {
           currentPlantThought.timestamp = new Date(thought.timestamp)
           showPlantSpeech.value = true
           
+          // 开始打字效果
+          startTypingEffect(thought.content)
+          
           ElMessage({
             message: '植物想和你说话了！',
             type: 'success'
@@ -903,12 +918,15 @@ export default {
           // 延长悬浮气泡框显示时间
           setTimeout(() => {
             showPlantSpeech.value = false
+            stopTypingEffect()
           }, 15000)
           
-          // 异步补充新的预加载心语
-          setTimeout(() => {
-            replenishThoughts(plantId)
-          }, 100)
+          // 当预加载的心语少于2条时，触发补充
+          if (reservedThoughts.value.length < 2) {
+            setTimeout(() => {
+              preloadPlantThoughts()
+            }, 1000)
+          }
         } else {
           // 如果没有预加载的心语，实时获取一条
           const context = {
@@ -931,6 +949,9 @@ export default {
             currentPlantThought.timestamp = new Date(newThought.timestamp)
             showPlantSpeech.value = true
             
+            // 开始打字效果
+            startTypingEffect(newThought.content)
+            
             ElMessage({
               message: '植物想和你说话了！',
               type: 'success'
@@ -939,56 +960,18 @@ export default {
             // 延长悬浮气泡框显示时间
             setTimeout(() => {
               showPlantSpeech.value = false
+              stopTypingEffect()
             }, 15000)
             
             // 开始预加载
             setTimeout(() => {
               preloadPlantThoughts()
-            }, 100)
+            }, 1000)
           }
         }
       } catch (error) {
         console.error('获取植物心声失败', error)
         ElMessage.error('获取植物心声失败，植物好像有点害羞...')
-      }
-    }
-    
-    // 优化补充心语函数
-    const replenishThoughts = async (plantId) => {
-      try {
-        // 检查时间间隔
-        const now = Date.now()
-        if (now - lastThoughtTime.value < THOUGHT_INTERVAL) {
-          console.log('距离上次加载心语时间间隔太短，跳过补充')
-          return
-        }
-        
-        // 确保预加载队列保持在3条
-        const needToAdd = 3 - reservedThoughts.value.length
-        if (needToAdd <= 0) return
-        
-        for (let i = 0; i < needToAdd; i++) {
-          const context = {
-            weather: weather.value,
-            timeOfDay: getTimeOfDay(),
-            recentTasks: taskStore.completedTasks.slice(0, 3).map(task => ({
-              id: task._id || task.id,
-              title: task.title,
-              completed: true
-            }))
-          }
-          
-          const thought = await plantStore.generatePlantThought(plantId, context)
-          if (thought) {
-            reservedThoughts.value.push(thought)
-            console.log('补充植物心语成功')
-            lastThoughtTime.value = now
-          }
-          
-          await new Promise(resolve => setTimeout(resolve, 500))
-        }
-      } catch (error) {
-        console.error('补充植物心语失败:', error)
       }
     }
     
@@ -1026,9 +1009,12 @@ export default {
               timestamp: thought.timestamp
             }))
             
-            setTimeout(() => {
-              preloadPlantThoughts()
-            }, 2000)
+            // 只在没有预加载心语时才触发预加载
+            if (reservedThoughts.value.length === 0) {
+              setTimeout(() => {
+                preloadPlantThoughts()
+              }, 2000)
+            }
           }
         }
       } catch (error) {
@@ -1463,6 +1449,103 @@ export default {
       return systemTasksCount + personalTasksCount;
     });
     
+    const displayedSegments = ref([])
+    const currentTypingText = ref('')
+    const isTyping = ref(false)
+    const typeInterval = ref(null)
+    const typingSpeed = 50 // 打字速度(毫秒/字符)
+    const segmentDelay = 1000 // 段落之间的延迟(毫秒)
+    
+    // 将消息拆分为段落
+    const splitMessageIntoSegments = (message) => {
+      if (!message) return [];
+      // 按双换行或单换行分割
+      return message.split(/\n\n|\n/).filter(segment => segment.trim() !== '');
+    }
+    
+    // 开始打字效果
+    const startTypingEffect = (message) => {
+      // 停止任何正在进行的打字效果
+      stopTypingEffect();
+      
+      // 重置状态
+      displayedSegments.value = [];
+      currentTypingText.value = '';
+      isTyping.value = true;
+      
+      // 将消息拆分为段落
+      const segments = splitMessageIntoSegments(message);
+      let currentSegmentIndex = 0;
+      
+      const typeNextSegment = () => {
+        if (currentSegmentIndex >= segments.length) {
+          // 所有段落都已显示完成
+          finishTyping();
+          return;
+        }
+        
+        const currentSegment = segments[currentSegmentIndex];
+        let charIndex = 0;
+        
+        // 清除之前的打字效果定时器
+        if (typeInterval.value) clearInterval(typeInterval.value);
+        
+        // 逐字显示当前段落
+        typeInterval.value = setInterval(() => {
+          if (charIndex <= currentSegment.length) {
+            currentTypingText.value = currentSegment.substring(0, charIndex);
+            charIndex++;
+          } else {
+            // 当前段落打字完成
+            clearInterval(typeInterval.value);
+            
+            // 将完成的段落添加到已显示段落数组
+            displayedSegments.value.push(currentSegment);
+            currentTypingText.value = '';
+            
+            // 移动到下一段
+            currentSegmentIndex++;
+            
+            // 延迟一会儿再显示下一段
+            if (currentSegmentIndex < segments.length) {
+              setTimeout(typeNextSegment, segmentDelay);
+            } else {
+              // 所有段落都已显示完成
+              finishTyping();
+            }
+          }
+        }, typingSpeed);
+      };
+      
+      // 开始显示第一段
+      typeNextSegment();
+    }
+    
+    // 完成打字效果
+    const finishTyping = () => {
+      isTyping.value = false;
+      if (typeInterval.value) {
+        clearInterval(typeInterval.value);
+        typeInterval.value = null;
+      }
+    }
+    
+    // 停止打字效果
+    const stopTypingEffect = () => {
+      isTyping.value = false;
+      if (typeInterval.value) {
+        clearInterval(typeInterval.value);
+        typeInterval.value = null;
+      }
+      displayedSegments.value = [];
+      currentTypingText.value = '';
+    }
+    
+    // 在组件销毁时清除定时器
+    onUnmounted(() => {
+      stopTypingEffect()
+    })
+    
     return {
       taskStore,
       plantStore,
@@ -1525,7 +1608,17 @@ export default {
       taskProgressColor,
       todaySystemTasksCount,
       weeklyTasksCount,
-      todayCompletedTasksCount
+      todayCompletedTasksCount,
+      displayedSegments,
+      currentTypingText,
+      isTyping,
+      typeInterval,
+      typingSpeed,
+      segmentDelay,
+      splitMessageIntoSegments,
+      startTypingEffect,
+      finishTyping,
+      stopTypingEffect
     }
   }
 }
@@ -2690,5 +2783,34 @@ export default {
   .task-summary-card .stat-label {
     font-size: 11px;
   }
+}
+
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background-color: #666;
+  margin-left: 2px;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.message-segment {
+  display: block;
+  margin-bottom: 0.5em;
+}
+
+.typing-segment {
+  display: inline;
+}
+
+.speech-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
 }
 </style>

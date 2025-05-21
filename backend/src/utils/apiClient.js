@@ -25,15 +25,26 @@ class DifyClient {
    * @param {string} userToken - 用户认证token
    * @param {string} conversationId - 会话ID（可选）
    * @param {string} plantId - 植物ID（用作用户标识）
+   * @param {number} plantThought - 植物心情
    * @returns {Promise<Object>} - Dify的响应
    */
-  async sendMessage(message, plantType, userToken, conversationId, plantId) {
+  async sendMessage(message, plantType, userToken, conversationId, plantId, plantThought = 0) {
     try {
+      console.log('DifyClient.sendMessage 被调用:', {
+        message,
+        plantType,
+        hasToken: !!userToken,
+        conversationId: conversationId || '新会话',
+        plantId,
+        plantThought
+      });
+
       const requestBody = {
         query: message,
         inputs: {
           plantType: plantType || '未知植物',
-          authorization: userToken
+          authorization: userToken,
+          plantThought: plantThought
         },
         response_mode: 'blocking',
         user: plantId || 'anonymous_user'
@@ -49,7 +60,9 @@ class DifyClient {
         plantType, 
         hasToken: !!userToken,
         conversationId: conversationId || '新会话',
-        plantId 
+        plantId,
+        plantThought,
+        requestBody
       });
       
       const response = await this.client.post('/chat-messages', requestBody);
@@ -57,7 +70,8 @@ class DifyClient {
       console.log('Dify API响应:', {
         responseStatus: response.status,
         conversationId: response.data.conversation_id,
-        messageId: response.data.message_id
+        messageId: response.data.message_id,
+        answer: response.data.answer
       });
       
       return {

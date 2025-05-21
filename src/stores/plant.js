@@ -9,7 +9,8 @@ export const usePlantStore = defineStore('plant', {
     loading: false,
     thoughts: [],
     conversations: [],
-    hasMoreConversations: false
+    hasMoreConversations: false,
+    isGeneratingThought: false
   }),
   
   actions: {
@@ -297,25 +298,60 @@ export const usePlantStore = defineStore('plant', {
     // 生成新的植物心声
     async generatePlantThought(id, context) {
       try {
+        // 如果正在生成心声，直接返回
+        if (this.isGeneratingThought) {
+          console.log('正在生成植物心声，跳过重复调用');
+          return null;
+        }
+        
         // 检查ID是否有效
         if (!id) {
-          console.error('植物ID无效')
-          ElMessage.warning('植物ID无效，无法生成植物心声')
-          return null
+          console.error('植物ID无效');
+          ElMessage.warning('植物ID无效，无法生成植物心声');
+          return null;
         }
         
         // 获取正确的ID, MongoDB使用_id作为主键
-        const plantId = typeof id === 'object' ? id._id : id
+        const plantId = typeof id === 'object' ? id._id : id;
         
-        console.log('准备生成植物心声，使用ID:', plantId)
-        const response = await plantApi.generatePlantThought(plantId, context)
+        console.log('准备生成植物心声，使用ID:', plantId);
+        console.log('当前植物信息:', this.currentPlant);
+        
+        // 构建植物信息
+        const plant = this.currentPlant;
+        if (!plant) {
+          throw new Error('当前植物信息不存在');
+        }
+
+        // 设置生成标志
+        this.isGeneratingThought = true;
+
+        console.log('调用后端API生成心声，参数:', { plantId, context });
+        // 调用后端API生成心声
+        const response = await plantApi.generatePlantThought(plantId, context);
+        console.log('后端API响应:', response);
+
         // 添加到心声列表
-        this.thoughts.unshift(response.thought)
-        return response.thought
+        const thought = {
+          id: Date.now().toString(),
+          content: response.thought.content,
+          timestamp: new Date().toISOString(),
+          mood: context.mood,
+          weather: context.weather,
+          icon: response.thought.icon,
+          tag: response.thought.tag
+        };
+        
+        console.log('生成的心声对象:', thought);
+        this.thoughts.unshift(thought);
+        return thought;
       } catch (error) {
-        console.error('生成植物心声失败:', error)
-        ElMessage.error('生成植物心声失败')
-        return null
+        console.error('生成植物心声失败:', error);
+        ElMessage.error('生成植物心声失败');
+        return null;
+      } finally {
+        // 重置生成标志
+        this.isGeneratingThought = false;
       }
     },
     

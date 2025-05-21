@@ -10,7 +10,7 @@ import axios from 'axios'
 import { useAuthStore } from './stores/auth'
 
     // 默认配置
-    axios.defaults.baseURL = process.env.VUE_APP_API_URL || 'http://115.175.12.31/plantodo/api'
+    axios.defaults.baseURL = process.env.VUE_APP_API_URL || 'http://localhost:3001/api'
 
 // 创建Pinia实例
 const pinia = createPinia()
