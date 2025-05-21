@@ -594,25 +594,30 @@ export default {
     // 添加今日完成任务数量的状态
     const todayCompletedTasksCount = ref(0)
     
-    // 获取今日完成任务数量
-    const fetchTodayCompletedTasks = async () => {
-      try {
-        const today = new Date()
-        const formattedDate = format(today, 'yyyy-MM-dd')
-        
-        const response = await axios.get('/api/auth/stats', {
-          params: {
-            startDate: formattedDate,
-            endDate: formattedDate
-          }
-        })
-        
-        if (response.data.success && response.data.taskCount.length > 0) {
-          todayCompletedTasksCount.value = response.data.taskCount[0].completed || 0
-        }
-      } catch (error) {
-        console.error('获取今日完成任务数量失败:', error)
-      }
+    // 计算今日完成任务数量
+    const calculateTodayCompletedTasks = () => {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0) // 设置为今天的开始时间
+      
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1) // 明天的开始时间
+      
+      // 计算今日完成的普通任务
+      const completedPersonalTasks = taskStore.completedTasks.filter(task => {
+        if (!task.completedAt) return false
+        const completedDate = new Date(task.completedAt)
+        return completedDate >= today && completedDate < tomorrow
+      }).length
+      
+      // 计算今日完成的系统任务
+      const completedSystemTasks = taskStore.systemTasks.filter(task => {
+        if (!task.completed || !task.completedAt) return false
+        const completedDate = new Date(task.completedAt)
+        return completedDate >= today && completedDate < tomorrow
+      }).length
+      
+      // 更新今日完成任务总数
+      todayCompletedTasksCount.value = completedPersonalTasks + completedSystemTasks
     }
     
     // 在组件挂载时获取任务数据
@@ -620,9 +625,10 @@ export default {
       try {
         await Promise.all([
           taskStore.fetchTasks(),
-          taskStore.fetchSystemTasks(),
-          fetchTodayCompletedTasks() // 添加获取今日完成任务数量
+          taskStore.fetchSystemTasks()
         ])
+        // 计算今日完成的任务数量
+        calculateTodayCompletedTasks()
         console.log('首页任务数据加载成功')
       } catch (error) {
         console.error('加载任务数据失败:', error)
@@ -1027,7 +1033,7 @@ export default {
       try {
         await taskStore.completeTask(id)
         // 更新今日完成任务数量
-        todayCompletedTasksCount.value++
+        calculateTodayCompletedTasks()
         
         if (plantStore.mainPlant) {
           const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
@@ -1057,7 +1063,7 @@ export default {
       try {
         await taskStore.completeSystemTask(id)
         // 更新今日完成任务数量
-        todayCompletedTasksCount.value++
+        calculateTodayCompletedTasks()
         
         if (plantStore.mainPlant) {
           const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
@@ -1085,11 +1091,15 @@ export default {
     // 移除任务
     const removeTask = (id) => {
       taskStore.removeTask(id)
+      // 更新今日完成任务数量
+      calculateTodayCompletedTasks()
     }
     
     // 移除已完成任务
     const removeCompletedTask = (id) => {
       taskStore.removeCompletedTask(id)
+      // 更新今日完成任务数量
+      calculateTodayCompletedTasks()
     }
     
     // 更新天气方法
@@ -1546,6 +1556,15 @@ export default {
       stopTypingEffect()
     })
     
+    // 监听完成任务的变化，自动更新今日完成任务数量
+    watch(
+      [() => taskStore.completedTasks, () => taskStore.systemTasks], 
+      () => {
+        calculateTodayCompletedTasks()
+      },
+      { deep: true }
+    )
+    
     return {
       taskStore,
       plantStore,
@@ -1609,6 +1628,7 @@ export default {
       todaySystemTasksCount,
       weeklyTasksCount,
       todayCompletedTasksCount,
+      calculateTodayCompletedTasks,
       displayedSegments,
       currentTypingText,
       isTyping,

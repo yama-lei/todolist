@@ -370,44 +370,108 @@ router.post('/init', async (req, res) => {
     // 默认系统任务
     const defaultTasks = [
       {
-        title: '给植物浇水',
-        description: '确保植物有足够的水分',
+        title: '立刻完成今天老师布置的作业',
+        description: '🌱 刚下课就动手，趁热打铁完成作业，我会因为你的效率而快速抽芽！',
         frequency: 'daily',
         reward: 10,
-        icon: '💧',
-        category: '植物养护'
+        icon: '✍',
+        category: '学习提升'
       },
       {
-        title: '阳光运动',
-        description: '进行15分钟以上的户外活动',
+        title: '主动和异性聊天（挑战成为e人）',
+        description: '🌸 勇敢迈出第一步，跟喜欢的同学聊句"早""在吗"，就像给我施了暖暖的阳光。',
         frequency: 'daily',
-        reward: 15,
-        icon: '☀️',
-        category: '健康'
+        reward: 10,
+        icon: '💬',
+        category: '社交挑战'
       },
       {
-        title: '学习新知识',
-        description: '阅读或学习任何新知识',
+        title: '参加一次社团活动',
+        description: '🌱 走出舒适区，去社团活动现场打卡，让我也感受到人群的热情与活力。',
+        frequency: 'weekly',
+        reward: 12,
+        icon: '🎉',
+        category: '成长体验'
+      },
+      {
+        title: '学习一道新编程题',
+        description: '🌾 给大脑打点"代码肥料"，挑战一道算法题，我会为你抽出新芽来庆祝！',
+        frequency: 'daily',
+        reward: 8,
+        icon: '💻',
+        category: '学习提升'
+      },
+      {
+        title: '校园美景打卡',
+        description: '🌼 用相机记录校园一隅，把照片分享给我，我会为你绽放一朵花。',
+        frequency: 'daily',
+        reward: 6,
+        icon: '📷',
+        category: '生活记录'
+      },
+      {
+        title: '上课不玩手机',
+        description: '🌿 上课铃声响起时，把手机收好，专心听讲，就像我在你身边静静汲取养分。',
+        frequency: 'daily',
+        reward: 7,
+        icon: '📵',
+        category: '自律挑战'
+      },
+      {
+        title: '阳光跑步打卡',
+        description: '🌞 今天阳光正好，去操场跑几圈吧！我会在窗边看着你动起来，我们都晒晒太阳。',
+        frequency: 'daily',
+        reward: 8,
+        icon: '🏃‍♀',
+        category: '健康习惯'
+      },
+      {
+        title: '给家人打个电话',
+        description: '🌿 和家人聊几句，像浇水一样温暖彼此的心，我也会因为你的温柔而长出新叶。',
+        frequency: 'daily',
+        reward: 5,
+        icon: '📞',
+        category: '情感联系'
+      },
+      {
+        title: '挑战今天不玩游戏',
+        description: '🕹 今天我们挑战自律模式！你专注学习，我也长出了一片新叶子，为你鼓掌！',
+        frequency: 'daily',
+        reward: 10,
+        icon: '🚫🎮',
+        category: '自律挑战'
+      },
+      {
+        title: '一天手机使用不超过2小时',
+        description: '📵 收起手机，把注意力还给生活和书本吧～我在这等你，静静陪着你。',
+        frequency: 'daily',
+        reward: 10,
+        icon: '📱',
+        category: '自律挑战'
+      },
+      {
+        title: '晚上去图书馆自习',
+        description: '📚 今晚去图书馆拼一波，把舍友卷哭！我也会在你认真学习时偷偷抽芽哦~',
         frequency: 'daily',
         reward: 12,
-        icon: '📚',
-        category: '成长'
+        icon: '🏫',
+        category: '学习挑战'
       },
       {
-        title: '整理空间',
-        description: '整理你的生活或工作空间',
-        frequency: 'weekly',
-        reward: 20,
-        icon: '🧹',
-        category: '生活'
+        title: '吃一顿健康的饭（不叫外卖）',
+        description: '🍲 今天让肠胃也舒舒服服吧，我也更有精神生长咯！我们都值得更健康。',
+        frequency: 'daily',
+        reward: 6,
+        icon: '🥦',
+        category: '健康习惯'
       },
       {
-        title: '联系朋友',
-        description: '与朋友进行有意义的交流',
-        frequency: 'weekly',
-        reward: 18,
-        icon: '👫',
-        category: '社交'
+        title: '写一篇生活随笔或心情短文',
+        description: '📖 把今天的感受写下来，像给我浇了一点心灵的露水，我们一起慢慢理解生活~',
+        frequency: 'daily',
+        reward: 8,
+        icon: '✍',
+        category: '情绪整理'
       }
     ];
     
