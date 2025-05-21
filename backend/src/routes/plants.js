@@ -1,8 +1,9 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const { Plants, PlantThoughts, Conversations } = require('../utils/localDB');
-const DeepSeekClient = require('../utils/apiClient'); // 导入 DeepSeekClient 类
-const deepSeekClient = new DeepSeekClient(); // 创建 DeepSeekClient 实例
+const { DeepSeekClient, DifyClient } = require('../utils/apiClient'); // 修改导入语句
+const deepSeekClient = new DeepSeekClient();
+const difyClient = new DifyClient(); // 添加 DifyClient 实例化
 const router = express.Router();
 
 // 获取用户所有植物
@@ -405,89 +406,177 @@ router.get('/:id/thoughts', auth, async (req, res) => {
 router.post('/:id/thoughts', auth, async (req, res) => {
   try {
     const { context } = req.body;
+    console.log('收到生成植物心声请求:', { plantId: req.params.id, context });
+    
     const plant = await Plants.findOne({ _id: req.params.id, userId: req.user.id });
     
     if (!plant) {
+      console.log('植物不存在:', req.params.id);
       return res.status(404).json({
         success: false,
         message: '植物不存在'
       });
     }
     
-    // 根据心情设置不同的情感基调
-    const moodContext = {
-      happy: {
-        tone: '开心愉悦',
-        keywords: ['快乐', '阳光', '温暖', '充满希望'],
-        emoji: ['😊', '🌟', '✨', '💫']
-      },
-      neutral: {
-        tone: '平和安静',
-        keywords: ['平静', '舒适', '安宁', '思考'],
-        emoji: ['😌', '🍃', '💭', '☘️']
-      },
-      sad: {
-        tone: '略显忧郁',
-        keywords: ['期待', '需要关爱', '渴望阳光', '想要温暖'],
-        emoji: ['🥺', '💧', '🌧️', '🍂']
-      }
-    };
+    console.log('找到植物:', plant);
+    
+    // 查找或创建对话
+    let conversation = await Conversations.findOne({ 
+      plantId: req.params.id, 
+      userId: req.user.id 
+    });
+    
+    if (!conversation) {
+      conversation = {
+        plantId: req.params.id,
+        userId: req.user.id,
+        messages: [],
+        difyConversationId: null
+      };
+      conversation = await Conversations.insert(conversation);
+    }
+    
+    console.log('当前对话信息:', conversation);
     
     // 合并心情上下文和原有上下文
     const enrichedContext = {
       ...context,
       mood: plant.mood || 'neutral',
-      moodTone: moodContext[plant.mood || 'neutral'].tone,
-      moodKeywords: moodContext[plant.mood || 'neutral'].keywords,
-      moodEmoji: moodContext[plant.mood || 'neutral'].emoji
+      weather: context.weather || 'sunny',
+      timeOfDay: context.timeOfDay || 'morning'
     };
-    
-    // 使用DeepSeek API生成心声
-    const content = await deepSeekClient.generatePlantThought(plant, enrichedContext);
-    
-    // 根据心情选择合适的标签和图标
-    const moodBasedIcons = {
-      happy: ['🌞', '🌈', '🌻', '✨'],
-      neutral: ['🌱', '🍃', '☘️', '💭'],
-      sad: ['🌧️', '💧', '🍂', '🌫️']
-    };
-    
-    const moodBasedTags = {
-      happy: ['开心时刻', '阳光心情', '快乐分享', '温暖日常'],
-      neutral: ['日常感想', '平静时光', '生活随想', '自然之声'],
-      sad: ['等待阳光', '需要关爱', '雨天心情', '温暖祝愿']
-    };
-    
-    const currentMood = plant.mood || 'neutral';
-    const icons = moodBasedIcons[currentMood];
-    const tags = moodBasedTags[currentMood];
-    
-    const icon = icons[Math.floor(Math.random() * icons.length)];
-    const tag = tags[Math.floor(Math.random() * tags.length)];
-    
-    const thought = {
-      plantId: req.params.id,
-      userId: req.user.id,
-      content,
-      type: 'mood',
-      icon,
-      tag,
-      timestamp: new Date().toISOString(),
-      context: enrichedContext
-    };
-    
-    const newThought = await PlantThoughts.insert(thought);
-    
-    // 更新植物最后交互时间
-    await Plants.update(
-      { _id: req.params.id },
-      { $set: { lastInteraction: new Date().toISOString() } }
-    );
-    
-    res.status(201).json({
-      success: true,
-      thought: newThought
-    });
+
+    console.log('构建的上下文:', enrichedContext);
+
+    // 构建提示词
+    const prompt = `
+你是一个名叫${plant.name}的植物，是用户的朋友。请以植物的视角，生成一段符合你的植物性格的心里话。
+`;
+
+    console.log('准备调用Dify API，提示词:', prompt);
+
+    try {
+      // 调用 Dify API 生成心声，使用对话的 conversation_id
+      const difyResponse = await difyClient.sendMessage(
+        prompt,
+        plant.type || '未知植物',
+        req.headers.authorization,
+        conversation.difyConversationId,
+        req.params.id,
+        1  // plantThought 设置为 1，表示这是植物心声
+      );
+      
+      console.log('Dify API响应:', difyResponse);
+      
+      // 如果返回了新的 conversation_id，更新对话记录
+      if (difyResponse.conversation_id && difyResponse.conversation_id !== conversation.difyConversationId) {
+        conversation.difyConversationId = difyResponse.conversation_id;
+        await Conversations.update(
+          { _id: conversation._id },
+          { $set: { difyConversationId: difyResponse.conversation_id } }
+        );
+      }
+      
+      // 根据心情选择合适的标签和图标
+      const moodBasedIcons = {
+        happy: ['🌞', '🌈', '🌻', '✨'],
+        neutral: ['🌱', '🍃', '☘️', '💭'],
+        sad: ['🌧️', '💧', '🍂', '🌫️']
+      };
+      
+      const moodBasedTags = {
+        happy: ['开心时刻', '阳光心情', '快乐分享', '温暖日常'],
+        neutral: ['日常感想', '平静时光', '生活随想', '自然之声'],
+        sad: ['等待阳光', '需要关爱', '雨天心情', '温暖祝愿']
+      };
+      
+      const currentMood = plant.mood || 'neutral';
+      const icons = moodBasedIcons[currentMood];
+      const tags = moodBasedTags[currentMood];
+      
+      const icon = icons[Math.floor(Math.random() * icons.length)];
+      const tag = tags[Math.floor(Math.random() * tags.length)];
+      
+      const thought = {
+        plantId: req.params.id,
+        userId: req.user.id,
+        content: difyResponse.answer,
+        type: 'mood',
+        icon,
+        tag,
+        timestamp: new Date().toISOString(),
+        context: enrichedContext,
+        difyMessageId: difyResponse.message_id
+      };
+      
+      console.log('生成的心声对象:', thought);
+      
+      const newThought = await PlantThoughts.insert(thought);
+      console.log('保存到数据库的心声:', newThought);
+      
+      // 更新植物最后交互时间
+      await Plants.update(
+        { _id: req.params.id },
+        { $set: { lastInteraction: new Date().toISOString() } }
+      );
+      
+      res.status(201).json({
+        success: true,
+        thought: newThought
+      });
+    } catch (difyError) {
+      console.error('Dify API调用失败，使用备用方案:', difyError);
+      
+      // 如果Dify API调用失败，使用DeepSeek API作为备用
+      const responseContent = await deepSeekClient.generatePlantThought(plant, enrichedContext);
+      
+      // 根据心情选择合适的标签和图标
+      const moodBasedIcons = {
+        happy: ['🌞', '🌈', '🌻', '✨'],
+        neutral: ['🌱', '🍃', '☘️', '💭'],
+        sad: ['🌧️', '💧', '🍂', '🌫️']
+      };
+      
+      const moodBasedTags = {
+        happy: ['开心时刻', '阳光心情', '快乐分享', '温暖日常'],
+        neutral: ['日常感想', '平静时光', '生活随想', '自然之声'],
+        sad: ['等待阳光', '需要关爱', '雨天心情', '温暖祝愿']
+      };
+      
+      const currentMood = plant.mood || 'neutral';
+      const icons = moodBasedIcons[currentMood];
+      const tags = moodBasedTags[currentMood];
+      
+      const icon = icons[Math.floor(Math.random() * icons.length)];
+      const tag = tags[Math.floor(Math.random() * tags.length)];
+      
+      const thought = {
+        plantId: req.params.id,
+        userId: req.user.id,
+        content: responseContent,
+        type: 'mood',
+        icon,
+        tag,
+        timestamp: new Date().toISOString(),
+        context: enrichedContext
+      };
+      
+      console.log('使用备用方案生成的心声对象:', thought);
+      
+      const newThought = await PlantThoughts.insert(thought);
+      console.log('保存到数据库的心声:', newThought);
+      
+      // 更新植物最后交互时间
+      await Plants.update(
+        { _id: req.params.id },
+        { $set: { lastInteraction: new Date().toISOString() } }
+      );
+      
+      res.status(201).json({
+        success: true,
+        thought: newThought
+      });
+    }
   } catch (error) {
     console.error('生成植物心声失败', error);
     res.status(500).json({
@@ -585,7 +674,8 @@ router.post('/:id/conversations', auth, async (req, res) => {
       conversation = {
         plantId: req.params.id,
         userId: req.user.id,
-        messages: []
+        messages: [],
+        difyConversationId: null // 添加Dify的会话ID字段
       };
       conversation = await Conversations.insert(conversation);
     }
@@ -598,46 +688,104 @@ router.post('/:id/conversations', auth, async (req, res) => {
       timestamp: new Date().toISOString()
     };
     
-    // 获取历史消息用于上下文
-    const messageHistory = conversation.messages || [];
+    // 准备调用Dify API
+    const { DifyClient } = require('../utils/apiClient');
+    const difyClient = new DifyClient();
     
-    // 使用DeepSeek API生成回复
-    const responseContent = await deepSeekClient.generatePlantResponse(
-      plant, 
-      message, 
-      messageHistory.slice(-10) // 只使用最近10条消息作为上下文
-    );
+    // 使用用户Token
+    const userToken = req.headers.authorization ? req.headers.authorization.split(' ')[1] : null;
     
-    // 植物回复
-    const plantResponse = {
-      id: (Date.now() + 1).toString(),
-      sender: 'plant',
-      content: responseContent,
-      timestamp: new Date(Date.now() + 1000).toISOString() // 略晚于用户消息
-    };
-    
-    // 更新对话
-    if (!conversation.messages) {
-      conversation.messages = [];
+    try {
+      // 调用Dify API获取回复
+      const difyResponse = await difyClient.sendMessage(
+        message,
+        plant.type || '未知植物',
+        userToken,
+        conversation.difyConversationId,
+        req.params.id
+      );
+      
+      // 保存Dify的会话ID以供下次使用
+      if (difyResponse.conversation_id && difyResponse.conversation_id !== conversation.difyConversationId) {
+        conversation.difyConversationId = difyResponse.conversation_id;
+        await Conversations.update(
+          { _id: conversation._id },
+          { $set: { difyConversationId: difyResponse.conversation_id } }
+        );
+      }
+      
+      // 植物回复
+      const plantResponse = {
+        id: difyResponse.message_id || (Date.now() + 1).toString(),
+        sender: 'plant',
+        content: difyResponse.answer,
+        timestamp: new Date(Date.now() + 1000).toISOString(), // 略晚于用户消息
+        difyMessageId: difyResponse.message_id // 保存Dify的消息ID
+      };
+      
+      // 更新对话
+      if (!conversation.messages) {
+        conversation.messages = [];
+      }
+      
+      conversation.messages.push(userMessage, plantResponse);
+      
+      await Conversations.update(
+        { _id: conversation._id },
+        { $set: { 
+          messages: conversation.messages,
+          difyConversationId: conversation.difyConversationId 
+        } }
+      );
+      
+      // 更新植物最后交互时间
+      await Plants.update(
+        { _id: req.params.id },
+        { $set: { lastInteraction: new Date().toISOString() } }
+      );
+      
+      res.json({
+        success: true,
+        response: plantResponse
+      });
+    } catch (apiError) {
+      console.error('Dify API调用失败，使用备用方案:', apiError);
+      
+      // 如果Dify API调用失败，使用备用方案
+      const { DeepSeekClient } = require('../utils/apiClient');
+      const deepSeekClient = new DeepSeekClient();
+      
+      // 获取历史消息用于上下文
+      const messageHistory = conversation.messages || [];
+      
+      // 使用DeepSeek API生成回复
+      const responseContent = await deepSeekClient.generatePlantResponse(
+        plant, 
+        message, 
+        messageHistory.slice(-10) // 只使用最近10条消息作为上下文
+      );
+      
+      // 植物回复
+      const plantResponse = {
+        id: (Date.now() + 1).toString(),
+        sender: 'plant',
+        content: responseContent,
+        timestamp: new Date(Date.now() + 1000).toISOString() // 略晚于用户消息
+      };
+      
+      // 更新对话
+      conversation.messages.push(userMessage, plantResponse);
+      
+      await Conversations.update(
+        { _id: conversation._id },
+        { $set: { messages: conversation.messages } }
+      );
+      
+      res.json({
+        success: true,
+        response: plantResponse
+      });
     }
-    
-    conversation.messages.push(userMessage, plantResponse);
-    
-    await Conversations.update(
-      { _id: conversation._id },
-      { $set: { messages: conversation.messages } }
-    );
-    
-    // 更新植物最后交互时间
-    await Plants.update(
-      { _id: req.params.id },
-      { $set: { lastInteraction: new Date().toISOString() } }
-    );
-    
-    res.json({
-      success: true,
-      response: plantResponse
-    });
   } catch (error) {
     console.error('生成植物回复失败', error);
     res.status(500).json({
@@ -669,7 +817,10 @@ router.delete('/:id/conversations', auth, async (req, res) => {
       // 清空对话消息
       await Conversations.update(
         { _id: conversation._id },
-        { $set: { messages: [] } }
+        { $set: { 
+          messages: [],
+          difyConversationId: null // 同时清空Dify会话ID
+        } }
       );
     }
     

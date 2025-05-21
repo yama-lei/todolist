@@ -7,7 +7,7 @@
     },
     "servers": [
       {
-        "url": "http://localhost:3000",
+        "url": "http://localhost:3001/api",
         "description": "本地开发服务器"
       }
     ],
@@ -56,8 +56,9 @@
               "description": "是否完成"
             },
             "important": {
-              "type": "boolean",
-              "description": "是否重要"
+              "type": "string",
+              "description": "是否重要",
+              "enum": ["true", "false"]
             },
             "createdAt": {
               "type": "string",
@@ -341,6 +342,51 @@
               "type": "string"
             }
           }
+        },
+        "UserStat": {
+          "type": "object",
+          "properties": {
+            "mentalHealth": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "日期"
+                  },
+                  "score": {
+                    "type": "integer",
+                    "description": "心理状态得分 (1-10)"
+                  }
+                }
+              },
+              "description": "用户心理状态数据"
+            },
+            "taskCount": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "日期"
+                  },
+                  "total": {
+                    "type": "integer",
+                    "description": "任务总数"
+                  },
+                  "completed": {
+                    "type": "integer",
+                    "description": "已完成任务数"
+                  }
+                }
+              },
+              "description": "用户任务数量数据"
+            }
+          }
         }
       },
       "securitySchemes": {
@@ -550,8 +596,9 @@
                       "description": "截止日期"
                     },
                     "important": {
-                      "type": "boolean",
-                      "description": "是否重要"
+                      "type": "string",
+                      "description": "是否重要",
+                      "enum": ["true", "false"]
                     }
                   },
                   "required": ["title"]
@@ -2239,6 +2286,431 @@
                  }
                }
              }
+          }
+        }
+      },
+      "/api/tasks/user/stats": {
+        "get": {
+          "tags": ["用户统计"],
+          "summary": "获取用户心理状态和任务数量",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "startDate",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "date"
+              },
+              "description": "开始日期 (默认为7天前)"
+            },
+            {
+              "name": "endDate",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "date"
+              },
+              "description": "结束日期 (默认为当天)"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取用户统计数据",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "mentalHealth": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "date": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "score": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      },
+                      "taskCount": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "date": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "total": {
+                              "type": "integer"
+                            },
+                            "completed": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "未授权",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            },
+            "500": {
+              "description": "服务器错误",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/auth/mental-health": {
+        "post": {
+          "tags": ["用户管理"],
+          "summary": "更新用户心理状态",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "score": {
+                      "type": "integer",
+                      "description": "心理状态得分(1-10)",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    "date": {
+                      "type": "string",
+                      "format": "date",
+                      "description": "记录日期(默认为当天)"
+                    }
+                  },
+                  "required": ["score"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "心理状态更新成功",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "message": {
+                        "type": "string"
+                      },
+                      "mentalHealth": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "date": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "score": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "请求错误",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            },
+            "401": {
+              "description": "未授权",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            },
+            "404": {
+              "description": "用户不存在",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/auth/stats": {
+        "get": {
+          "tags": ["用户管理"],
+          "summary": "获取用户心理状态和任务数量统计",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "startDate",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "date"
+              },
+              "description": "开始日期 (默认为7天前)"
+            },
+            {
+              "name": "endDate",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "date"
+              },
+              "description": "结束日期 (默认为当天)"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取用户统计数据",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "mentalHealth": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "date": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "score": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      },
+                      "taskCount": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "date": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "total": {
+                              "type": "integer"
+                            },
+                            "completed": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "请求错误",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            },
+            "401": {
+              "description": "未授权",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            },
+            "404": {
+              "description": "用户不存在",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/tasks/future": {
+        "get": {
+          "tags": ["任务"],
+          "summary": "获取未来未完成任务合集",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取未来未完成任务列表",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "tasks": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "title": {
+                              "type": "string",
+                              "description": "任务标题"
+                            },
+                            "description": {
+                              "type": "string",
+                              "description": "任务描述"
+                            },
+                            "deadline": {
+                              "type": "string",
+                              "description": "截止日期（月日格式）"
+                            },
+                            "important": {
+                              "type": "string",
+                              "description": "是否重要"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "未授权",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/posts/recent": {
+        "get": {
+          "tags": ["帖子"],
+          "summary": "获取近一个月帖子合集",
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "成功获取近一个月帖子列表",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "posts": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "title": {
+                              "type": "string",
+                              "description": "帖子标题"
+                            },
+                            "content": {
+                              "type": "string",
+                              "description": "帖子内容"
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "description": "创建时间（月日格式）"
+                            },
+                            "mood": {
+                              "type": "string",
+                              "description": "心情"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "未授权",
+              "content": {
+                "application/json": {
+                  "schema": {"$ref": "#/components/schemas/Error"}
+                }
+              }
+            }
           }
         }
       }

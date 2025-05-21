@@ -32,8 +32,8 @@
                       <div class="stat-label">待办任务</div>
                     </div>
                     <div class="stat-item">
-                      <div class="stat-value">{{ todaySystemTasksCount }}</div>
-                      <div class="stat-label">今日健康任务</div>
+                      <div class="stat-value">{{ todayCompletedTasksCount }}</div>
+                      <div class="stat-label">今日完成</div>
                     </div>
                     <div class="stat-item">
                       <div class="stat-value">{{ weeklyTasksCount }}</div>
@@ -254,7 +254,16 @@
                 <div class="plant-speech-bubble" v-if="showPlantSpeech">
                   <div class="speech-icon" v-if="currentPlantThought.icon">{{ currentPlantThought.icon }}</div>
                   <div class="speech-content">
-                    <p class="speech-text">{{ currentPlantThought.message }}</p>
+                    <p class="speech-text">
+                      <!-- 已显示的文本 -->
+                      <span v-for="(segment, index) in displayedSegments" :key="index" class="message-segment">
+                        {{ segment }}
+                      </span>
+                      <!-- 当前正在打字的文本 -->
+                      <span class="typing-segment">{{ currentTypingText }}</span>
+                      <!-- 打字指示器 -->
+                      <span v-if="isTyping" class="typing-cursor">|</span>
+                    </p>
                     <div class="speech-meta">
                       <span class="speech-time">{{ formatShortTime(currentPlantThought.timestamp) }}</span>
                       <span class="speech-tag" v-if="currentPlantThought.tag">{{ currentPlantThought.tag }}</span>
@@ -302,6 +311,7 @@
           </div>
         </div>
       </div>
+      
     </div>
     
     <!-- AI 总结对话框 -->
@@ -523,7 +533,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTaskStore } from '../stores/task'
 import { usePlantStore } from '../stores/plant'
@@ -535,6 +545,7 @@ import PlantDialog from '@/components/PlantDialog.vue'
 import draggable from 'vuedraggable'
 import { ElMessage } from 'element-plus'
 import insightsApi from '@/services/insightsApi'
+import axios from 'axios'
 
 // 导入植物图片
 import plant1Level1 from '@/assets/images/plant/1-1.png'
@@ -580,6 +591,35 @@ export default {
     const taskStore = useTaskStore()
     const plantStore = usePlantStore()
     
+    // 添加今日完成任务数量的状态
+    const todayCompletedTasksCount = ref(0)
+    
+    // 计算今日完成任务数量
+    const calculateTodayCompletedTasks = () => {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0) // 设置为今天的开始时间
+      
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1) // 明天的开始时间
+      
+      // 计算今日完成的普通任务
+      const completedPersonalTasks = taskStore.completedTasks.filter(task => {
+        if (!task.completedAt) return false
+        const completedDate = new Date(task.completedAt)
+        return completedDate >= today && completedDate < tomorrow
+      }).length
+      
+      // 计算今日完成的系统任务
+      const completedSystemTasks = taskStore.systemTasks.filter(task => {
+        if (!task.completed || !task.completedAt) return false
+        const completedDate = new Date(task.completedAt)
+        return completedDate >= today && completedDate < tomorrow
+      }).length
+      
+      // 更新今日完成任务总数
+      todayCompletedTasksCount.value = completedPersonalTasks + completedSystemTasks
+    }
+    
     // 在组件挂载时获取任务数据
     onMounted(async () => {
       try {
@@ -587,6 +627,8 @@ export default {
           taskStore.fetchTasks(),
           taskStore.fetchSystemTasks()
         ])
+        // 计算今日完成的任务数量
+        calculateTodayCompletedTasks()
         console.log('首页任务数据加载成功')
       } catch (error) {
         console.error('加载任务数据失败:', error)
@@ -788,16 +830,35 @@ export default {
     const reservedThoughts = ref([])
     const showPlantSpeech = ref(false)
     
-    // 预先加载植物心语
+    // 添加时间控制变量
+    const lastThoughtTime = ref(0)
+    const THOUGHT_INTERVAL = 5 * 60 * 1000 // 5分钟间隔
+    const isPreloading = ref(false) // 添加预加载状态标记
+    
     const preloadPlantThoughts = async () => {
-      if (!plantStore.mainPlant) return;
+      if (!plantStore.mainPlant || isPreloading.value) return;
       
       const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id;
       if (!plantId) return;
       
+      // 检查时间间隔
+      const now = Date.now()
+      if (now - lastThoughtTime.value < THOUGHT_INTERVAL) {
+        console.log('距离上次加载心语时间间隔太短，跳过预加载')
+        return
+      }
+      
       try {
+        isPreloading.value = true
+        
+        // 如果已经有足够的预加载心语，就不再加载
+        if (reservedThoughts.value.length >= 3) {
+          console.log('已有足够的预加载心语')
+          return
+        }
+        
         // 预先加载3条心语
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 3 - reservedThoughts.value.length; i++) {
           const context = {
             weather: weather.value,
             timeOfDay: getTimeOfDay(),
@@ -812,6 +873,7 @@ export default {
           if (thought) {
             reservedThoughts.value.push(thought);
             console.log('预加载植物心语成功');
+            lastThoughtTime.value = now
           }
           
           // 间隔一段时间，避免API限制
@@ -819,6 +881,8 @@ export default {
         }
       } catch (error) {
         console.error('预加载植物心语失败:', error);
+      } finally {
+        isPreloading.value = false
       }
     };
     
@@ -839,8 +903,6 @@ export default {
       const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
       
       try {
-        //ElMessage.info('正在聆听植物的心声...')
-        
         // 直接显示已预加载的心语
         if (reservedThoughts.value.length > 0) {
           const thought = reservedThoughts.value.shift()
@@ -851,6 +913,9 @@ export default {
           currentPlantThought.timestamp = new Date(thought.timestamp)
           showPlantSpeech.value = true
           
+          // 开始打字效果
+          startTypingEffect(thought.content)
+          
           ElMessage({
             message: '植物想和你说话了！',
             type: 'success'
@@ -859,12 +924,15 @@ export default {
           // 延长悬浮气泡框显示时间
           setTimeout(() => {
             showPlantSpeech.value = false
+            stopTypingEffect()
           }, 15000)
           
-          // 异步补充新的预加载心语
-          setTimeout(() => {
-            replenishThoughts(plantId)
-          }, 100)
+          // 当预加载的心语少于2条时，触发补充
+          if (reservedThoughts.value.length < 2) {
+            setTimeout(() => {
+              preloadPlantThoughts()
+            }, 1000)
+          }
         } else {
           // 如果没有预加载的心语，实时获取一条
           const context = {
@@ -887,6 +955,9 @@ export default {
             currentPlantThought.timestamp = new Date(newThought.timestamp)
             showPlantSpeech.value = true
             
+            // 开始打字效果
+            startTypingEffect(newThought.content)
+            
             ElMessage({
               message: '植物想和你说话了！',
               type: 'success'
@@ -895,12 +966,13 @@ export default {
             // 延长悬浮气泡框显示时间
             setTimeout(() => {
               showPlantSpeech.value = false
+              stopTypingEffect()
             }, 15000)
             
             // 开始预加载
             setTimeout(() => {
               preloadPlantThoughts()
-            }, 100)
+            }, 1000)
           }
         }
       } catch (error) {
@@ -909,63 +981,25 @@ export default {
       }
     }
     
-    // 补充心语函数
-    const replenishThoughts = async (plantId) => {
-      try {
-        // 确保预加载队列保持在3条
-        const needToAdd = 3 - reservedThoughts.value.length
-        
-        for (let i = 0; i < needToAdd; i++) {
-          const context = {
-            weather: weather.value,
-            timeOfDay: getTimeOfDay(),
-            recentTasks: taskStore.completedTasks.slice(0, 3).map(task => ({
-              id: task._id || task.id,
-              title: task.title,
-              completed: true
-            }))
-          }
-          
-          const thought = await plantStore.generatePlantThought(plantId, context)
-          if (thought) {
-            reservedThoughts.value.push(thought)
-            console.log('补充植物心语成功')
-          }
-          
-          // 间隔一段时间，避免API限制
-          await new Promise(resolve => setTimeout(resolve, 500))
-        }
-      } catch (error) {
-        console.error('补充植物心语失败:', error)
-      }
-    }
-    
-    // 监听主植物变化，预加载心语
-    watch(() => plantStore.mainPlant, async (newMainPlant) => {
+    // 修改监听主植物变化的逻辑
+    watch(() => plantStore.mainPlant, async (newMainPlant, oldMainPlant) => {
       if (newMainPlant) {
-        weather.value = newMainPlant.weather || 'sunny'
+        console.log('主植物已更新:', newMainPlant.name, '类型:', newMainPlant.type);
+        weather.value = newMainPlant.weather || 'sunny';
         
-        try {
-          const plantId = newMainPlant._id || newMainPlant.id
-          if (plantId) {
-            const thoughts = await plantStore.fetchPlantThoughts(plantId)
-            plantStore.thoughts = thoughts.map(thought => ({
-              type: 'plant',
-              content: thought.content,
-              timestamp: thought.timestamp
-            }))
-            
-            // 植物变更后，清空之前的预加载心语并重新预加载
-            reservedThoughts.value = []
-            setTimeout(() => {
-              preloadPlantThoughts()
-            }, 1000)
-          }
-        } catch (error) {
-          console.error('更新植物心声失败', error)
+        // 验证主植物类型是否在图片映射中存在
+        if (newMainPlant.type && !plantImages[newMainPlant.type.trim()]) {
+          console.warn(`警告: 主植物类型 "${newMainPlant.type}" 在图片映射中不存在`);
+        }
+        
+        // 只在没有预加载心语时才触发预加载
+        if (reservedThoughts.value.length === 0) {
+          setTimeout(() => {
+            preloadPlantThoughts();
+          }, 2000);
         }
       }
-    }, { immediate: true })
+    }, { immediate: true, deep: true })
     
     // 初始化时，预加载植物心语
     onMounted(async () => {
@@ -977,9 +1011,24 @@ export default {
         console.log('首页任务数据加载成功')
         
         // 预加载植物心语
-        setTimeout(() => {
-          preloadPlantThoughts()
-        }, 2000)
+        if (plantStore.mainPlant) {
+          const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
+          if (plantId) {
+            const thoughts = await plantStore.fetchPlantThoughts(plantId)
+            plantStore.thoughts = thoughts.map(thought => ({
+              type: 'plant', 
+              content: thought.content,
+              timestamp: thought.timestamp
+            }))
+            
+            // 只在没有预加载心语时才触发预加载
+            if (reservedThoughts.value.length === 0) {
+              setTimeout(() => {
+                preloadPlantThoughts()
+              }, 2000)
+            }
+          }
+        }
       } catch (error) {
         console.error('加载任务数据失败:', error)
       }
@@ -988,19 +1037,24 @@ export default {
     // 完成任务
     const completeTask = async (id) => {
       try {
-        // 经验值增加逻辑已经在taskStore.completeTask中处理
         await taskStore.completeTask(id)
+        // 更新今日完成任务数量
+        calculateTodayCompletedTasks()
         
-        // 重新获取植物信息以更新状态
-        await plantStore.fetchPlants()
-        
-        // 更新主植物引用，确保UI更新
-        if (plantStore.mainPlant && plantStore.plants && plantStore.plants.length > 0) {
+        if (plantStore.mainPlant) {
           const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
           if (plantId) {
-            const updatedPlant = plantStore.plants.find(p => (p._id === plantId || p.id === plantId))
-            if (updatedPlant) {
-              plantStore.setCurrentPlant(updatedPlant)
+            await plantStore.gainExperience(plantId, 20)
+            
+            // 重新获取植物信息以更新状态
+            await plantStore.fetchPlants()
+            
+            // 更新主植物引用，确保UI更新
+            if (plantStore.plants && plantStore.plants.length > 0) {
+              const updatedPlant = plantStore.plants.find(p => (p._id === plantId || p.id === plantId))
+              if (updatedPlant) {
+                plantStore.setCurrentPlant(updatedPlant)
+              }
             }
           }
         }
@@ -1013,19 +1067,24 @@ export default {
     // 完成系统任务
     const completeSystemTask = async (id) => {
       try {
-        // 系统任务的经验值奖励在后端处理，为reward/2点经验值
         await taskStore.completeSystemTask(id)
+        // 更新今日完成任务数量
+        calculateTodayCompletedTasks()
         
-        // 重新获取植物信息以更新状态
-        await plantStore.fetchPlants()
-        
-        // 更新主植物引用，确保UI更新
-        if (plantStore.mainPlant && plantStore.plants && plantStore.plants.length > 0) {
+        if (plantStore.mainPlant) {
           const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
           if (plantId) {
-            const updatedPlant = plantStore.plants.find(p => (p._id === plantId || p.id === plantId))
-            if (updatedPlant) {
-              plantStore.setCurrentPlant(updatedPlant)
+            await plantStore.gainExperience(plantId, 30)
+            
+            // 重新获取植物信息以更新状态
+            await plantStore.fetchPlants()
+            
+            // 更新主植物引用，确保UI更新
+            if (plantStore.plants && plantStore.plants.length > 0) {
+              const updatedPlant = plantStore.plants.find(p => (p._id === plantId || p.id === plantId))
+              if (updatedPlant) {
+                plantStore.setCurrentPlant(updatedPlant)
+              }
             }
           }
         }
@@ -1038,11 +1097,15 @@ export default {
     // 移除任务
     const removeTask = (id) => {
       taskStore.removeTask(id)
+      // 更新今日完成任务数量
+      calculateTodayCompletedTasks()
     }
     
     // 移除已完成任务
     const removeCompletedTask = (id) => {
       taskStore.removeCompletedTask(id)
+      // 更新今日完成任务数量
+      calculateTodayCompletedTasks()
     }
     
     // 更新天气方法
@@ -1105,29 +1168,43 @@ export default {
     
     // 获取植物图片
     const getPlantImage = (plant) => {
-      if (!plant) return plant1Level1
-      
-      const type = plant.type?.trim() // 移除可能存在的前后空格
-      const level = plant.level || 1
-      
-      // 检查植物类型和等级限制
-      const clampLevel = Math.min(Math.max(level, 1), 3) // 限制等级在1-3之间
-      
-      // 根据植物类型返回对应图片
-      if (type === '玫瑰') {
-        return plantImages['玫瑰'][clampLevel]
-      } else if (type === '仙人掌') {
-        return plantImages['仙人掌'][clampLevel]
-      } else if (type === '郁金香') {
-        return plantImages['郁金香'][clampLevel]
-      } else if (type === '白百何') {
-        return plantImages['白百何'][clampLevel]
-      } else if (type === '向日葵') {
-        return plantImages['向日葵'][clampLevel]
+      if (!plant) {
+        console.log('植物对象为空，返回默认图片');
+        return plant1Level1;
       }
       
-      // 默认返回第一张图片
-      return plant1Level1
+      if (!plant.type) {
+        console.log('植物类型为空，返回默认图片', plant);
+        return plant1Level1;
+      }
+      
+      const type = plant.type.trim(); // 移除可能存在的前后空格
+      const level = plant.level || 1;
+      
+      // 检查植物类型和等级限制
+      const clampLevel = Math.min(Math.max(level, 1), 3); // 限制等级在1-3之间
+      
+      // 特殊处理白百何/白百合的命名兼容性
+      let plantType = type;
+      if (type === '白百合') {
+        console.log('检测到白百合类型，转换为白百何以兼容');
+        plantType = '白百何';
+      }
+      
+      // 根据植物类型返回对应图片
+      const plantTypeImages = plantImages[plantType];
+      if (!plantTypeImages) {
+        console.warn(`未找到类型 "${plantType}" 的植物图片，返回默认图片`);
+        return plant1Level1;
+      }
+      
+      const image = plantTypeImages[clampLevel];
+      if (!image) {
+        console.warn(`未找到等级 ${clampLevel} 的植物图片，返回默认图片`);
+        return plant1Level1;
+      }
+      
+      return image;
     }
     
     // 获取植物表情
@@ -1367,24 +1444,146 @@ export default {
     
     // 未来一周任务数量
     const weeklyTasksCount = computed(() => {
-      // 如果系统任务为空或未定义，返回0
-      if (!taskStore.systemTasks || !taskStore.systemTasks.length) return 0;
-      
       const today = new Date();
       today.setHours(0, 0, 0, 0); // 设置为今天的开始时间
       
       const nextWeek = new Date(today);
       nextWeek.setDate(nextWeek.getDate() + 7); // 一周后的时间
       
-      return taskStore.systemTasks.filter(task => {
-        // 检查任务是否有截止日期
-        if (!task.deadline) return false;
-        
-        const taskDate = new Date(task.deadline);
-        // 检查任务截止日期是否在未来一周内
-        return taskDate >= today && taskDate < nextWeek;
-      }).length;
+      // 统计未来一周内有截止日期的系统任务（未完成）
+      const systemTasksCount = (taskStore.systemTasks || [])
+        .filter(task => {
+          // 只统计未完成的任务
+          if (task.completed) return false;
+          
+          // 没有截止日期的任务不计入
+          if (!task.deadline) return false;
+          
+          const taskDate = new Date(task.deadline);
+          // 检查任务截止日期是否在未来一周内
+          return taskDate >= today && taskDate < nextWeek;
+        }).length;
+      
+      // 统计未来一周内有截止日期的个人任务（未完成）
+      const personalTasksCount = taskStore.pendingTasks
+        .filter(task => {
+          // 没有截止日期的任务不计入
+          if (!task.deadline) return false;
+          
+          const taskDate = new Date(task.deadline);
+          // 检查任务截止日期是否在未来一周内
+          return taskDate >= today && taskDate < nextWeek;
+        }).length;
+      
+      // 返回系统任务和个人任务的总和
+      return systemTasksCount + personalTasksCount;
     });
+    
+    const displayedSegments = ref([])
+    const currentTypingText = ref('')
+    const isTyping = ref(false)
+    const typeInterval = ref(null)
+    const typingSpeed = 50 // 打字速度(毫秒/字符)
+    const segmentDelay = 1000 // 段落之间的延迟(毫秒)
+    
+    // 将消息拆分为段落
+    const splitMessageIntoSegments = (message) => {
+      if (!message) return [];
+      // 按双换行或单换行分割
+      return message.split(/\n\n|\n/).filter(segment => segment.trim() !== '');
+    }
+    
+    // 开始打字效果
+    const startTypingEffect = (message) => {
+      // 停止任何正在进行的打字效果
+      stopTypingEffect();
+      
+      // 重置状态
+      displayedSegments.value = [];
+      currentTypingText.value = '';
+      isTyping.value = true;
+      
+      // 将消息拆分为段落
+      const segments = splitMessageIntoSegments(message);
+      let currentSegmentIndex = 0;
+      
+      const typeNextSegment = () => {
+        if (currentSegmentIndex >= segments.length) {
+          // 所有段落都已显示完成
+          finishTyping();
+          return;
+        }
+        
+        const currentSegment = segments[currentSegmentIndex];
+        let charIndex = 0;
+        
+        // 清除之前的打字效果定时器
+        if (typeInterval.value) clearInterval(typeInterval.value);
+        
+        // 逐字显示当前段落
+        typeInterval.value = setInterval(() => {
+          if (charIndex <= currentSegment.length) {
+            currentTypingText.value = currentSegment.substring(0, charIndex);
+            charIndex++;
+          } else {
+            // 当前段落打字完成
+            clearInterval(typeInterval.value);
+            
+            // 将完成的段落添加到已显示段落数组
+            displayedSegments.value.push(currentSegment);
+            currentTypingText.value = '';
+            
+            // 移动到下一段
+            currentSegmentIndex++;
+            
+            // 延迟一会儿再显示下一段
+            if (currentSegmentIndex < segments.length) {
+              setTimeout(typeNextSegment, segmentDelay);
+            } else {
+              // 所有段落都已显示完成
+              finishTyping();
+            }
+          }
+        }, typingSpeed);
+      };
+      
+      // 开始显示第一段
+      typeNextSegment();
+    }
+    
+    // 完成打字效果
+    const finishTyping = () => {
+      isTyping.value = false;
+      if (typeInterval.value) {
+        clearInterval(typeInterval.value);
+        typeInterval.value = null;
+      }
+    }
+    
+    // 停止打字效果
+    const stopTypingEffect = () => {
+      isTyping.value = false;
+      if (typeInterval.value) {
+        clearInterval(typeInterval.value);
+        typeInterval.value = null;
+      }
+      displayedSegments.value = [];
+      currentTypingText.value = '';
+    }
+    
+    // 在组件销毁时清除定时器
+    onUnmounted(() => {
+      stopTypingEffect()
+    })
+    
+    // 监听完成任务的变化，自动更新今日完成任务数量
+    watch(
+      [() => taskStore.completedTasks, () => taskStore.systemTasks], 
+      () => {
+        calculateTodayCompletedTasks()
+      },
+      { deep: true }
+    )
     
     return {
       taskStore,
@@ -1447,7 +1646,19 @@ export default {
       pendingImportantTasksCount,
       taskProgressColor,
       todaySystemTasksCount,
-      weeklyTasksCount
+      weeklyTasksCount,
+      todayCompletedTasksCount,
+      calculateTodayCompletedTasks,
+      displayedSegments,
+      currentTypingText,
+      isTyping,
+      typeInterval,
+      typingSpeed,
+      segmentDelay,
+      splitMessageIntoSegments,
+      startTypingEffect,
+      finishTyping,
+      stopTypingEffect
     }
   }
 }
@@ -2612,5 +2823,34 @@ export default {
   .task-summary-card .stat-label {
     font-size: 11px;
   }
+}
+
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background-color: #666;
+  margin-left: 2px;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.message-segment {
+  display: block;
+  margin-bottom: 0.5em;
+}
+
+.typing-segment {
+  display: inline;
+}
+
+.speech-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
 }
 </style>
