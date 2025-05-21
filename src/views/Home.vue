@@ -982,18 +982,24 @@ export default {
     }
     
     // 修改监听主植物变化的逻辑
-    watch(() => plantStore.mainPlant, async (newMainPlant) => {
+    watch(() => plantStore.mainPlant, async (newMainPlant, oldMainPlant) => {
       if (newMainPlant) {
-        weather.value = newMainPlant.weather || 'sunny'
+        console.log('主植物已更新:', newMainPlant.name, '类型:', newMainPlant.type);
+        weather.value = newMainPlant.weather || 'sunny';
+        
+        // 验证主植物类型是否在图片映射中存在
+        if (newMainPlant.type && !plantImages[newMainPlant.type.trim()]) {
+          console.warn(`警告: 主植物类型 "${newMainPlant.type}" 在图片映射中不存在`);
+        }
         
         // 只在没有预加载心语时才触发预加载
         if (reservedThoughts.value.length === 0) {
           setTimeout(() => {
-            preloadPlantThoughts()
-          }, 2000)
+            preloadPlantThoughts();
+          }, 2000);
         }
       }
-    }, { immediate: true })
+    }, { immediate: true, deep: true })
     
     // 初始化时，预加载植物心语
     onMounted(async () => {
@@ -1148,7 +1154,7 @@ export default {
         2: plant3Level2,
         3: plant3Level3
       },
-      '白百合': {
+      '白百何': {
         1: plant4Level1,
         2: plant4Level2,
         3: plant4Level3
@@ -1162,29 +1168,43 @@ export default {
     
     // 获取植物图片
     const getPlantImage = (plant) => {
-      if (!plant) return plant1Level1
-      
-      const type = plant.type?.trim() // 移除可能存在的前后空格
-      const level = plant.level || 1
-      
-      // 检查植物类型和等级限制
-      const clampLevel = Math.min(Math.max(level, 1), 3) // 限制等级在1-3之间
-      
-      // 根据植物类型返回对应图片
-      if (type === '玫瑰') {
-        return plantImages['玫瑰'][clampLevel]
-      } else if (type === '仙人掌') {
-        return plantImages['仙人掌'][clampLevel]
-      } else if (type === '郁金香') {
-        return plantImages['郁金香'][clampLevel]
-      } else if (type === '白百何') {
-        return plantImages['白百何'][clampLevel]
-      } else if (type === '向日葵') {
-        return plantImages['向日葵'][clampLevel]
+      if (!plant) {
+        console.log('植物对象为空，返回默认图片');
+        return plant1Level1;
       }
       
-      // 默认返回第一张图片
-      return plant1Level1
+      if (!plant.type) {
+        console.log('植物类型为空，返回默认图片', plant);
+        return plant1Level1;
+      }
+      
+      const type = plant.type.trim(); // 移除可能存在的前后空格
+      const level = plant.level || 1;
+      
+      // 检查植物类型和等级限制
+      const clampLevel = Math.min(Math.max(level, 1), 3); // 限制等级在1-3之间
+      
+      // 特殊处理白百何/白百合的命名兼容性
+      let plantType = type;
+      if (type === '白百合') {
+        console.log('检测到白百合类型，转换为白百何以兼容');
+        plantType = '白百何';
+      }
+      
+      // 根据植物类型返回对应图片
+      const plantTypeImages = plantImages[plantType];
+      if (!plantTypeImages) {
+        console.warn(`未找到类型 "${plantType}" 的植物图片，返回默认图片`);
+        return plant1Level1;
+      }
+      
+      const image = plantTypeImages[clampLevel];
+      if (!image) {
+        console.warn(`未找到等级 ${clampLevel} 的植物图片，返回默认图片`);
+        return plant1Level1;
+      }
+      
+      return image;
     }
     
     // 获取植物表情

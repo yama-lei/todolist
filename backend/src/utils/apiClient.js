@@ -39,11 +39,18 @@ class DifyClient {
         plantThought
       });
 
+      // 注意：userToken 不需要添加 Bearer 前缀，因为这个前缀在 Dify 平台已经添加
+      // 如果传入的 userToken 已包含 Bearer 前缀，则去除它
+      let cleanToken = userToken;
+      if (userToken && userToken.startsWith('Bearer ')) {
+        cleanToken = userToken.substring(7);
+      }
+
       const requestBody = {
         query: message,
         inputs: {
           plantType: plantType || '未知植物',
-          authorization: userToken,
+          authorization: cleanToken,
           plantThought: plantThought
         },
         response_mode: 'blocking',
