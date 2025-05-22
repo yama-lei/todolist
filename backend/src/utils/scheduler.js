@@ -15,7 +15,7 @@ const scheduleAutoMoodUpdate = () => {
       for (const user of users) {
         try {
           // 调用自动情绪评分API
-          await axios.post('http://localhost:3001/api/auto-mood/update', {}, {
+          await axios.post('http://115.175.12.31/plantodo/api/auto-mood/update', {}, {
             headers: {
               'Authorization': `Bearer ${user.token}` // 假设用户对象中有token字段
             }

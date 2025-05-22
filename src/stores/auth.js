@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import router from '../router'
 
 // 认证相关的API服务
-const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:3001/api'
+const API_URL = process.env.VUE_APP_API_URL || 'http://115.175.12.31/plantodo/api'
 
 export const useAuthStore = defineStore('auth', () => {
   // 状态
