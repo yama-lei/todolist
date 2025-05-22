@@ -209,7 +209,20 @@ export const useAuthStore = defineStore('auth', () => {
       error.value = null
       
       const response = await axios.put(`${API_URL}/auth/profile`, profileData)
-      user.value = { ...user.value, ...response.data }
+      // 确保更新完整的用户信息，包括头像
+      if (response.data) {
+        // 如果服务器返回了完整的用户对象，直接替换
+        if (response.data.avatar !== undefined) {
+          user.value = response.data
+        } else {
+          // 如果服务器只返回了部分字段，保留其他字段
+          user.value = { ...user.value, ...response.data }
+          // 特别确保avatar字段得到保留
+          if (profileData.avatar && !response.data.avatar) {
+            user.value.avatar = profileData.avatar
+          }
+        }
+      }
       return response.data
     } catch (err) {
       error.value = err.response?.data?.message || '更新个人资料失败，请稍后再试'

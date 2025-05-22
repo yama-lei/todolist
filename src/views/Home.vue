@@ -420,21 +420,29 @@
       v-model="showTaskEditDialog"
       :title="isEditingTask ? '编辑任务' : '查看任务'"
       width="30%"
+      custom-class="modern-dialog task-edit-dialog"
     >
       <template v-if="editingTask">
-        <el-form :model="editingTask">
-          <el-form-item label="标题" :required="isEditingTask">
-            <el-input v-model="editingTask.title" placeholder="请输入任务标题" :disabled="!isEditingTask"></el-input>
+        <el-form :model="editingTask" class="modern-form">
+          <el-form-item label="标题" :required="isEditingTask" class="form-item-animated">
+            <el-input 
+              v-model="editingTask.title" 
+              placeholder="请输入任务标题" 
+              :disabled="!isEditingTask"
+              class="modern-input"
+            ></el-input>
           </el-form-item>
-          <el-form-item label="描述">
+          <el-form-item label="描述" class="form-item-animated">
             <el-input 
               v-model="editingTask.description" 
               type="textarea" 
               placeholder="请输入任务描述"
               :disabled="!isEditingTask"
+              class="modern-textarea"
+              :rows="4"
             ></el-input>
           </el-form-item>
-          <el-form-item label="截止日期" v-if="isEditingTask || editingTask.deadline">
+          <el-form-item label="截止日期" v-if="isEditingTask || editingTask.deadline" class="form-item-animated">
             <el-date-picker
               v-model="editingTask.deadline"
               type="datetime"
@@ -442,26 +450,42 @@
               format="YYYY-MM-DD HH:mm"
               value-format="YYYY-MM-DD HH:mm:ss"
               :disabled="!isEditingTask"
+              class="modern-date-picker"
+              style="width: 100%"
             />
           </el-form-item>
-          <el-form-item label="重要性" v-if="!isSystemTask">
-            <el-switch
-              v-model="editingTask.important"
-              active-color="#F7BA2A"
-              inactive-color="#DCDFE6"
-              :disabled="!isEditingTask"
-            />
+          <el-form-item label="重要性" v-if="!isSystemTask" class="form-item-animated importance-item">
+            <div class="importance-toggle-container">
+              <el-switch
+                v-model="editingTask.important"
+                active-color="#F7BA2A"
+                inactive-color="#DCDFE6"
+                :disabled="!isEditingTask"
+                class="modern-switch"
+              />
+              <div 
+                class="importance-label"
+                :class="{ 'active': editingTask.important }"
+                @click="isEditingTask ? editingTask.important = !editingTask.important : null"
+              >
+                <el-icon><Star /></el-icon>
+                <span>{{ editingTask.important ? '重要任务' : '普通任务' }}</span>
+              </div>
+            </div>
           </el-form-item>
-          <el-form-item label="完成于" v-if="editingTask.completedAt">
-            <div>{{ formatDate(editingTask.completedAt) }}</div>
+          <el-form-item label="完成于" v-if="editingTask.completedAt" class="form-item-animated">
+            <div class="completion-time">
+              <el-icon><Clock /></el-icon>
+              <span>{{ formatDate(editingTask.completedAt) }}</span>
+            </div>
           </el-form-item>
         </el-form>
       </template>
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showTaskEditDialog = false">{{ isEditingTask ? '取消' : '关闭' }}</el-button>
-          <el-button type="primary" @click="saveTaskEdit" v-if="isEditingTask">保存</el-button>
-        </span>
+        <div class="dialog-footer">
+          <el-button @click="showTaskEditDialog = false" class="cancel-button">{{ isEditingTask ? '取消' : '关闭' }}</el-button>
+          <el-button type="primary" @click="saveTaskEdit" v-if="isEditingTask" class="save-button">保存</el-button>
+        </div>
       </template>
     </el-dialog>
     
@@ -470,32 +494,32 @@
       v-model="showTaskAddDialog"
       title="创建新任务"
       width="30%"
-      custom-class="task-add-dialog"
+      custom-class="modern-dialog task-add-dialog"
     >
-      <div class="task-add-form">
-        <div class="form-group">
+      <div class="task-add-form modern-form">
+        <div class="form-group form-item-animated">
           <label>任务标题</label>
           <el-input 
             v-model="newTask.title" 
             placeholder="输入任务标题" 
-            class="task-input"
+            class="modern-input task-input"
             ref="taskTitleInput"
           />
         </div>
         
-        <div class="form-group">
+        <div class="form-group form-item-animated">
           <label>任务描述</label>
           <el-input 
             v-model="newTask.description" 
             type="textarea" 
             placeholder="输入任务描述" 
-            class="task-input" 
-            :rows="3"
+            class="modern-textarea task-input" 
+            :rows="4"
           />
         </div>
         
         <div class="form-options">
-          <div class="deadline-option">
+          <div class="deadline-option form-item-animated">
             <label>截止日期</label>
             <el-date-picker
               v-model="newTask.deadline"
@@ -504,29 +528,38 @@
               format="YYYY-MM-DD HH:mm"
               value-format="YYYY-MM-DD HH:mm:ss"
               style="width: 100%"
+              class="modern-date-picker"
             />
           </div>
           
-          <div class="importance-option">
-            <label>重要性</label>
-            <div class="priority-selector">
-              <div 
-                class="priority-level" 
-                :class="{ 'active': newTask.important }"
-                @click="newTask.important = !newTask.important"
-              >
-                <el-icon><Star /></el-icon>
-                <span>重要</span>
+          <div class="form-importance">
+            <div class="importance-option form-item-animated">
+              <label>重要性</label>
+              <div class="importance-toggle-container">
+                <el-switch
+                  v-model="newTask.important"
+                  active-color="#F7BA2A"
+                  inactive-color="#DCDFE6"
+                  class="modern-switch"
+                />
+                <div 
+                  class="importance-label"
+                  :class="{ 'active': newTask.important }"
+                  @click="newTask.important = !newTask.important"
+                >
+                  <el-icon><Star /></el-icon>
+                  <span>{{ newTask.important ? '重要任务' : '普通任务' }}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showTaskAddDialog = false">取消</el-button>
-          <el-button type="primary" @click="addTaskFromDialog" :disabled="!newTask.title.trim()">创建任务</el-button>
-        </span>
+        <div class="dialog-footer">
+          <el-button @click="showTaskAddDialog = false" class="cancel-button">取消</el-button>
+          <el-button type="primary" @click="addTaskFromDialog" :disabled="!newTask.title.trim()" class="save-button">创建任务</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -833,169 +866,15 @@ export default {
     // 添加时间控制变量
     const lastThoughtTime = ref(0)
     const THOUGHT_INTERVAL = 5 * 60 * 1000 // 5分钟间隔
-    const isPreloading = ref(false) // 添加预加载状态标记
-    
-    const preloadPlantThoughts = async () => {
-      if (!plantStore.mainPlant || isPreloading.value) return;
-      
-      const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id;
-      if (!plantId) return;
-      
-      // 检查时间间隔
-      const now = Date.now()
-      if (now - lastThoughtTime.value < THOUGHT_INTERVAL) {
-        console.log('距离上次加载心语时间间隔太短，跳过预加载')
-        return
-      }
-      
-      try {
-        isPreloading.value = true
-        
-        // 如果已经有足够的预加载心语，就不再加载
-        if (reservedThoughts.value.length >= 3) {
-          console.log('已有足够的预加载心语')
-          return
-        }
-        
-        // 预先加载3条心语
-        for (let i = 0; i < 3 - reservedThoughts.value.length; i++) {
-          const context = {
-            weather: weather.value,
-            timeOfDay: getTimeOfDay(),
-            recentTasks: taskStore.completedTasks.slice(0, 3).map(task => ({
-              id: task._id || task.id,
-              title: task.title,
-              completed: true
-            }))
-          };
-          
-          const thought = await plantStore.generatePlantThought(plantId, context);
-          if (thought) {
-            reservedThoughts.value.push(thought);
-            console.log('预加载植物心语成功');
-            lastThoughtTime.value = now
-          }
-          
-          // 间隔一段时间，避免API限制
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      } catch (error) {
-        console.error('预加载植物心语失败:', error);
-      } finally {
-        isPreloading.value = false
-      }
-    };
-    
-    // 优化后的植物心语显示函数
-    const listenToPlantThought = async () => {
-      if (!plantStore.mainPlant) {
-        ElMessage.warning('请先在花园中添加一个植物')
-        return
-      }
-      
-      // 检查植物ID是否有效
-      if (!plantStore.mainPlant._id && !plantStore.mainPlant.id) {
-        console.error('植物ID无效')
-        ElMessage.warning('植物信息不完整，请重新选择植物')
-        return
-      }
-      
-      const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
-      
-      try {
-        // 直接显示已预加载的心语
-        if (reservedThoughts.value.length > 0) {
-          const thought = reservedThoughts.value.shift()
-          currentPlantThought.message = thought.content
-          currentPlantThought.type = thought.type || 'mood'
-          currentPlantThought.icon = thought.icon || '🌱'
-          currentPlantThought.tag = thought.tag || '植物心语'
-          currentPlantThought.timestamp = new Date(thought.timestamp)
-          showPlantSpeech.value = true
-          
-          // 开始打字效果
-          startTypingEffect(thought.content)
-          
-          ElMessage({
-            message: '植物想和你说话了！',
-            type: 'success'
-          })
-          
-          // 延长悬浮气泡框显示时间
-          setTimeout(() => {
-            showPlantSpeech.value = false
-            stopTypingEffect()
-          }, 15000)
-          
-          // 当预加载的心语少于2条时，触发补充
-          if (reservedThoughts.value.length < 2) {
-            setTimeout(() => {
-              preloadPlantThoughts()
-            }, 1000)
-          }
-        } else {
-          // 如果没有预加载的心语，实时获取一条
-          const context = {
-            weather: weather.value,
-            timeOfDay: getTimeOfDay(),
-            recentTasks: taskStore.completedTasks.slice(0, 3).map(task => ({
-              id: task._id || task.id,
-              title: task.title,
-              completed: true
-            }))
-          }
-          
-          const newThought = await plantStore.generatePlantThought(plantId, context)
-          
-          if (newThought) {
-            currentPlantThought.message = newThought.content
-            currentPlantThought.type = newThought.type || 'mood'
-            currentPlantThought.icon = newThought.icon || '🌱'
-            currentPlantThought.tag = newThought.tag || '植物心语'
-            currentPlantThought.timestamp = new Date(newThought.timestamp)
-            showPlantSpeech.value = true
-            
-            // 开始打字效果
-            startTypingEffect(newThought.content)
-            
-            ElMessage({
-              message: '植物想和你说话了！',
-              type: 'success'
-            })
-            
-            // 延长悬浮气泡框显示时间
-            setTimeout(() => {
-              showPlantSpeech.value = false
-              stopTypingEffect()
-            }, 15000)
-            
-            // 开始预加载
-            setTimeout(() => {
-              preloadPlantThoughts()
-            }, 1000)
-          }
-        }
-      } catch (error) {
-        console.error('获取植物心声失败', error)
-        ElMessage.error('获取植物心声失败，植物好像有点害羞...')
-      }
-    }
     
     // 修改监听主植物变化的逻辑
     watch(() => plantStore.mainPlant, async (newMainPlant) => {
       if (newMainPlant) {
         weather.value = newMainPlant.weather || 'sunny'
-        
-        // 只在没有预加载心语时才触发预加载
-        if (reservedThoughts.value.length === 0) {
-          setTimeout(() => {
-            preloadPlantThoughts()
-          }, 2000)
-        }
       }
     }, { immediate: true })
     
-    // 初始化时，预加载植物心语
+    // 初始化时，加载植物心语
     onMounted(async () => {
       try {
         await Promise.all([
@@ -1004,7 +883,7 @@ export default {
         ])
         console.log('首页任务数据加载成功')
         
-        // 预加载植物心语
+        // 加载植物心语
         if (plantStore.mainPlant) {
           const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
           if (plantId) {
@@ -1014,13 +893,6 @@ export default {
               content: thought.content,
               timestamp: thought.timestamp
             }))
-            
-            // 只在没有预加载心语时才触发预加载
-            if (reservedThoughts.value.length === 0) {
-              setTimeout(() => {
-                preloadPlantThoughts()
-              }, 2000)
-            }
           }
         }
       } catch (error) {
@@ -1565,6 +1437,64 @@ export default {
       { deep: true }
     )
     
+    // 添加植物心语显示函数
+    const listenToPlantThought = async () => {
+      if (!plantStore.mainPlant) {
+        ElMessage.warning('请先在花园中添加一个植物')
+        return
+      }
+      
+      // 检查植物ID是否有效
+      if (!plantStore.mainPlant._id && !plantStore.mainPlant.id) {
+        console.error('植物ID无效')
+        ElMessage.warning('植物信息不完整，请重新选择植物')
+        return
+      }
+      
+      const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
+      
+      try {
+        // 实时获取一条心语
+        const context = {
+          weather: weather.value,
+          timeOfDay: getTimeOfDay(),
+          recentTasks: taskStore.completedTasks.slice(0, 3).map(task => ({
+            id: task._id || task.id,
+            title: task.title,
+            completed: true
+          }))
+        }
+        
+        const newThought = await plantStore.generatePlantThought(plantId, context)
+        
+        if (newThought) {
+          currentPlantThought.message = newThought.content
+          currentPlantThought.type = newThought.type || 'mood'
+          currentPlantThought.icon = newThought.icon || '🌱'
+          currentPlantThought.tag = newThought.tag || '植物心语'
+          currentPlantThought.timestamp = new Date(newThought.timestamp)
+          showPlantSpeech.value = true
+          
+          // 开始打字效果
+          startTypingEffect(newThought.content)
+          
+          ElMessage({
+            message: '植物想和你说话了！',
+            type: 'success'
+          })
+          
+          // 延长悬浮气泡框显示时间
+          setTimeout(() => {
+            showPlantSpeech.value = false
+            stopTypingEffect()
+          }, 15000)
+        }
+      } catch (error) {
+        console.error('获取植物心声失败', error)
+        ElMessage.error('获取植物心声失败，植物好像有点害羞...')
+      }
+    }
+    
     return {
       taskStore,
       plantStore,
@@ -2101,52 +2031,51 @@ export default {
 
 .form-options {
   display: grid;
-  grid-template-columns: 3fr 2fr;
+  grid-template-columns: 1fr;
   gap: 16px;
-  margin: 20px 0;
+  margin: 20px 0 10px;
 }
 
-.deadline-option label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 600;
-  color: #606266;
+.form-importance {
+  margin: 0 0 20px;
+  width: 100%;
 }
 
 .importance-option {
-  display: flex;
-  align-items: flex-end;
-  padding-bottom: 4px;
+  margin-bottom: 0;
 }
 
-.priority-selector {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.priority-level {
+.importance-toggle-container {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 8px 12px;
-  border-radius: 8px;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #f9fafc;
+  border-radius: 10px;
+  border: 1px solid #e0e7ff;
+  transition: all 0.3s;
+}
+
+.importance-toggle-container:hover {
   background: #f5f7fa;
+  border-color: #e0e7ff;
+}
+
+.importance-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-weight: 500;
 }
 
-.priority-level:hover {
-  background: #f0f2f5;
+.importance-label:hover {
+  transform: scale(1.05);
 }
 
-.priority-level.active {
-  background: #fff8e0;
+.importance-label.active {
   color: #F7BA2A;
-}
-
-.priority-level.active:hover {
-  background: #fff4cc;
 }
 
 .form-actions {
@@ -2832,5 +2761,259 @@ export default {
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.5;
+}
+
+.modern-dialog {
+  background-color: #fff;
+  border-radius: 16px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: slideUp 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modern-form {
+  padding: 24px;
+}
+
+.form-item-animated {
+  margin-bottom: 20px;
+}
+
+.modern-input {
+  width: 100%;
+}
+
+.importance-item {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 4px;
+}
+
+.importance-toggle {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.toggle-label {
+  font-weight: 600;
+  color: #606266;
+}
+
+.modern-switch {
+  width: 40px;
+}
+
+.completion-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #606266;
+}
+
+.cancel-button,
+.save-button {
+  padding: 12px 24px;
+  border-radius: 30px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cancel-button {
+  background-color: #f5f7fa;
+  color: #606266;
+}
+
+.save-button {
+  background-color: linear-gradient(135deg, #42b983, #2d9cdb);
+  color: white;
+}
+
+.save-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(66, 185, 131, 0.35);
+}
+
+.save-button:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(66, 185, 131, 0.3);
+}
+
+.modern-dialog :deep(.el-dialog__header) {
+  padding: 20px 24px;
+  border-bottom: 1px solid #eee;
+  background: linear-gradient(135deg, #42b983, #2d9cdb);
+}
+
+.modern-dialog :deep(.el-dialog__title) {
+  color: white;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.modern-dialog :deep(.el-dialog__headerbtn .el-dialog__close) {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.modern-form :deep(.el-form-item__label) {
+  font-weight: 600;
+  color: #606266;
+  padding-bottom: 8px;
+}
+
+.modern-input :deep(.el-input__wrapper),
+.modern-textarea :deep(.el-textarea__inner),
+.modern-date-picker :deep(.el-input__wrapper) {
+  border-radius: 10px;
+  border: 1px solid #e0e7ff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s;
+}
+
+.modern-input :deep(.el-input__wrapper:hover),
+.modern-textarea :deep(.el-textarea__inner:hover),
+.modern-date-picker :deep(.el-input__wrapper:hover) {
+  border-color: #42b983;
+  box-shadow: 0 4px 8px rgba(66, 185, 131, 0.1);
+}
+
+.modern-input :deep(.el-input__wrapper.is-focus),
+.modern-textarea :deep(.el-textarea__inner:focus),
+.modern-date-picker :deep(.el-input__wrapper.is-focus) {
+  border-color: #42b983;
+  box-shadow: 0 0 0 2px rgba(66, 185, 131, 0.2);
+}
+
+.form-item-animated {
+  animation: fadeInUp 0.5s ease;
+  animation-fill-mode: both;
+}
+
+.form-item-animated:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.form-item-animated:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.form-item-animated:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.form-item-animated:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.priority-selector {
+  margin-top: 10px;
+}
+
+.priority-level {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #f5f7fa;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.priority-level:hover {
+  background: #f0f2f5;
+  transform: translateY(-2px);
+}
+
+.priority-level.active {
+  background: #fff8e0;
+  color: #F7BA2A;
+  border: 1px solid #F7BA2A;
+  box-shadow: 0 4px 12px rgba(247, 186, 42, 0.15);
+}
+
+.toggle-label.important {
+  color: #F7BA2A;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 10px;
+}
+
+.task-add-dialog :deep(.el-dialog__body),
+.task-edit-dialog :deep(.el-dialog__body) {
+  padding: 0;
+}
+
+.modern-form .form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #606266;
+}
+
+.form-options {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin: 20px 0 10px;
+}
+
+@media screen and (max-width: 768px) {
+  .form-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+.importance-toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.importance-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.importance-label:hover {
+  transform: scale(1.05);
+}
+
+.importance-label.active {
+  color: #F7BA2A;
+}
+
+.form-importance {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 4px;
 }
 </style>

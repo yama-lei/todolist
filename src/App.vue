@@ -28,11 +28,11 @@
           >
             <el-menu-item index="/">
               <el-icon><House /></el-icon>
-              <span>首页</span>
+              <span>心灵起点</span>
             </el-menu-item>
             <el-menu-item index="/tasks">
               <el-icon><List /></el-icon>
-              <span>任务</span>
+              <span>待办清单</span>
             </el-menu-item>
             <el-menu-item index="/garden">
               <el-icon><PriceTag /></el-icon>
@@ -44,22 +44,21 @@
             </el-menu-item>
             <el-menu-item index="/plant-chat">
               <el-icon><ChatLineRound /></el-icon>
-              <span>植物对话</span>
+              <span>心灵树洞</span>
             </el-menu-item>
             <el-menu-item index="/posts">
               <el-icon><Reading /></el-icon>
-              <span>动态</span>
+              <span>生活手札</span>
             </el-menu-item>
             <el-menu-item index="/calendar">
               <el-icon><Calendar /></el-icon>
-              <span>日历</span>
+              <span>成长轨迹</span>
             </el-menu-item>
           </el-menu>
           
           <div class="user-panel">
             <div class="user-info" @click="showUserMenu = !showUserMenu">
-              <el-avatar :size="32" :src="userAvatar" v-if="userAvatar"></el-avatar>
-              <el-avatar :size="32" icon="UserFilled" v-else></el-avatar>
+              <el-avatar :size="32" :src="userAvatar"></el-avatar>
               <span class="username">{{ username }}</span>
               <el-icon><CaretTop :class="{ 'rotate-icon': showUserMenu }" /></el-icon>
             </div>
@@ -132,7 +131,7 @@ export default {
     
     // 用户信息
     const username = computed(() => authStore.userInfo?.username || '未登录')
-    const userAvatar = computed(() => authStore.userInfo?.avatar || '')
+    const userAvatar = computed(() => authStore.userInfo?.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png')
     
     // 处理退出登录
     const handleLogout = () => {
