@@ -32,7 +32,7 @@
             </el-menu-item>
             <el-menu-item index="/tasks">
               <el-icon><List /></el-icon>
-              <span>任务</span>
+              <span>待办清单</span>
             </el-menu-item>
             <el-menu-item index="/garden">
               <el-icon><PriceTag /></el-icon>
@@ -44,15 +44,15 @@
             </el-menu-item>
             <el-menu-item index="/plant-chat">
               <el-icon><ChatLineRound /></el-icon>
-              <span>植物对话</span>
+              <span>心灵树洞</span>
             </el-menu-item>
             <el-menu-item index="/posts">
               <el-icon><Reading /></el-icon>
-              <span>动态</span>
+              <span>生活手札</span>
             </el-menu-item>
             <el-menu-item index="/calendar">
               <el-icon><Calendar /></el-icon>
-              <span>日历</span>
+              <span>成长轨迹</span>
             </el-menu-item>
           </el-menu>
           
