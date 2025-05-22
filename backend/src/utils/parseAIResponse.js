@@ -74,11 +74,53 @@ function parseAIResponse(text) {
 
 // 为API调用失败生成备用分析结果
 function generateFallbackAnalysis(data) {
+  // 根据任务完成情况生成不同的评价
+  let overview = '';
+  let achievements = '';
+  let suggestions = '';
+  let nextSteps = '';
+  
+  // 总体评价
+  if (data.completedTasksCount === 0 && data.pendingTasksCount === 0) {
+    overview = '暂无任务数据，开始添加任务来跟踪你的进度吧！';
+  } else if (data.completionRate >= 70) {
+    overview = `太棒了！你已完成${data.completedTasksCount}个任务，完成率达到${data.completionRate}%，继续保持这样的效率！`;
+  } else if (data.completionRate >= 40) {
+    overview = `你已完成${data.completedTasksCount}个任务，还有${data.pendingTasksCount}个待完成，完成率为${data.completionRate}%，保持稳定的进度。`;
+  } else {
+    overview = `你已完成${data.completedTasksCount}个任务，还有${data.pendingTasksCount}个待完成，完成率为${data.completionRate}%，可以尝试提高效率。`;
+  }
+  
+  // 成就和进步
+  if (data.completedTasksCount > 0) {
+    achievements = `你已经完成了${data.completedTasksCount}个任务，每完成一个任务都是一次进步！${data.mainPlantName}为你感到骄傲。`;
+  } else {
+    achievements = `开始你的第一个任务吧！${data.mainPlantName}正在期待你的成长。`;
+  }
+  
+  // 改进建议
+  if (data.importantPendingCount > 0) {
+    suggestions = `还有${data.importantPendingCount}个重要任务待完成，建议优先处理这些重要任务。可以尝试将大任务拆分为小任务，更容易开始和完成。`;
+  } else if (data.pendingTasksCount > 0) {
+    suggestions = `尝试给任务设置优先级，这样可以更有效地安排你的时间和精力。将任务分类可以帮助你更清晰地规划工作。`;
+  } else {
+    suggestions = `目前没有待办任务，可以规划新的目标和任务，持续进步！`;
+  }
+  
+  // 下一步行动
+  if (data.importantPendingCount > 0) {
+    nextSteps = `专注于完成最重要的任务，帮助你的植物${data.mainPlantName}成长。`;
+  } else if (data.pendingTasksCount > 0) {
+    nextSteps = `继续保持良好的任务管理习惯，完成更多任务来帮助你的植物${data.mainPlantName}成长。`;
+  } else {
+    nextSteps = `设定新的目标，创建新的任务，持续成长！`;
+  }
+  
   return {
-    overview: `已完成${data.completedTasksCount}个任务，还有${data.pendingTasksCount}个待完成，任务完成率${data.completionRate}%。`,
-    achievements: `你已经完成了${data.completedTasksCount}个任务，每完成一个任务都是一次进步！${data.mainPlantName}为你感到骄傲。`,
-    suggestions: `还有${data.importantPendingCount}个重要任务待完成，建议优先处理这些重要任务。`,
-    nextSteps: `继续保持良好的任务管理习惯，完成更多任务来帮助你的植物${data.mainPlantName}成长。`
+    overview,
+    achievements,
+    suggestions,
+    nextSteps
   };
 }
 

@@ -355,7 +355,25 @@ router.get('/ai-analysis', auth, async (req, res) => {
       stats: {
         completedTasks: completedTasksCount,
         pendingTasks: pendingTasksCount,
-        completionRate: completionRate
+        completionRate: completionRate,
+        importantPending: importantPendingCount,
+        thisWeekTasks: tasks.filter(task => {
+          if (!task.completed || !task.completedAt) return false;
+          const completedDate = new Date(task.completedAt);
+          const today = new Date();
+          const weekStart = new Date(today);
+          weekStart.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
+          weekStart.setHours(0, 0, 0, 0);
+          return completedDate >= weekStart;
+        }).length,
+        upcomingDeadlines: tasks.filter(task => {
+          if (task.completed || !task.deadline) return false;
+          const deadline = new Date(task.deadline);
+          const today = new Date();
+          const nextWeek = new Date(today);
+          nextWeek.setDate(today.getDate() + 7);
+          return deadline >= today && deadline <= nextWeek;
+        }).length
       }
     });
     

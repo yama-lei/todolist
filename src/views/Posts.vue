@@ -113,7 +113,7 @@
         <div class="diary-toolbar" v-if="postType === 'diary'">
           <div class="toolbar-group">
           <div class="option-item" @click="toggleMood">
-            <el-icon><SmileFilled /></el-icon>
+            <el-icon><StarFilled /></el-icon>
             <span>{{ newPost.mood ? `心情：${getMoodText(newPost.mood)}` : '添加心情' }}</span>
           </div>
           
@@ -139,7 +139,7 @@
         <el-form-item v-if="postType !== 'diary'" class="thought-options">
           <div class="post-options">
             <div class="option-item" @click="toggleMood">
-              <el-icon><SmileFilled /></el-icon>
+              <el-icon><StarFilled /></el-icon>
               <span>{{ newPost.mood ? `心情：${getMoodText(newPost.mood)}` : '添加心情' }}</span>
             </div>
             
@@ -236,7 +236,7 @@ import {
   Document,
   ChatDotRound, 
   Notebook,
-  SmileFilled,
+  StarFilled,
   Sunny
 } from '@element-plus/icons-vue'
 import { ElMessage, ElLoading } from 'element-plus'

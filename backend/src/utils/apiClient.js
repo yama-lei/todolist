@@ -39,11 +39,18 @@ class DifyClient {
         plantThought
       });
 
+      // 注意：userToken 不需要添加 Bearer 前缀，因为这个前缀在 Dify 平台已经添加
+      // 如果传入的 userToken 已包含 Bearer 前缀，则去除它
+      let cleanToken = userToken;
+      if (userToken && userToken.startsWith('Bearer ')) {
+        cleanToken = userToken.substring(7);
+      }
+
       const requestBody = {
         query: message,
         inputs: {
           plantType: plantType || '未知植物',
-          authorization: userToken,
+          authorization: cleanToken,
           plantThought: plantThought
         },
         response_mode: 'blocking',
@@ -142,9 +149,10 @@ class DeepSeekClient {
    * @returns {Promise<string>} - 生成的文本内容
    */
   async generateText({ prompt, temperature = 0.7, max_tokens = 800 }) {
-    // 如果没有API密钥，直接抛出错误
+    // 如果没有API密钥，直接返回错误信息
     if (!this.apiKey) {
-      throw new Error('API密钥未设置，无法调用DeepSeek API');
+      console.warn('DeepSeek API密钥未设置，使用备用分析方案');
+      return Promise.reject(new Error('API密钥未设置，无法调用DeepSeek API'));
     }
     
     try {
