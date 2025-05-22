@@ -149,9 +149,10 @@ class DeepSeekClient {
    * @returns {Promise<string>} - 生成的文本内容
    */
   async generateText({ prompt, temperature = 0.7, max_tokens = 800 }) {
-    // 如果没有API密钥，直接抛出错误
+    // 如果没有API密钥，直接返回错误信息
     if (!this.apiKey) {
-      throw new Error('API密钥未设置，无法调用DeepSeek API');
+      console.warn('DeepSeek API密钥未设置，使用备用分析方案');
+      return Promise.reject(new Error('API密钥未设置，无法调用DeepSeek API'));
     }
     
     try {

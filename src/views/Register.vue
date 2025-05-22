@@ -58,14 +58,6 @@
             />
           </el-form-item>
 
-          <el-form-item prop="agreement">
-            <el-checkbox v-model="registerForm.agreement">
-              我已阅读并同意
-              <a href="/terms" class="terms-link">服务条款</a>
-              和
-              <a href="/privacy" class="terms-link">隐私政策</a>
-            </el-checkbox>
-          </el-form-item>
 
           <el-form-item>
             <el-button
@@ -266,10 +258,6 @@ export default {
   border: none;
 }
 
-.terms-link {
-  color: #4caf50;
-  text-decoration: none;
-}
 
 .terms-link:hover {
   text-decoration: underline;

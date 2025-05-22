@@ -10,7 +10,7 @@
               <button class="ai-insight-button" @click="showAiSummary">
                 <div class="ai-insight-icon">
                   <div class="ai-pulse"></div>
-                  <el-icon></el-icon>
+                  <el-icon><Magic /></el-icon>
                 </div>
                 <span>智能总结</span>
               </button>
@@ -594,6 +594,35 @@ export default {
     // 添加今日完成任务数量的状态
     const todayCompletedTasksCount = ref(0)
     
+    // 植物图片映射 - 移到这里，确保在 watch 函数之前定义
+    const plantImages = {
+      '玫瑰': {
+        1: plant1Level1,
+        2: plant1Level2,
+        3: plant1Level3
+      },
+      '仙人掌': {
+        1: plant2Level1,
+        2: plant2Level2,
+        3: plant2Level3
+      },
+      '郁金香': {
+        1: plant3Level1,
+        2: plant3Level2,
+        3: plant3Level3
+      },
+      '白百何': {
+        1: plant4Level1,
+        2: plant4Level2,
+        3: plant4Level3
+      },
+      '向日葵': {
+        1: plant5Level1,
+        2: plant5Level2,
+        3: plant5Level3
+      }
+    }
+    
     // 计算今日完成任务数量
     const calculateTodayCompletedTasks = () => {
       const today = new Date()
@@ -671,6 +700,25 @@ export default {
     // AI总结相关
     const showAiSummaryDialog = ref(false)
     const isAiSummaryLoading = ref(false)
+    
+    // AI总结数据
+    const aiSummaryData = ref({
+      isAIGenerated: false,
+      taskSummary: {
+        completedTasks: 0,
+        pendingTasks: 0,
+        completionRate: 0,
+        thisWeekTasks: 0,
+        importantPending: 0,
+        upcomingDeadlines: 0
+      },
+      analysis: {
+        overview: '',
+        achievements: '',
+        suggestions: '',
+        nextSteps: ''
+      }
+    })
     
     // 系统任务（未完成）
     const systemTasks = computed(() => {
@@ -1137,35 +1185,6 @@ export default {
       return format(new Date(dateString), 'yyyy-MM-dd HH:mm')
     }
     
-    // 植物图片映射
-    const plantImages = {
-      '玫瑰': {
-        1: plant1Level1,
-        2: plant1Level2,
-        3: plant1Level3
-      },
-      '仙人掌': {
-        1: plant2Level1,
-        2: plant2Level2,
-        3: plant2Level3
-      },
-      '郁金香': {
-        1: plant3Level1,
-        2: plant3Level2,
-        3: plant3Level3
-      },
-      '白百何': {
-        1: plant4Level1,
-        2: plant4Level2,
-        3: plant4Level3
-      },
-      '向日葵': {
-        1: plant5Level1,
-        2: plant5Level2,
-        3: plant5Level3
-      }
-    }
-    
     // 获取植物图片
     const getPlantImage = (plant) => {
       if (!plant) {
@@ -1263,18 +1282,66 @@ export default {
       try {
         // 使用新的AI分析接口获取智能洞察
         const response = await insightsApi.getAIAnalysis()
-        aiSummaryData.value = response.data
+        
+        // 格式化数据以适应UI显示
+        aiSummaryData.value = {
+          isAIGenerated: true,
+          taskSummary: {
+            completedTasks: response.stats?.completedTasks || 0,
+            pendingTasks: response.stats?.pendingTasks || 0,
+            completionRate: response.stats?.completionRate || 0,
+            thisWeekTasks: response.stats?.thisWeekTasks || 0,
+            importantPending: response.stats?.importantPending || 0,
+            upcomingDeadlines: response.stats?.upcomingDeadlines || 0
+          },
+          analysis: {
+            overview: response.analysis?.overview || '暂无总体评价',
+            achievements: response.analysis?.achievements || '暂无成就记录',
+            suggestions: response.analysis?.suggestions || '暂无改进建议',
+            nextSteps: response.analysis?.nextSteps || '暂无行动计划'
+          }
+        }
         
         isAiSummaryLoading.value = false
       } catch (error) {
         console.error('获取智能总结失败:', error)
-        ElMessage.error('获取智能总结数据失败，请稍后再试')
+        
+        // 处理认证错误
+        if (error.response && error.response.status === 401) {
+          ElMessage.error('登录已过期，请重新登录')
+          // 可以选择跳转到登录页面
+          // router.push('/login')
+        }
+        
+        // 错误处理：显示友好的错误信息
+        aiSummaryData.value = {
+          isAIGenerated: false,
+          taskSummary: {
+            completedTasks: taskStore.completedTasks.length,
+            pendingTasks: taskStore.pendingTasks.length,
+            completionRate: calculateTaskCompletionRate.value,
+            thisWeekTasks: todayCompletedTasksCount.value,
+            importantPending: pendingImportantTasksCount.value,
+            upcomingDeadlines: weeklyTasksCount.value
+          },
+          analysis: {
+            overview: '智能分析暂时不可用，显示的是基本统计数据',
+            achievements: `你已完成了${taskStore.completedTasks.length}个任务，继续加油！`,
+            suggestions: `还有${pendingImportantTasksCount.value}个重要任务待完成，建议优先处理`,
+            nextSteps: '专注于最重要的任务，合理安排时间'
+          }
+        }
+        
+        // 根据错误类型显示不同的错误信息
+        if (error.message && error.message.includes('DeepSeek API错误')) {
+          ElMessage.error('AI服务暂时不可用，显示本地统计数据')
+        } else if (!(error.response && error.response.status === 401)) {
+          ElMessage.error('获取智能总结数据失败，显示本地统计数据')
+        }
+        
         isAiSummaryLoading.value = false
       }
     }
-    
-    // AI总结数据
-    const aiSummaryData = ref(null)
     
     // 计算系统任务完成率
     const calculateSystemTaskCompletion = () => {
@@ -1740,8 +1807,8 @@ export default {
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: linear-gradient(135deg, #6e8efb, #a777e3)
-;  background-color: #f5f8fa;
+  background: linear-gradient(135deg, #6e8efb, #a777e3);
+  background-color: #f5f8fa;
   border: none;
   box-shadow: 0 2px 6px rgba(110, 142, 251, 0.2);
   color: white;
@@ -1755,6 +1822,37 @@ export default {
 .ai-insight-button:active {
   transform: translateY(0);
   box-shadow: 0 2px 4px rgba(110, 142, 251, 0.25);
+}
+
+.ai-insight-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-pulse {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  animation: ai-pulse 2s infinite;
+}
+
+@keyframes ai-pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
 }
 
 /* 植物区域样式改进 */
