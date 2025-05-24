@@ -179,17 +179,16 @@ const userAvatar = computed(() => {
 
 // 建议问题
 const suggestions = [
-  '提醒我下周二前交微积分作业',
+  '设置一个任务，提醒我明天早上8点去跑步',
   '我最近心情不好，你能陪我聊聊吗？',
-  '今天天气真好，我想出去走走',
-  '帮我记录一下今天的任务完成情况'
+  '总计一下最近的学习情况，给我一些规划建议'
 ]
 
 // 默认欢迎语
 const defaultWelcomeMessage = {
   id: 'welcome',
   sender: 'plant',
-  content: '你好！我是你的植物伙伴，很高兴能和你聊天。你可以问我任何问题，或者分享你的想法。',
+  content: '你好呀φ(*￣0￣)！我是你的植物伙伴，很高兴能和你聊天。你可以问我任何问题，或者分享你的想法。',
   timestamp: new Date()
 }
 
@@ -910,15 +909,15 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   margin-bottom: 12px;
-  gap: 8px;
+  gap: 4px;
 }
 
 .suggestion-chip {
   background-color: rgba(76, 175, 80, 0.1);
   color: #4CAF50;
-  padding: 8px 14px;
+  padding: 8px 12px;
   border-radius: 20px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.3s;
   border: 1px solid rgba(76, 175, 80, 0.2);

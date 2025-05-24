@@ -106,15 +106,76 @@ class DeepSeekClient {
     // 尝试从环境变量获取API密钥，如果没有则使用默认值
     this.apiKey = process.env.DEEPSEEK_API_KEY || '';
     this.baseURL = 'https://api.deepseek.com';  // 修正baseURL
+    
+    // 增加更详细的日志记录
+    console.log('DeepSeek API初始化:', {
+      apiKeySet: !!this.apiKey,
+      baseURL: this.baseURL
+    });
+
     this.client = axios.create({
       baseURL: this.baseURL,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.apiKey}`
       },
-      timeout: 15000 // 设置更短的超时时间，15秒
+      timeout: 30000 // 增加超时时间到30秒
     });
-    
+
+    // 添加请求拦截器，用于日志记录和额外的错误检查
+    this.client.interceptors.request.use(
+      config => {
+        console.log('DeepSeek API请求配置:', {
+          url: config.url,
+          method: config.method,
+          headers: config.headers
+        });
+        return config;
+      },
+      error => {
+        console.error('DeepSeek API请求配置错误:', error);
+        return Promise.reject(error);
+      }
+    );
+
+    // 添加响应拦截器，用于额外的错误处理
+    this.client.interceptors.response.use(
+      response => response,
+      error => {
+        console.error('DeepSeek API响应错误:', {
+          errorMessage: error.message,
+          errorCode: error.code,
+          errorResponse: error.response?.data
+        });
+
+        // 更详细的错误处理
+        if (error.response) {
+          // 服务器返回了错误状态码
+          switch (error.response.status) {
+            case 401:
+              console.error('DeepSeek API授权失败，请检查API密钥');
+              break;
+            case 429:
+              console.error('DeepSeek API请求过于频繁，已触发速率限制');
+              break;
+            case 500:
+              console.error('DeepSeek API服务器内部错误');
+              break;
+            default:
+              console.error(`DeepSeek API未知错误：状态码 ${error.response.status}`);
+          }
+        } else if (error.request) {
+          // 请求已发送但未收到响应
+          console.error('DeepSeek API无响应，可能是网络问题');
+        } else {
+          // 发送请求时发生错误
+          console.error('DeepSeek API请求配置错误');
+        }
+
+        return Promise.reject(error);
+      }
+    );
+
     if (!this.apiKey) {
       console.warn('警告: DEEPSEEK_API_KEY 未在环境变量中设置，AI分析功能将使用备用方案');
     }
@@ -148,7 +209,7 @@ class DeepSeekClient {
    * @param {number} options.max_tokens - 最大生成令牌数
    * @returns {Promise<string>} - 生成的文本内容
    */
-  async generateText({ prompt, temperature = 0.7, max_tokens = 800 }) {
+  async generateText({ prompt, temperature = 0.7, max_tokens = 800, timeout = 30000 }) {
     // 如果没有API密钥，直接返回错误信息
     if (!this.apiKey) {
       console.warn('DeepSeek API密钥未设置，使用备用分析方案');
@@ -156,7 +217,7 @@ class DeepSeekClient {
     }
     
     try {
-      console.log('调用DeepSeek API...');
+      console.log('准备调用DeepSeek API...');
       
       const response = await this.client.post('/chat/completions', {
         model: 'deepseek-chat',
@@ -164,19 +225,31 @@ class DeepSeekClient {
         temperature: temperature,
         max_tokens: max_tokens,
         stream: false
+      }, {
+        timeout: timeout  // 动态设置超时时间
       });
       
+      console.log('DeepSeek API调用成功');
+      
       // 直接返回内容文本，简化处理
-      return response.data.choices[0].message.content;
+      const responseText = response.data.choices[0].message.content;
+      
+      console.log('DeepSeek API响应长度:', responseText.length);
+      
+      return responseText;
     } catch (error) {
       console.error('DeepSeek API调用失败:', error.message);
       
+      // 更详细的错误处理
       if (error.code === 'ECONNABORTED') {
+        console.error('DeepSeek API请求超时');
         throw new Error('DeepSeek API请求超时，请稍后再试');
       }
       
       // 返回API错误详情
       const errorMsg = error.response?.data?.error?.message || error.message;
+      console.error('DeepSeek API详细错误:', errorMsg);
+      
       throw new Error(`DeepSeek API错误: ${errorMsg}`);
     }
   }

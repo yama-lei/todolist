@@ -1047,13 +1047,10 @@ export default {
   width: 100%;
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   margin-top: 15px;
   flex-wrap: wrap;
-}
-
-.button-icon {
-  margin-right: 5px;
+  padding: 0 10px;
 }
 
 .empty-garden {
@@ -1142,26 +1139,26 @@ export default {
 /* 自定义按钮样式 */
 .custom-btn {
   border: none;
-  padding: 12px 18px;
-  border-radius: 20px;
+  padding: 10px 16px;
+  border-radius: 16px;
   cursor: pointer;
   font-weight: 500;
-  font-size: 14px;
+  font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
   position: relative;
   overflow: hidden;
-  width: 100%;
-  margin-bottom: 12px;
-  letter-spacing: 1px;
+  width: 90%;
+  margin: 0 auto 10px;
+  letter-spacing: 0.5px;
 }
 
 .custom-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
 }
 
 .custom-btn:active {
@@ -1184,21 +1181,53 @@ export default {
 }
 
 .listen-btn {
-  background: linear-gradient(135deg, #42b983 0%, #36a174 100%);
-  color: white;
+  background: linear-gradient(135deg, #7ed6a5 0%, #5bc189 100%);
+  color: #ffffff;
+  border: 1px solid transparent;
+  position: relative;
+  z-index: 1;
 }
 
 .listen-btn:hover {
-  background: linear-gradient(135deg, #4bc990 0%, #3cac7e 100%);
+  background: linear-gradient(135deg, #8cdeb0 0%, #65ca94 100%);
+}
+
+.listen-btn::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background: linear-gradient(135deg, #7ed6a5 0%, #5bc189 100%);
+  z-index: -1;
+  transition: opacity 0.3s ease;
+  border-radius: 16px;
 }
 
 .main-btn {
-  background: linear-gradient(135deg, #ffd54f 0%, #ffb300 100%);
-  color: #704214;
+  background: linear-gradient(135deg, #ffe082 0%, #ffd54f 100%);
+  color: #7d6226;
+  border: 1px solid transparent;
+  position: relative;
+  z-index: 1;
 }
 
 .main-btn:hover {
-  background: linear-gradient(135deg, #ffe082 0%, #ffca28 100%);
+  background: linear-gradient(135deg, #ffecb3 0%, #ffe082 100%);
+}
+
+.main-btn::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background: linear-gradient(135deg, #ffe082 0%, #ffd54f 100%);
+  z-index: -1;
+  transition: opacity 0.3s ease;
+  border-radius: 16px;
 }
 
 .main-btn.disabled {
@@ -1207,19 +1236,25 @@ export default {
   cursor: not-allowed;
   transform: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  opacity: 0.7;
 }
 
-.main-btn.disabled::before {
+.main-btn.disabled::before,
+.main-btn.disabled::after {
   display: none;
 }
 
 .btn-icon {
-  margin-right: 8px;
-  font-size: 16px;
+  margin-right: 6px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-text {
   letter-spacing: 0.5px;
+  font-weight: 500;
 }
 
 /* 植物心声气泡样式调整 */
@@ -1332,6 +1367,34 @@ export default {
   border-radius: 12px;
   border-left: 3px solid #42b983;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  height: 150px;
+  overflow-y: auto;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.plant-introduction:hover {
+  background-color: #f0f7f4;
+  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.15);
+  border-left: 3px solid #35a873;
+}
+
+.plant-introduction::-webkit-scrollbar {
+  width: 4px;
+}
+
+.plant-introduction::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.plant-introduction::-webkit-scrollbar-thumb {
+  background: #c1e1c5;
+  border-radius: 4px;
+}
+
+.plant-introduction::-webkit-scrollbar-thumb:hover {
+  background: #42b983;
 }
 
 .intro-title {
@@ -1340,6 +1403,14 @@ export default {
   color: #42b983;
   margin-bottom: 8px;
   letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+}
+
+.intro-title::before {
+  content: '🌿';
+  margin-right: 6px;
+  font-size: 16px;
 }
 
 .intro-text {
@@ -1347,5 +1418,6 @@ export default {
   line-height: 1.6;
   color: #555;
   font-style: italic;
+  text-align: justify;
 }
 </style> 

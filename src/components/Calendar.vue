@@ -4,11 +4,11 @@
       <h1>日历</h1>
       <div class="calendar-nav">
         <button @click="prevMonth" class="nav-btn">
-          <i class="fas fa-chevron-left"></i>
+          <el-icon><ArrowLeftBold /></el-icon>
         </button>
         <span class="current-month">{{ currentYear }}年{{ currentMonth + 1 }}月</span>
         <button @click="nextMonth" class="nav-btn">
-          <i class="fas fa-chevron-right"></i>
+          <el-icon><ArrowRightBold /></el-icon>
         </button>
       </div>
       <div class="view-toggle">
@@ -16,6 +16,7 @@
         <button @click="toggleView('chart')" :class="{ active: currentView === 'chart' }">数据视图</button>
       </div>
     </div>
+
 
     <div v-if="currentView === 'calendar'" class="calendar-view">
       <div class="custom-calendar">
@@ -32,25 +33,32 @@
               'selected': selectedDate === day.date,
               'has-pending-tasks': day.taskCount && day.taskCount.pending > 0,
               'has-completed-tasks': day.taskCount && day.taskCount.completed > 0,
-              'today': day.date === getCurrentDate()
+              'today': day.date === getCurrentDate(),
+              'holiday': isHoliday(day.date)
             }"
             @click="day.date && selectDate(day.date)"
           >
             <template v-if="day.date">
-              <div class="day-number">{{ getDayNumber(day.date) }}</div>
-              <div class="task-dots" v-if="day.taskCount && (day.taskCount.pending > 0 || day.taskCount.completed > 0)">
-                <span 
-                  v-for="i in Math.min(day.taskCount.pending, 3)" 
-                  :key="`pending-${i}`" 
-                  class="task-dot pending" 
-                  :class="{'important': hasImportantPendingTask(day)}"
-                ></span>
-                <span 
-                  v-for="i in Math.min(day.taskCount.completed, 3)" 
-                  :key="`completed-${i}`" 
-                  class="task-dot completed"
-                ></span>
+              <div class="day-header">
+                <div class="day-number">{{ getDayNumber(day.date) }}</div>              
+                <div class="holiday-name" v-if="getHoliday(day.date)">
+                {{ getHoliday(day.date).name }}
               </div>
+                <div class="task-dots" v-if="day.taskCount && (day.taskCount.pending > 0 || day.taskCount.completed > 0)">
+                  <span 
+                    v-for="i in Math.min(day.taskCount.pending, 3)" 
+                    :key="`pending-${i}`" 
+                    class="task-dot pending" 
+                    :class="{'important': hasImportantPendingTask(day)}"
+                  ></span>
+                  <span 
+                    v-for="i in Math.min(day.taskCount.completed, 3)" 
+                    :key="`completed-${i}`" 
+                    class="task-dot completed"
+                  ></span>
+                </div>
+              </div>
+
               <div class="day-indicators">
                 <span class="task-indicator pending" v-if="day.taskCount && day.taskCount.pending > 0">
                   {{ day.taskCount.pending }}待办
@@ -59,7 +67,7 @@
                   {{ day.taskCount.completed }}已完成
                 </span>
                 <span class="post-indicator" v-if="day.posts && day.posts.length > 0">
-                  {{ day.posts.length }}条记录
+                  {{ day.posts.length }}条帖子
                 </span>
               </div>
             </template>
@@ -70,6 +78,12 @@
       <div v-if="selectedDate" class="day-detail">
         <h2>{{ formatSelectedDate }}</h2>
         <div v-if="dayData">
+          <!-- 节假日信息 -->
+          <div class="holiday-info" v-if="getHoliday(selectedDate)">
+            <h3>{{ getHoliday(selectedDate).name }}</h3>
+            <p>{{ getHoliday(selectedDate).description }}</p>
+          </div>
+          
           <!-- 待办任务部分 -->
           <div class="day-tasks pending-tasks-section" v-if="pendingTasks.length > 0">
             <h3>待完成任务 ({{ pendingTasks.length }})</h3>
@@ -143,7 +157,8 @@
           <div class="empty-day" v-if="(!dayData.tasks || dayData.tasks.length === 0) && 
                                       (!dayData.systemTasks || dayData.systemTasks.length === 0) && 
                                       (!dayData.posts || dayData.posts.length === 0) &&
-                                      (!dayData.plantThoughts || dayData.plantThoughts.length === 0)">
+                                      (!dayData.plantThoughts || dayData.plantThoughts.length === 0) &&
+                                      !getHoliday(selectedDate)">
             <p>今天没有任何任务或记录</p>
           </div>
         </div>
@@ -195,7 +210,28 @@ export default {
       calendarDays: [],
       randomPlantThought: null,
       pendingTasks: [],
-      completedTasks: []
+      completedTasks: [],
+      selectedHoliday: null,
+      holidays: [
+        { date: '2025-01-01', name: '元旦', description: '元旦是公历新年的第一天，是世界多数国家通用的新年。元旦的由来，可追溯至古罗马。' },
+        { date: '2025-02-10', name: '春节', description: '春节是中国传统节日，是农历新年的第一天，又称阴历年，俗称过年。' },
+        { date: '2025-02-14', name: '情人节', description: '情人节是西方的传统节日，起源于古罗马。这一天，人们向爱人或心仪的人表达爱意。' },
+        { date: '2025-02-24', name: '元宵节', description: '元宵节是中国传统节日，在农历正月十五，是春节之后的第一个重要节日。' },
+        { date: '2025-03-08', name: '妇女节', description: '国际妇女节是为纪念妇女权利的运动，每年3月8日庆祝。' },
+        { date: '2025-04-04', name: '清明节', description: '清明节是中国传统节日，也是最重要的祭祀节日之一，是祭祖和扫墓的日子。' },
+        { date: '2025-05-01', name: '劳动节', description: '国际劳动节是世界上大多数国家的劳动节，定在每年的5月1日。' },
+        { date: '2025-05-12', name: '母亲节', description: '母亲节是一个感谢母亲的节日，以歌颂母亲、母性而于每年5月的第二个星期日庆祝。' },
+        { date: '2025-05-20', name: '校庆日', description: '南京大学123周年校庆，南大生日快乐' },
+        { date: '2025-06-01', name: '儿童节', description: '国际儿童节是为了保障世界各国儿童的生存权、保健权和受教育权。' },
+        { date: '2025-06-08', name: '端午节', description: '端午节是中国传统节日，又称端阳节、龙舟节、重午节、龙节等。' },
+        { date: '2025-06-16', name: '父亲节', description: '父亲节是感谢父亲的节日，以歌颂父亲、父性而于每年6月的第三个星期日庆祝。' },
+        { date: '2025-08-10', name: '七夕节', description: '七夕节，又名乞巧节、七巧节、七姐节、女儿节、双七节、中国情人节等。' },
+        { date: '2025-09-10', name: '教师节', description: '教师节是尊师重教、普及教育的节日。中国的教师节从1985年开始，定为每年的9月10日。' },
+        { date: '2025-09-17', name: '中秋节', description: '中秋节是中国的传统节日，中秋节的月亮是一年中最圆最亮的。' },
+        { date: '2025-10-01', name: '国庆节', description: '国庆节是中华人民共和国成立的纪念日，定为每年的10月1日。' },
+        { date: '2025-10-21', name: '重阳节', description: '重阳节，又称登高节、重九节，为每年农历九月初九，是中国传统节日。' },
+        { date: '2025-12-25', name: '圣诞节', description: '圣诞节是基督教传统节日，在每年12月25日，庆祝耶稣基督的诞生。' }
+      ]
     };
   },
   computed: {
@@ -210,6 +246,18 @@ export default {
     this.fetchCalendarData();
   },
   methods: {
+    isHoliday(date) {
+      return this.holidays.some(holiday => holiday.date === date);
+    },
+    getHoliday(date) {
+      return this.holidays.find(holiday => holiday.date === date);
+    },
+    showHolidayDetail(holiday) {
+      this.selectedHoliday = holiday;
+    },
+    closeHolidayDetail() {
+      this.selectedHoliday = null;
+    },
     getCurrentDate() {
       const now = new Date();
       return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
@@ -388,6 +436,12 @@ export default {
     selectDate(date) {
       this.selectedDate = date;
       this.fetchDayData(date);
+      
+      // 如果是节假日，显示节假日详情
+      const holiday = this.getHoliday(date);
+      if (holiday) {
+        this.showHolidayDetail(holiday);
+      }
     },
     
     async fetchDayData(date) {
@@ -927,6 +981,7 @@ export default {
   background: linear-gradient(135deg, #f0f7fa 0%, #f8fbf4 100%);
   min-height: 100vh;
   color: #424242;
+  border-radius: 20px;
 }
 
 .calendar-header {
@@ -1137,16 +1192,42 @@ export default {
   background: linear-gradient(135deg, rgba(33, 150, 243, 0.05) 0%, rgba(76, 175, 80, 0.05) 100%);
 }
 
+/* 新增样式：节假日日期的样式 */
+.calendar-day.holiday {
+  background-color: rgba(255, 152, 0, 0.1);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.calendar-day.holiday .holiday-name {
+  color: #ff6d00;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 2px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: rgba(255, 152, 0, 0.15);
+  border-radius: 10px;
+  padding: 2px 4px;
+}
+
+/* 新增样式：日期和任务点在同一行 */
+.day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
 .task-dots {
   display: flex;
-  justify-content: center;
-  gap: 3px;
-  margin: 4px 0;
+  gap: 2px;
 }
 
 .task-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
 }
 
@@ -1166,7 +1247,6 @@ export default {
 .day-number {
   font-size: 18px;
   font-weight: 700;
-  margin-bottom: 6px;
   color: #424242;
 }
 
@@ -1175,6 +1255,7 @@ export default {
   flex-direction: column;
   gap: 5px;
   font-size: 12px;
+  margin-top: auto;
 }
 
 .task-indicator {
@@ -1274,6 +1355,54 @@ export default {
   height: 3px;
   background: linear-gradient(90deg, #2e7d32, #4caf50);
   border-radius: 3px;
+}
+
+/* 新增样式：节假日详情样式 */
+.holiday-info {
+  background-color: rgba(255, 152, 0, 0.1);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-left: 4px solid #ff9800;
+}
+
+.holiday-info h3 {
+  color: #ff6d00;
+  font-size: 18px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.holiday-info h3::before {
+  content: '🎉';
+  margin-right: 8px;
+}
+
+.holiday-info p {
+  color: #5d4037;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+
+.close-btn {
+  background-color: #ff9800;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+  display: block;
+  margin-left: auto;
+}
+
+.close-btn:hover {
+  background-color: #ff6d00;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(255, 152, 0, 0.3);
 }
 
 .day-tasks, .day-posts, .day-thoughts {
@@ -1632,6 +1761,10 @@ li.system-task {
   
   .day-indicators {
     font-size: 9px;
+  }
+  
+  .day-header {
+    flex-wrap: wrap;
   }
 }
 </style> 
