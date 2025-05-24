@@ -319,32 +319,89 @@ router.get('/ai-analysis', auth, async (req, res) => {
     
     try {
       // 尝试调用AI分析
-      console.log('开始调用DeepSeek API');
+      console.log('开始AI智能分析，用户ID:', req.user.id);
+      
+      // 获取已完成和未完成任务的标题和描述，最多各5条
+      const completedTasksList = tasks.filter(task => task.completed).slice(0, 5).map(task => `- ${task.title}${task.description ? `：${task.description}` : ''}`);
+      const pendingTasksList = tasks.filter(task => !task.completed).slice(0, 5).map(task => `- ${task.title}${task.description ? `：${task.description}` : ''}`);
       
       const prompt = `
-作为一个任务管理应用的AI助手，请分析以下数据，并提供简短的总结和建议：
+作为一个任务管理应用的AI助手，请根据以下数据，进行分析，并给出具体、可执行的建议：
 
-已完成任务数量: ${completedTasksCount}
-待办任务数量: ${pendingTasksCount}
+已完成任务（最多5条）：
+${completedTasksList.length > 0 ? completedTasksList.join('\n') : '无'}
+
+待办任务（最多5条）：
+${pendingTasksList.length > 0 ? pendingTasksList.join('\n') : '无'}
+
 任务完成率: ${completionRate}%
-高优先级未完成任务: ${importantPendingCount}
+高优先级未完成任务数: ${importantPendingCount}
 用户植物名称: ${mainPlantName}
 
-请以以下格式提供分析:
-总体评价: (简短的总体评价)
-成就和进步: (列出用户的成就)
-改进建议: (1-2条建议)
-下一步行动: (1条具体行动建议)
-`;
+请以纯文本形式输出分析内容，不要使用Markdown、XML或其他格式。确保每一项建议都结合实际任务内容，具有明确的行动方向，避免泛泛而谈。
+
+总体评价
+简要评价本周任务完成情况，指出亮点和不足。不要使用特殊符号或标记。
+
+成就和进步
+具体列举本周取得的成就，如完成了哪些重要任务、达成了哪些目标。保持纯文本描述。
+
+改进建议
+给出1-2条具体、可操作的建议，例如：优先完成哪些高优先级任务、如何优化时间安排、如何拆分大任务、如何减少拖延等。建议要结合当前未完成任务的实际情况。
+
+下一步行动
+给出1条明确的下一步行动计划，例如：明天优先完成某个高优先级任务，或为所有待办任务设定截止日期等。
+
+请确保建议具有针对性和可执行性，避免空泛和重复。输出应为纯文本，不包含任何特殊格式。`;
       
-      // 调用AI生成分析
-      const aiResponseText = await deepSeekClient.generateText({ prompt, max_tokens: 500 });
-      aiResponse = parseAIResponse(aiResponseText);
+      let aiResponseText;
+      const maxRetries = 3;
+      let retryCount = 0;
+      
+      while (retryCount < maxRetries) {
+        try {
+          console.log(`尝试调用DeepSeek API，第 ${retryCount + 1} 次`);
+          aiResponseText = await deepSeekClient.generateText({ 
+            prompt, 
+            max_tokens: 500,
+            timeout: 30000  // 增加超时时间
+          });
+          
+          // 如果成功获取响应，跳出重试循环
+          break;
+        } catch (apiError) {
+          console.error(`第 ${retryCount + 1} 次DeepSeek API调用失败:`, apiError.message);
+          retryCount++;
+          
+          // 如果是最后一次重试，仍然失败，则使用备用方案
+          if (retryCount >= maxRetries) {
+            console.warn('DeepSeek API多次调用失败，将使用备用分析方案');
+            break;
+          }
+          
+          // 简单的指数退避策略
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
+        }
+      }
+      
+      // 如果重试后仍未获得响应，使用备用分析
+      if (!aiResponseText) {
+        console.log('使用备用分析方案');
+        aiResponse = generateFallbackAnalysis(analysisData);
+      } else {
+        aiResponse = parseAIResponse(aiResponseText);
+      }
       
     } catch (error) {
-      console.log('调用DeepSeek API失败:', error);
-      // 如果AI调用失败，使用备用分析
-      console.log('使用备用分析方案');
+      console.error('AI分析处理过程中发生错误:', error);
+      // 记录详细的错误信息
+      console.error('错误详情:', {
+        errorName: error.name,
+        errorMessage: error.message,
+        errorStack: error.stack
+      });
+      
+      // 如果发生任何未预料的错误，使用备用分析
       aiResponse = generateFallbackAnalysis(analysisData);
     }
     
