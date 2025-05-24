@@ -18,12 +18,18 @@ jobs:
       - name: 设置Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '16'  # 降级到Node.js 16，因为有些依赖对Node.js 18不兼容
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'  # 使用官方npm registry
 
-      - name: 安装依赖
-        run: npm ci
+      - name: 清除npm缓存
+        run: npm cache clean --force
       
+      - name: 安装依赖
+        run: npm install  # 使用npm install代替npm ci
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"  # 增加内存限制
+          
       - name: 构建项目
         run: npm run build
         
