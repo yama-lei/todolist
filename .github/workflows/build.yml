@@ -20,18 +20,26 @@ jobs:
         with:
           node-version: '16'  # 降级到Node.js 16，因为有些依赖对Node.js 18不兼容
           cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'  # 使用官方npm registry
 
-      - name: 清除npm缓存
-        run: npm cache clean --force
+      - name: 移除package-lock.json
+        run: rm -f package-lock.json
+        
+      - name: 配置npm使用官方源
+        run: |
+          npm config set registry https://registry.npmjs.org/
+          npm config set strict-ssl false
+          npm config set legacy-peer-deps true
       
       - name: 安装依赖
-        run: npm install  # 使用npm install代替npm ci
+        run: |
+          npm install --no-package-lock --force
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"  # 增加内存限制
           
       - name: 构建项目
         run: npm run build
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"  # 增加内存限制
         
       - name: 部署到GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
