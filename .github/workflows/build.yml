@@ -1,1 +1,35 @@
- 
+name: 构建并部署到GitHub Pages
+
+on:
+  push:
+    branches:
+      - main  # 设置要触发部署的分支
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 安装依赖
+        run: npm ci
+      
+      - name: 构建项目
+        run: npm run build
+        
+      - name: 部署到GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: docs  # Vue.config.js中已配置输出到docs目录
+          branch: gh-pages  # 部署到这个分支
+          clean: true  # 清除旧的构建文件 
