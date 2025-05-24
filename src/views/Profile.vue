@@ -105,6 +105,7 @@
                   <el-option label="男" value="male" />
                   <el-option label="女" value="female" />
                   <el-option label="保密" value="secret" />
+                  <el-option label="武装直升机" value="gunship" />
                 </el-select>
               </el-form-item>
               <el-form-item label="生日" class="form-item-animated">

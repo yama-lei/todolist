@@ -45,10 +45,10 @@
             />
           </el-form-item>
           
-          <div class="form-options">
+          <!--           <div class="form-options">
             <el-checkbox v-model="formModel.remember" size="large">记住我</el-checkbox>
             <router-link to="/forgot-password" class="forgot-link">忘记密码?</router-link>
-          </div>
+          </div>-->
           
           <el-form-item>
             <el-button 

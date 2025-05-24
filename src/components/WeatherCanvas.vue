@@ -81,7 +81,7 @@ const createBackgroundGradient = () => {
 // 雨天效果
 const initRain = () => {
   // 雨滴数量和类型
-  const raindropsCount = 180
+  const raindropsCount = 20
   
   for (let i = 0; i < raindropsCount; i++) {
     const isSplash = Math.random() > 0.9
@@ -130,21 +130,35 @@ const initSun = () => {
     pulseSpeed: 0.03
   })
   
-  // 光点
+  // 光点 - 减少数量从40降至15，并使它们主要出现在太阳周围
   for (let i = 0; i < 40; i++) {
+    // 让大部分光点靠近太阳周围
+    let x, y;
+    if (i < 10) {
+      // 70%的光点集中在太阳周围
+      const angle = Math.random() * Math.PI * 2;
+      const distance = props.width * 0.1 + Math.random() * props.width * 0.3;
+      x = props.width * 0.75 + Math.cos(angle) * distance;
+      y = props.height * 0.25 + Math.sin(angle) * distance;
+    } else {
+      // 30%的光点随机分布
+      x = Math.random() * props.width;
+      y = Math.random() * props.height;
+    }
+    
     particles.push({
       type: 'sparkle',
-      x: Math.random() * props.width,
-      y: Math.random() * props.height,
-      radius: Math.random() * 3 + 1,
-      alpha: Math.random() * 0.5 + 0.3,
-      speed: Math.random() * 0.5 + 0.2,
+      x: x,
+      y: y,
+      radius: Math.random() * 2 + 0.5, // 减小光点大小
+      alpha: Math.random() * 0.3 + 0.1, // 降低透明度
+      speed: Math.random() * 0.3 + 0.1, // 降低移动速度
       pulse: Math.random() * Math.PI * 2
     })
   }
   
   // 小云朵装饰
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     particles.push({
       type: 'smallCloud',
       x: Math.random() * props.width,
@@ -414,39 +428,46 @@ const updateSun = () => {
       // 更新太阳旋转
       sun.rotation += sun.rotationSpeed * (1 + Math.sin(sun.pulse * 0.3) * 0.1)
     } else if (particle.type === 'sparkle') {
-      // 更新漂浮光点 - 增强星光闪烁效果
+      // 更新漂浮光点 - 减弱星光闪烁效果
       const sparkle = particle
-      sparkle.pulse += 0.08 + Math.random() * 0.02
+      sparkle.pulse += 0.05 + Math.random() * 0.01 // 减慢脉动速度
       
-      // 更有变化的闪烁
-      const alphaFactor = 0.5 + Math.sin(sparkle.pulse) * 0.5
+      // 更柔和的闪烁
+      const alphaFactor = 0.3 + Math.sin(sparkle.pulse) * 0.3 // 减弱闪烁变化
       
       // 不同亮度的星光
-      if (Math.random() > 0.97) {
-        // 偶尔出现更亮的闪烁
-        ctx.fillStyle = `rgba(255, 255, 250, ${sparkle.alpha * 1.5})`
-        ctx.shadowColor = 'rgba(255, 255, 200, 0.8)'
-        ctx.shadowBlur = 5
+      if (Math.random() > 0.98) {
+        // 更少的亮闪烁概率
+        ctx.fillStyle = `rgba(255, 255, 200, ${sparkle.alpha * 1.2})`
+        ctx.shadowColor = 'rgba(255, 255, 180, 0.6)'
+        ctx.shadowBlur = 3
       } else {
         ctx.fillStyle = `rgba(255, 255, 220, ${sparkle.alpha * alphaFactor})`
         ctx.shadowBlur = 0
       }
       
       ctx.beginPath()
-      ctx.arc(sparkle.x, sparkle.y, sparkle.radius * (0.8 + alphaFactor * 0.4), 0, Math.PI * 2)
+      ctx.arc(sparkle.x, sparkle.y, sparkle.radius * (0.7 + alphaFactor * 0.3), 0, Math.PI * 2)
       ctx.fill()
       
       // 重置阴影
       ctx.shadowBlur = 0
       
-      // 光点移动路径更自然（轻微的正弦波动）
-      sparkle.y += sparkle.speed
-      sparkle.x += Math.sin(sparkle.pulse * 0.2) * 0.3
+      // 光点移动路径更温和
+      sparkle.y += sparkle.speed * 0.8
+      sparkle.x += Math.sin(sparkle.pulse * 0.1) * 0.2
       
-      // 重置到顶部
+      // 重置到顶部，但增加一些随机性使其不像下雪
       if (sparkle.y > props.height) {
-        sparkle.y = 0
-        sparkle.x = Math.random() * props.width
+        sparkle.y = -sparkle.radius * 2;
+        // 大部分光点重置到太阳周围
+        if (Math.random() > 0.3) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = props.width * 0.1 + Math.random() * props.width * 0.3;
+          sparkle.x = props.width * 0.75 + Math.cos(angle) * distance;
+        } else {
+          sparkle.x = Math.random() * props.width;
+        }
       }
     } else if (particle.type === 'smallCloud') {
       // 绘制小云朵
