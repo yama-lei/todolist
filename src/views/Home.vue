@@ -84,34 +84,38 @@
                           class="task-item"
                           :class="{'important': task.important}"
                         >
-                          <div class="task-checkbox">
-                            <el-checkbox @change="() => completeTask(task._id)"></el-checkbox>
+                          <div class="task-left">
+                            <div class="task-checkbox">
+                              <el-checkbox @change="() => completeTask(task._id)"></el-checkbox>
+                            </div>
+                            <div class="drag-handle">
+                              <el-icon><Menu /></el-icon>
+                            </div>
+                            <div class="task-info" @click="editTask(task)">
+                              <div class="task-title-row">
+                                <h3 class="task-title">{{ task.title }}</h3>
+                              </div>
+                              <p class="task-description">{{ task.description }}</p>
+                              <div class="task-footer">
+                                <div v-if="task.deadline" class="task-deadline">
+                                  <el-tag type="info" size="small">
+                                    <el-icon><Clock /></el-icon>
+                                    {{ formatDeadline(task.deadline) }}
+                                  </el-tag>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <div class="drag-handle">
-                            <el-icon><Menu /></el-icon>
-                          </div>
-                          <div class="task-info" @click="editTask(task)">
-                            <div class="task-title-row">
-                              <h3 class="task-title">{{ task.title }}</h3>
+                          <div class="task-right">
+                            <div class="task-actions">
                               <div class="star-icon" @click.stop="toggleImportant(task._id)">
-                                <el-icon :color="task.important ? '#F7BA2A' : '#DCDFE6'">
+                                <el-icon :color="task.important ? '#F7BA2A' : '#DCDFE6'" :size="20">
                                   <Star :filled="task.important" />
                                 </el-icon>
                               </div>
-                            </div>
-                            <p class="task-description">{{ task.description }}</p>
-                            <div class="task-footer">
-                              <div v-if="task.deadline" class="task-deadline">
-                                <el-tag type="info" size="small">
-                                  <el-icon><Clock /></el-icon>
-                                  {{ formatDeadline(task.deadline) }}
-                                </el-tag>
-                              </div>
-                              <div class="task-actions">
-                                <el-button type="danger" size="small" circle @click.stop="removeTask(task._id)">
-                                  <el-icon><Delete /></el-icon>
-                                </el-button>
-                              </div>
+                              <el-button type="danger" size="small" circle @click.stop="removeTask(task._id)">
+                                <el-icon><Delete /></el-icon>
+                              </el-button>
                             </div>
                           </div>
                         </div>
@@ -140,16 +144,25 @@
                      class="task-item system-task"
                      :class="{ 'completed': task.completed }"
                    >
-                     <div class="task-checkbox">
-                       <el-checkbox 
-                         :modelValue="task.completed"
-                         @change="() => completeSystemTask(task._id)"
-                         :disabled="task.completed">
-                       </el-checkbox>
+                     <div class="task-left">
+                       <div class="task-checkbox">
+                         <el-checkbox 
+                           :modelValue="task.completed"
+                           @change="() => completeSystemTask(task._id)"
+                           :disabled="task.completed">
+                         </el-checkbox>
+                       </div>
+                       <div class="task-info" @click="task.completed ? null : viewSystemTask(task)">
+                         <h3 class="task-title">{{ task.title }}</h3>
+                         <p class="task-description">{{ task.description }}</p>
+                       </div>
                      </div>
-                     <div class="task-info" @click="task.completed ? null : viewSystemTask(task)">
-                       <h3 class="task-title">{{ task.title }}</h3>
-                       <p class="task-description">{{ task.description }}</p>
+                     <div class="task-right">
+                       <div class="task-actions">
+                         <el-button v-if="!task.completed" type="primary" size="small" circle @click.stop="completeSystemTask(task._id)">
+                           <el-icon><Check /></el-icon>
+                         </el-button>
+                       </div>
                      </div>
                    </div>
                  </div>
@@ -176,33 +189,37 @@
                         class="task-item completed"
                         :class="{'important': task.important}"
                       >
-                        <div class="task-checkbox">
-                          <el-checkbox :modelValue="true" disabled></el-checkbox>
+                        <div class="task-left">
+                          <div class="task-checkbox">
+                            <el-checkbox :modelValue="true" disabled></el-checkbox>
+                          </div>
+                          <div class="task-info" @click="viewCompletedTask(task)">
+                            <div class="task-title-row">
+                              <h3 class="task-title">{{ task.title }}</h3>
+                            </div>
+                            <p class="task-description">{{ task.description }}</p>
+                            <div class="task-footer">
+                              <div v-if="task.deadline" class="task-deadline">
+                                <el-tag type="info" size="small">
+                                  <el-icon><Clock /></el-icon>
+                                  {{ formatDeadline(task.deadline) }}
+                                </el-tag>
+                              </div>
+                              <div class="task-completed-time">
+                                完成于: {{ formatDate(task.completedAt) }}
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div class="task-info" @click="viewCompletedTask(task)">
-                          <div class="task-title-row">
-                            <h3 class="task-title">{{ task.title }}</h3>
+                        <div class="task-right">
+                          <div class="task-actions">
                             <div class="star-icon" v-if="task.important">
-                              <el-icon color="#BDBDBD"><Star filled /></el-icon>
+                              <el-icon color="#BDBDBD" :size="20"><Star filled /></el-icon>
                             </div>
+                            <el-button type="danger" size="small" circle @click.stop="removeCompletedTask(task._id)">
+                              <el-icon><Delete /></el-icon>
+                            </el-button>
                           </div>
-                          <p class="task-description">{{ task.description }}</p>
-                          <div class="task-footer">
-                            <div v-if="task.deadline" class="task-deadline">
-                              <el-tag type="info" size="small">
-                                <el-icon><Clock /></el-icon>
-                                {{ formatDeadline(task.deadline) }}
-                              </el-tag>
-                            </div>
-                            <div class="task-completed-time">
-                              完成于: {{ formatDate(task.completedAt) }}
-                            </div>
-                          </div>
-                        </div>
-                        <div class="task-actions">
-                          <el-button type="danger" size="small" circle @click.stop="removeCompletedTask(task._id)">
-                            <el-icon><Delete /></el-icon>
-                          </el-button>
                         </div>
                       </div>
                     </div>
@@ -572,7 +589,7 @@ import { useTaskStore } from '../stores/task'
 import { usePlantStore } from '../stores/plant'
 import { format, formatDistance } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { Plus, Delete, Magic, ChatDotRound, Refresh, ArrowDown, Star, Clock, Menu, Close, DataAnalysis, Trophy, Lightning, Connection, ChatLineRound } from '@element-plus/icons-vue'
+import { Plus, Delete, Magic, ChatDotRound, Refresh, ArrowDown, Star, Clock, Menu, Close, DataAnalysis, Trophy, Lightning, Connection, ChatLineRound, Check } from '@element-plus/icons-vue'
 import WeatherCanvas from '@/components/WeatherCanvas.vue'
 import PlantDialog from '@/components/PlantDialog.vue'
 import draggable from 'vuedraggable'
@@ -617,7 +634,8 @@ export default {
     Trophy,
     Lightning,
     Connection,
-    ChatLineRound
+    ChatLineRound,
+    Check
   },
   setup() {
     const router = useRouter()
@@ -761,10 +779,14 @@ export default {
     // 个人任务（可排序）
     const sortableTasks = computed({
       get: () => {
-        return taskStore.pendingTasks.map(task => ({
-          ...task,
-          important: task.important || false
-        }))
+        return taskStore.pendingTasks.map(task => {
+          // 确保important是布尔类型
+          const importantBool = task.important === true || task.important === 'true'
+          return {
+            ...task,
+            important: importantBool
+          }
+        })
       },
       set: (value) => {
         taskStore.reorderTasks(value)
@@ -1929,6 +1951,7 @@ export default {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
   display: flex;
   align-items: flex-start;
+  justify-content: space-between;
   gap: 10px;
   transition: all 0.2s ease;
   border-left: 3px solid #409EFF;
@@ -1956,8 +1979,23 @@ export default {
   opacity: 0.85;
 }
 
+.task-left {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.task-right {
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+}
+
 .task-checkbox {
   padding-top: 2px;
+  flex-shrink: 0;
 }
 
 .drag-handle {
@@ -1965,10 +2003,17 @@ export default {
   color: #c0c4cc;
   padding: 2px;
   margin-right: -4px;
+  flex-shrink: 0;
 }
 
 .drag-handle:hover {
   color: #606266;
+}
+
+.task-info {
+  flex: 1;
+  min-width: 0; /* 确保弹性项可以缩小到比内容宽度更小 */
+  overflow: hidden;
 }
 
 .task-title-row {
@@ -1984,6 +2029,9 @@ export default {
   font-weight: 600;
   color: #303133;
   line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .task-description {
@@ -2001,7 +2049,6 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 6px;
   gap: 8px;
   flex-wrap: wrap;
 }
@@ -2011,14 +2058,31 @@ export default {
   color: #909399;
 }
 
-.task-reward {
-  margin-top: 4px;
-}
-
 .task-completed-time {
   margin-top: 4px;
   font-size: 12px;
   color: #909399;
+}
+
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.star-icon {
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.star-icon:hover {
+  background-color: rgba(247, 186, 42, 0.1);
+  transform: scale(1.1);
 }
 
 /* 底部固定添加任务按钮 */

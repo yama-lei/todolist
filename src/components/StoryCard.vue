@@ -61,10 +61,9 @@ const props = defineProps({
   transform: translateY(-4px);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
-
 .image-container {
   flex: 0 0 180px;
-  height: 180px;
+  aspect-ratio: 1;
   border-radius: 8px;
   overflow: hidden;
   position: relative;
@@ -73,7 +72,7 @@ const props = defineProps({
 .image-container img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transition: transform 0.3s ease;
 }
 

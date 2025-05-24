@@ -8,16 +8,16 @@
       <!-- 添加视频背景 -->
       <div class="video-background">
         <video autoplay muted loop playsinline>
-          <source src="@/assets/videos/bg1.mp4" type="video/mp4">
+          <source src="https://yamapicgo.oss-cn-nanjing.aliyuncs.com/picgoImage/bg2.mp4" type="video/mp4">
         </video>
       </div>
       
       <el-container class="main-container">
         <!-- 侧边栏 -->
-        <el-aside width="220px" class="sidebar">
+        <el-aside width="240px" class="sidebar">
           <div class="logo-container">
             <div class="logo">
-              <img src="https://yamapicgo.oss-cn-nanjing.aliyuncs.com/picgoImage/icon-rmbg.png" alt="logo" class="logo-image">
+              <img src="https://yamapicgo.oss-cn-nanjing.aliyuncs.com/picgoImage/logo.png" alt="logo" class="logo-image">
               <span>植语心声</span>
             </div>
           </div>
@@ -38,10 +38,10 @@
               <el-icon><PriceTag /></el-icon>
               <span>植物花园</span>
             </el-menu-item>
-            <el-menu-item index="/plant-voice">
+            <!--?            <el-menu-item index="/plant-voice">
               <el-icon><ChatDotRound /></el-icon>
               <span>植物心声</span>
-            </el-menu-item>
+            </el-menu-item>-->
             <el-menu-item index="/plant-chat">
               <el-icon><ChatLineRound /></el-icon>
               <span>心灵树洞</span>
@@ -58,7 +58,7 @@
           
           <div class="user-panel">
             <div class="user-info" @click="showUserMenu = !showUserMenu">
-              <el-avatar :size="32" :src="userAvatar"></el-avatar>
+              <el-avatar :size="36" :src="userAvatar"></el-avatar>
               <span class="username">{{ username }}</span>
               <el-icon><CaretTop :class="{ 'rotate-icon': showUserMenu }" /></el-icon>
             </div>
@@ -68,10 +68,10 @@
                 <el-icon><User /></el-icon>
                 <span>个人资料</span>
               </div>
-              <div class="dropdown-item" @click="goToSettings">
+<!--              <div class="dropdown-item" @click="goToSettings">
                 <el-icon><Setting /></el-icon>
                 <span>设置</span>
-              </div>
+              </div>-->
               <div class="dropdown-item logout" @click="handleLogout">
                 <el-icon><SwitchButton /></el-icon>
                 <span>退出登录</span>
@@ -268,34 +268,39 @@ body {
 
 /* 侧边栏样式 */
 .sidebar {
-  background-color: #fff;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   height: 100vh;
   position: fixed;
   left: 0;
   top: 0;
   z-index: 100;
-  border-right: 1px solid #ebeef5;
+  border-right: 1px solid rgba(235, 238, 245, 0.5);
   display: flex;
   flex-direction: column;
-  width: 220px; /* 明确指定侧边栏宽度 */
+  width: 240px; /* 增加侧边栏宽度 */
+  transition: all 0.3s ease;
+  overflow: hidden;
 }
 
 /* Logo容器 */
 .logo-container {
-  height: 60px;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid rgba(240, 240, 240, 0.6);
+  margin-bottom: 10px;
 }
 
 .logo {
   display: flex;
   align-items: center;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
-  color: #4caf50;
+  color: #42b983;
+  letter-spacing: 1px;
 }
 
 .logo .el-icon {
@@ -303,18 +308,55 @@ body {
   font-size: 24px;
 }
 
+.logo-image {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  margin-right: 10px;
+}
+
 /* 垂直菜单 */
 .el-menu-vertical {
   border-right: none;
   flex: 1;
+  padding: 15px 0;
+  background-color: transparent;
+}
+
+.el-menu-vertical .el-menu-item {
+  height: 50px;
+  line-height: 50px;
+  margin: 5px 14px;
+  border-radius: 8px;
+  color: #606266;
+  font-size: 15px;
+  transition: all 0.3s ease;
+}
+
+.el-menu-vertical .el-menu-item:hover {
+  background-color: rgba(66, 185, 131, 0.1);
+  color: #42b983;
+}
+
+.el-menu-vertical .el-menu-item.is-active {
+  background-color: rgba(66, 185, 131, 0.15);
+  color: #42b983;
+  font-weight: 500;
+}
+
+.el-menu-vertical .el-menu-item .el-icon {
+  margin-right: 12px;
+  color: inherit;
+  font-size: 18px;
+  transition: all 0.2s ease;
 }
 
 /* 主内容区域 */
 .el-main {
-  padding: 20px;
-  margin-left: 220px; /* 与侧边栏宽度对应 */
+  padding: 25px;
+  margin-left: 240px; /* 与侧边栏宽度对应 */
   min-height: 100vh;
-  width: calc(100% - 220px); /* 减去侧边栏宽度 */
+  width: calc(100% - 240px); /* 减去侧边栏宽度 */
   position: relative;
   z-index: 1;
 }
@@ -322,32 +364,34 @@ body {
 /* 用户面板 */
 .user-panel {
   margin-top: auto;
-  padding: 16px;
-  border-top: 1px solid #f0f0f0;
+  padding: 18px 16px;
+  border-top: 1px solid rgba(240, 240, 240, 0.6);
   position: relative;
+  margin-top: 15px;
 }
 
 .user-info {
   display: flex;
   align-items: center;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 4px;
-  transition: background-color 0.3s;
+  padding: 10px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
 }
 
 .user-info:hover {
-  background-color: #f5f7fa;
+  background-color: rgba(66, 185, 131, 0.08);
 }
 
 .username {
-  margin: 0 8px;
+  margin: 0 10px;
   flex: 1;
-  font-size: 14px;
+  font-size: 15px;
   color: #333;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 500;
 }
 
 .rotate-icon {
@@ -362,27 +406,28 @@ body {
   left: 0;
   right: 0;
   background-color: #fff;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
   margin: 0 16px 8px;
   overflow: hidden;
   z-index: 100;
+  border: 1px solid rgba(240, 240, 240, 0.8);
 }
 
 .dropdown-item {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
+  padding: 14px 16px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
 }
 
 .dropdown-item:hover {
-  background-color: #f5f7fa;
+  background-color: rgba(66, 185, 131, 0.08);
 }
 
 .dropdown-item .el-icon {
-  margin-right: 8px;
+  margin-right: 10px;
   font-size: 18px;
   color: #606266;
 }
@@ -393,7 +438,7 @@ body {
 }
 
 .dropdown-item.logout {
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid rgba(240, 240, 240, 0.8);
 }
 
 .dropdown-item.logout .el-icon,
@@ -416,11 +461,6 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.3;
-}
-.logo-image {
-  width: 30%;
-  height: 30%;
-  object-fit: cover;
+  opacity: 0.5;
 }
 </style>

@@ -10,14 +10,14 @@ const routes = [
       requiresAuth: true
     }
   },
-  {
+/**  {
     path: '/plant-voice',
     name: 'PlantVoice',
     component: () => import('../views/PlantVoice.vue'),
     meta: {
       requiresAuth: true
     }
-  },
+  }, */
   {
     path: '/posts',
     name: 'Posts',

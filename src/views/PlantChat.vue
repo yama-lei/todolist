@@ -3,7 +3,7 @@
     <div class="container">
       <div class="plant-chat-header card">
         <div class="plant-avatar">
-          <span class="plant-emoji">{{ getPlantEmoji() }}</span>
+          <img :src="getPlantImage(plantStore.currentPlant)" class="plant-image" alt="植物图片" />
         </div>
         <div class="plant-info">
           <h2>与{{ plantStore.currentPlant ? plantStore.currentPlant.name : '植物' }}对话</h2>
@@ -45,7 +45,7 @@
                   <el-avatar :size="40" :src="userAvatar" />
                 </span>
                 <span v-else class="plant-message-avatar">
-                  {{ getPlantEmoji() }}
+                  <img :src="getPlantImage(plantStore.currentPlant)" class="plant-chat-image" alt="植物图片" />
                 </span>
               </div>
               <div class="message-bubble">
@@ -136,6 +136,23 @@ import { format } from 'date-fns'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Position } from '@element-plus/icons-vue'
 
+// 导入植物图片
+import plant1Level1 from '@/assets/images/plant/1-1.png'
+import plant1Level2 from '@/assets/images/plant/1-2.png'
+import plant1Level3 from '@/assets/images/plant/1-3.png'
+import plant2Level1 from '@/assets/images/plant/2-1.png'
+import plant2Level2 from '@/assets/images/plant/2-2.png'
+import plant2Level3 from '@/assets/images/plant/2-3.png'
+import plant3Level1 from '@/assets/images/plant/3-1.png'
+import plant3Level2 from '@/assets/images/plant/3-2.png'
+import plant3Level3 from '@/assets/images/plant/3-3.png'
+import plant4Level1 from '@/assets/images/plant/4-1.png'
+import plant4Level2 from '@/assets/images/plant/4-2.png'
+import plant4Level3 from '@/assets/images/plant/4-3.png'
+import plant5Level1 from '@/assets/images/plant/5-1.png'
+import plant5Level2 from '@/assets/images/plant/5-2.png'
+import plant5Level3 from '@/assets/images/plant/5-3.png'
+
 const plantStore = usePlantStore()
 const authStore = useAuthStore()
 const messagesList = ref(null)
@@ -183,6 +200,56 @@ const conversations = computed(() => {
   }
   return plantStore.conversations
 })
+
+// 植物图片映射
+const plantImages = {
+  '玫瑰': {
+    1: plant1Level1,
+    2: plant1Level2,
+    3: plant1Level3
+  },
+  '仙人掌': {
+    1: plant2Level1,
+    2: plant2Level2,
+    3: plant2Level3
+  },
+  '郁金香': {
+    1: plant3Level1,
+    2: plant3Level2,
+    3: plant3Level3
+  },
+  '白百何': {
+    1: plant4Level1,
+    2: plant4Level2,
+    3: plant4Level3
+  },
+  '向日葵': {
+    1: plant5Level1,
+    2: plant5Level2,
+    3: plant5Level3
+  }
+}
+
+// 获取植物图片
+const getPlantImage = (plant) => {
+  if (!plant || !plant.type) {
+    return plant1Level1 // 返回默认图片
+  }
+
+  const type = plant.type.trim() // 移除可能存在的前后空格
+  const level = plant.level || 1
+  
+  // 检查植物类型和等级限制
+  const clampLevel = Math.min(Math.max(level, 1), 3) // 限制等级在1-3之间
+  
+  // 根据植物类型返回对应图片
+  const plantTypeImages = plantImages[type]
+  if (!plantTypeImages) {
+    return plant1Level1 // 如果找不到对应类型的图片，返回默认图片
+  }
+
+  return plantTypeImages[clampLevel] || plant1Level1 // 如果找不到对应等级的图片，返回默认图片
+}
 
 // 获取植物表情
 const getPlantEmoji = () => {
@@ -571,10 +638,13 @@ onMounted(async () => {
   margin-right: 20px;
   box-shadow: 0 4px 8px rgba(76, 175, 80, 0.2);
   border: 2px solid rgba(76, 175, 80, 0.3);
+  overflow: hidden;
 }
 
-.plant-emoji {
-  font-size: 40px;
+.plant-image {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
 }
 
 .plant-info {
@@ -732,10 +802,16 @@ onMounted(async () => {
   height: 40px;
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(139, 195, 74, 0.2) 100%);
   border-radius: 50%;
-  font-size: 24px;
   border: 2px solid rgba(76, 175, 80, 0.3);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   transition: all 0.3s;
+  overflow: hidden;
+}
+
+.plant-chat-image {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
 }
 
 .plant-message-avatar:hover {

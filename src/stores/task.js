@@ -44,11 +44,14 @@ export const useTaskStore = defineStore('task', () => {
   // 添加任务
   const addTask = async (task) => {
     try {
+      // 确保important是布尔类型
+      const importantBool = task.important === true || task.important === 'true'
+      
       const response = await taskApi.createTask({
         title: task.title,
         description: task.description || '',
         deadline: task.deadline || '',
-        important: task.important || false
+        important: importantBool
       })
       
       // 添加到本地状态
@@ -189,21 +192,50 @@ export const useTaskStore = defineStore('task', () => {
     try {
       const { _id, title, description, deadline, important } = updatedTask
       
+      // 确保important是布尔类型
+      const importantBool = important === true || important === 'true'
+      
+      // 保存更新前的任务状态，以便在请求失败时恢复
+      const originalTaskIndex = tasks.value.findIndex(t => t._id === _id)
+      const originalTask = originalTaskIndex !== -1 ? { ...tasks.value[originalTaskIndex] } : null
+      
+      // 先更新本地状态，让UI立即响应
+      if (originalTaskIndex !== -1) {
+        tasks.value[originalTaskIndex] = { 
+          ...tasks.value[originalTaskIndex],
+          title,
+          description,
+          deadline,
+          important: importantBool
+        }
+      }
+      
+      // 然后发送请求更新服务器状态
       const response = await taskApi.updateTask(_id, {
         title,
         description,
         deadline,
-        important
+        important: importantBool
       })
       
-      // 更新本地状态
-      const index = tasks.value.findIndex(t => t._id === _id)
-      if (index !== -1) {
-        tasks.value[index] = response.task
+      // 如果服务器响应成功，使用服务器返回的数据更新本地状态
+      if (response && response.task) {
+        const finalIndex = tasks.value.findIndex(t => t._id === _id)
+        if (finalIndex !== -1) {
+          tasks.value[finalIndex] = response.task
+        }
       }
       
       ElMessage.success('任务已更新')
     } catch (error) {
+      console.error('更新任务失败:', error)
+      
+      // 如果请求失败，恢复原始状态
+      const failedIndex = tasks.value.findIndex(t => t._id === updatedTask._id)
+      if (failedIndex !== -1 && originalTask) {
+        tasks.value[failedIndex] = originalTask
+      }
+      
       ElMessage.error('更新任务失败')
     }
   }
@@ -212,11 +244,68 @@ export const useTaskStore = defineStore('task', () => {
   const toggleTaskImportance = async (id) => {
     const task = tasks.value.find(t => t._id === id)
     if (task) {
-      await updateTask({
-        ...task,
-        important: !task.important
-      })
+      try {
+        // 先临时更新本地状态，让UI立即响应
+        console.log('切换任务重要性 - 当前状态:', task.important, '类型:', typeof task.important)
+        
+        // 将字符串类型的important转换为布尔类型
+        const currentImportant = task.important === true || task.important === 'true'
+        const newImportantState = !currentImportant
+        console.log('切换任务重要性 - 新状态:', newImportantState)
+        
+        const taskIndex = tasks.value.findIndex(t => t._id === id)
+        if (taskIndex !== -1) {
+          // 创建一个任务的副本并修改其重要性
+          const updatedTask = { ...tasks.value[taskIndex], important: newImportantState }
+          tasks.value[taskIndex] = updatedTask
+        }
+        
+        // 然后发送请求更新服务器状态
+        const response = await taskApi.updateTask(id, {
+          title: task.title,
+          description: task.description,
+          deadline: task.deadline,
+          important: newImportantState
+        })
+        
+        // 如果服务器响应成功，使用服务器返回的数据更新本地状态
+        if (response && response.task) {
+          const finalIndex = tasks.value.findIndex(t => t._id === id)
+          if (finalIndex !== -1) {
+            tasks.value[finalIndex] = response.task
+          }
+        }
+        
+        ElMessage.success(`任务已${newImportantState ? '标记为重要' : '取消重要标记'}`)
+      } catch (error) {
+        console.error('更新任务重要性失败:', error)
+        // 如果请求失败，恢复原始状态
+        const failedIndex = tasks.value.findIndex(t => t._id === id)
+        if (failedIndex !== -1) {
+          // 恢复原始状态，注意保持原来的类型
+          tasks.value[failedIndex] = { ...tasks.value[failedIndex], important: task.important }
+        }
+        ElMessage.error('更新任务重要性失败')
+      }
     }
+  }
+
+  // 重新排序任务
+  const reorderTasks = (newOrder) => {
+    if (!newOrder || !Array.isArray(newOrder)) return;
+    
+    // 确保任务的important字段是正确处理的
+    const processedOrder = newOrder.map(task => {
+      // 处理important字段类型
+      const importantBool = task.important === true || task.important === 'true';
+      return {
+        ...task,
+        important: importantBool
+      }
+    });
+    
+    // 更新任务顺序
+    tasks.value = processedOrder;
   }
 
   return {
@@ -234,6 +323,7 @@ export const useTaskStore = defineStore('task', () => {
     removeTask,
     removeCompletedTask,
     updateTask,
-    toggleTaskImportance
+    toggleTaskImportance,
+    reorderTasks
   }
 }) 

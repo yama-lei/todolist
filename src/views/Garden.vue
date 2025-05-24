@@ -8,13 +8,6 @@
         <p class="garden-description">
           在这里，你可以查看和管理你的植物，打造属于自己的花园。
         </p>
-        <div class="garden-stats">
-          <div class="stats-item plants">
-            <span class="stats-icon">🌱</span>
-            <span class="stats-value">{{ myPlants.length }}</span>
-            <span class="stats-label">植物</span>
-          </div>
-        </div>
       </div>
       
       <div class="garden-content">
@@ -22,7 +15,9 @@
           <div class="section-header">
             <h3 class="section-title">未完成的春天</h3>
           </div>
-          
+          <div class="plant-companionship" v-if="myPlants.length > 0">
+            不知不觉中，植物已经陪伴你{{ plantDays }}天了,陪你完成了{{ completedTasksCount }}个任务
+          </div>
           <div class="empty-garden" v-if="myPlants.length === 0">
             <el-empty description="你的花园还空空如也~">
               <template #image>
@@ -48,7 +43,7 @@
                 <div class="plant-header">
                   <div class="plant-name">{{ plant.name }}</div>
                   <div v-if="plant.isMainPlant" class="main-plant-badge">
-                    <el-tag size="small" type="success" effect="dark">主要植物</el-tag>
+                    <el-tag size="small" type="success" effect="dark">展示植物</el-tag>
                   </div>
                 </div>
                 
@@ -86,28 +81,50 @@
                     >☁️</span>
                   </div>
                 </div>
+                
+                <!-- 添加植物心声显示区 -->
+                <div class="plant-thought-bubble" 
+                  v-if="(plant.id === showingThoughtForPlantId || plant._id === showingThoughtForPlantId) && currentThought">
+                  <div class="thought-bubble-pointer"></div>
+                  <div class="thought-content">
+                    <!-- 已显示的文本 -->
+                    <span v-for="(segment, index) in displayedSegments" :key="index" class="message-segment">
+                      {{ segment }}
+                    </span>
+                    <!-- 当前正在打字的文本 -->
+                    <span class="typing-segment">{{ currentTypingText }}</span>
+                    <!-- 打字指示器 -->
+                    <span v-if="isTyping" class="typing-cursor">|</span>
+                  </div>
+                  <div class="thought-time">{{ formatThoughtTime(currentThought.timestamp) }}</div>
+                </div>
+
+                <!-- 添加回植物介绍文本 -->
+                <div class="plant-introduction">
+                  <div class="intro-title">植物介绍</div>
+                  <div class="intro-text">{{ getPlantIntroduction(plant.type) }}</div>
+                </div>
               </div>
               
               <div class="plant-actions">
-                <el-button size="small" type="primary" @click="showDialog(plant)">
-                  <span class="button-icon">💬</span>聆听心声
-                </el-button>
-                <el-button 
-                  size="small" 
-                  type="success" 
-                  plain
+                <button class="custom-btn listen-btn" @click="listenToPlantThought(plant)">
+                  <span class="btn-icon">💬</span>
+                  <span class="btn-text">聆听心声</span>
+                </button>
+                <button 
+                  class="custom-btn main-btn" 
                   @click="setAsMainPlant(plant)"
                   :disabled="plant.isMainPlant"
+                  :class="{ 'disabled': plant.isMainPlant }"
                 >
-                  <span class="button-icon">⭐</span>设为主植物
-                </el-button>
+                  <span class="btn-icon">⭐</span>
+                  <span class="btn-text">设为展示植物</span>
+                </button>
               </div>
             </div>
           </div>
           
-          <div class="plant-companionship" v-if="myPlants.length > 0">
-            不知不觉中，植物已经陪伴你{{ plantDays }}天了,陪你完成了{{ completedTasksCount }}个任务
-          </div>
+
         </div>
       </div>
     </div>
@@ -122,13 +139,15 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useCurrencyStore } from '../stores/currency'
 import { usePlantStore } from '../stores/plant'
 import { useTaskStore } from '../stores/task'
 import { ElMessage } from 'element-plus'
 import WeatherCanvas from '@/components/WeatherCanvas.vue'
 import PlantDialog from '@/components/PlantDialog.vue'
+import { format, formatDistance } from 'date-fns'
+import zhCN from 'date-fns/locale/zh-CN'
 
 // 导入植物图片
 import plant1Level1 from '@/assets/images/plant/1-1.png'
@@ -162,6 +181,150 @@ export default {
     const showPlantThoughtDialog = ref(false)
     const searchPlant = ref('')
     
+    // 植物心声相关变量
+    const showingThoughtForPlantId = ref(null)
+    const currentThought = ref(null)
+    const displayedSegments = ref([])
+    const currentTypingText = ref('')
+    const isTyping = ref(false)
+    const typeInterval = ref(null)
+    const typingSpeed = 50 // 打字速度(毫秒/字符)
+    const segmentDelay = 1000 // 段落之间的延迟(毫秒)
+    
+    // 将消息拆分为段落
+    const splitMessageIntoSegments = (message) => {
+      if (!message) return []
+      // 按双换行或单换行分割
+      return message.split(/\n\n|\n/).filter(segment => segment.trim() !== '')
+    }
+    
+    // 开始打字效果
+    const startTypingEffect = (message) => {
+      // 停止任何正在进行的打字效果
+      stopTypingEffect()
+      
+      // 如果消息为空，直接返回
+      if (!message) {
+        return
+      }
+      
+      try {
+        // 重置状态
+        displayedSegments.value = []
+        currentTypingText.value = ''
+        isTyping.value = true
+        
+        // 将消息拆分为段落
+        const segments = splitMessageIntoSegments(message)
+        
+        // 如果没有段落，显示整个消息
+        if (segments.length === 0) {
+          displayedSegments.value = [message]
+          isTyping.value = false
+          return
+        }
+        
+        let currentSegmentIndex = 0
+        
+        const typeNextSegment = () => {
+          if (currentSegmentIndex >= segments.length) {
+            // 所有段落都已显示完成
+            finishTyping()
+            return
+          }
+          
+          const currentSegment = segments[currentSegmentIndex]
+          let charIndex = 0
+          
+          // 清除之前的打字效果定时器
+          if (typeInterval.value) clearInterval(typeInterval.value)
+          
+          // 逐字显示当前段落
+          typeInterval.value = setInterval(() => {
+            if (charIndex <= currentSegment.length) {
+              currentTypingText.value = currentSegment.substring(0, charIndex)
+              charIndex++
+            } else {
+              // 当前段落打字完成
+              clearInterval(typeInterval.value)
+              
+              // 将完成的段落添加到已显示段落数组
+              displayedSegments.value.push(currentSegment)
+              currentTypingText.value = ''
+              
+              // 移动到下一段
+              currentSegmentIndex++
+              
+              // 延迟一会儿再显示下一段
+              if (currentSegmentIndex < segments.length) {
+                setTimeout(typeNextSegment, segmentDelay)
+              } else {
+                // 所有段落都已显示完成
+                finishTyping()
+              }
+            }
+          }, typingSpeed)
+        }
+        
+        // 开始显示第一段
+        typeNextSegment()
+      } catch (error) {
+        console.error('打字效果出错:', error)
+        // 发生错误时显示整个消息
+        displayedSegments.value = [message]
+        isTyping.value = false
+      }
+    }
+    
+    // 完成打字效果
+    const finishTyping = () => {
+      isTyping.value = false
+      if (typeInterval.value) {
+        clearInterval(typeInterval.value)
+        typeInterval.value = null
+      }
+    }
+    
+    // 停止打字效果
+    const stopTypingEffect = () => {
+      isTyping.value = false
+      if (typeInterval.value) {
+        clearInterval(typeInterval.value)
+        typeInterval.value = null
+      }
+      displayedSegments.value = []
+      currentTypingText.value = ''
+    }
+    
+    // 获取当前时间段
+    const getTimeOfDay = () => {
+      const hour = new Date().getHours()
+      if (hour >= 5 && hour < 12) return 'morning'
+      if (hour >= 12 && hour < 18) return 'afternoon'
+      return 'evening'
+    }
+    
+    // 获取植物介绍文本
+    const getPlantIntroduction = (type) => {
+      if (!type) return ''
+      
+      const plantIntros = {
+        '向日葵': '向日葵并不关心世界是否在崩溃，她只关心阳光够不够晒到她的脸。她早晨起得比闹钟还早，晚上睡得比月亮还迟。她的梦想很简单——开一场阳光发布会，最好还能有早餐提供。',
+        '仙人掌': '没有人真正了解仙人掌。甚至连仙人掌自己也不是很确定，他到底是植物，还是某种硬核的情绪集合体。他喜欢独处，不是因为孤独，而是因为社交时要说"你好"太麻烦。',
+        '郁金香': '"优雅"两个字，如果有具象化，那一定是郁金香——当然，是他自己说的。他不屑于参加普通植物的舞会，只在严寒的午夜出场，然后一言不发地……香了一下。',
+        '白百合': '她不是安静，她是带着回声的沉默。白百合总是在别人崩溃边缘时，递上一句"要不要喝点热水？"她喜欢站在风里发呆，说那样能听见遥远星系的心跳——虽然其他植物觉得那是空气流通的声音。',
+        '白百何': '她不是安静，她是带着回声的沉默。白百合总是在别人崩溃边缘时，递上一句"要不要喝点热水？"她喜欢站在风里发呆，说那样能听见遥远星系的心跳——虽然其他植物觉得那是空气流通的声音。',
+        '玫瑰': '她总是自带BGM登场，哪怕背景是一片荒芜草地，她也能走出红毯既视感。玫瑰没兴趣当墙角里的盆栽，她要做花园的女主角，还是自编自导自演的那种。'
+      }
+      
+      return plantIntros[type.trim()] || ''
+    }
+    
+    // 在组件销毁时清除定时器
+    onUnmounted(() => {
+      stopTypingEffect()
+    })
+    
     // 植物图片映射
     const plantImages = {
       '玫瑰': {
@@ -179,7 +342,7 @@ export default {
         2: plant3Level2,
         3: plant3Level3
       },
-      '白百合': {
+      '白百何': {
         1: plant4Level1,
         2: plant4Level2,
         3: plant4Level3
@@ -325,6 +488,21 @@ export default {
       }
     }
     
+    // 格式化心声时间为相对时间
+    const formatThoughtTime = (dateString) => {
+      if (!dateString) return ''
+      
+      try {
+        return formatDistance(new Date(dateString), new Date(), {
+          addSuffix: true,
+          locale: zhCN
+        })
+      } catch (error) {
+        console.error('格式化日期失败:', error)
+        return format(new Date(dateString), 'yyyy-MM-dd HH:mm')
+      }
+    }
+    
     // 显示植物心声对话框
     const showDialog = async (plant) => {
       // 获取正确的植物ID
@@ -335,11 +513,12 @@ export default {
         return
       }
       
-      selectedPlantForDialog.value = plant
-      showPlantThoughtDialog.value = true
-      
-      // 获取植物心声
       try {
+        // 设置当前选中的植物，并展示心声对话框
+        selectedPlantForDialog.value = plant
+        showPlantThoughtDialog.value = true
+        
+        // 获取植物心声
         const thoughts = await plantStore.fetchPlantThoughts(plantId)
         // 将植物心声转换为消息格式
         plantStore.thoughts = thoughts.map(thought => ({
@@ -353,37 +532,58 @@ export default {
       }
     }
     
-    // 生成植物心声
-    const generatePlantThought = async (plant) => {
+    // 生成植物心声的方法，用于点击"聆听心声"时调用
+    const listenToPlantThought = async (plant) => {
       // 获取正确的植物ID
       const plantId = plant._id || plant.id
       if (!plantId) {
-        console.error('无法生成植物心声: 植物ID无效', plant)
-        ElMessage.error('生成失败：植物ID无效')
+        console.error('无法获取植物心声: 植物ID无效', plant)
+        ElMessage.error('无法获取植物心声：植物ID无效')
         return
       }
       
       try {
+        // 设置正在显示心声的植物ID
+        showingThoughtForPlantId.value = plantId
+        
+        // 获取或生成一条植物心声
         const context = {
           weather: plant.weather || 'sunny',
-          level: plant.level || 1,
-          experience: plant.experience || 0,
-          growthStage: plant.growthStage || 1
+          timeOfDay: getTimeOfDay(),
+          recentTasks: taskStore.completedTasks.slice(0, 3).map(task => ({
+            id: task._id || task.id,
+            title: task.title,
+            completed: true
+          }))
         }
         
-        const thought = await plantStore.generatePlantThought(plantId, context)
-        if (thought) {
-          // 将新生成的植物心声添加到消息列表
-          plantStore.thoughts.unshift({
-            type: 'plant',
-            content: thought.content,
-            timestamp: thought.timestamp
+        const newThought = await plantStore.generatePlantThought(plantId, context)
+        
+        if (newThought) {
+          // 更新当前心声
+          currentThought.value = newThought
+          
+          // 开始打字效果
+          startTypingEffect(newThought.content)
+          
+          ElMessage({
+            message: '植物想和你说话了！',
+            type: 'success'
           })
+          
+          // 延长植物心声显示时间
+          setTimeout(() => {
+            if (showingThoughtForPlantId.value === plantId) {
+              showingThoughtForPlantId.value = null
+              stopTypingEffect()
+            }
+          }, 15000) // 15秒后自动关闭
+        } else {
+          ElMessage.warning('植物似乎不想说话...')
         }
-        ElMessage.success('植物心声已生成')
       } catch (error) {
-        console.error('生成植物心声失败:', error)
-        ElMessage.error(`生成失败: ${error.message || '未知错误'}`)
+        console.error('获取植物心声失败', error)
+        ElMessage.error('获取植物心声失败')
       }
     }
     
@@ -464,18 +664,32 @@ export default {
         // 更新选中的植物
         selectedPlantForDialog.value = newMainPlant
         
-        // 如果对话框是打开的，更新植物心声
-        if (showPlantThoughtDialog.value) {
-          const plantId = newMainPlant._id || newMainPlant.id
-          if (plantId) {
-            try {
-              await plantStore.fetchPlantThoughts(plantId)
-            } catch (error) {
-              console.error('更新植物心声失败:', error)
-              ElMessage.error('更新植物心声失败')
+        // 更新植物心声
+        const plantId = newMainPlant._id || newMainPlant.id
+        if (plantId) {
+          try {
+            const thoughts = await plantStore.fetchPlantThoughts(plantId)
+            
+            // 保存最新的一条心声用于显示在花园中
+            if (thoughts && thoughts.length > 0) {
+              currentThought.value = thoughts[0]
             }
+            
+            // 如果对话框是打开的，更新植物心声列表
+            if (showPlantThoughtDialog.value) {
+              plantStore.thoughts = thoughts.map(thought => ({
+                type: 'plant',
+                content: thought.content,
+                timestamp: thought.timestamp
+              }))
+            }
+          } catch (error) {
+            console.error('更新植物心声失败:', error)
+            ElMessage.error('更新植物心声失败')
           }
         }
+      } else {
+        currentThought.value = null
       }
     }, { immediate: true })
     
@@ -491,14 +705,25 @@ export default {
       plantDays,
       completedTasksCount,
       
+      // 打字机效果相关
+      showingThoughtForPlantId,
+      currentThought,
+      displayedSegments,
+      currentTypingText,
+      isTyping,
+      
       // 方法
       calculatePlantExp,
       expFormat,
       updatePlantWeather,
       showDialog,
-      generatePlantThought,
+      listenToPlantThought,
       setAsMainPlant,
-      getPlantImage
+      getPlantImage,
+      formatThoughtTime,
+      getPlantIntroduction,
+      startTypingEffect,
+      stopTypingEffect
     }
   }
 }
@@ -861,6 +1086,7 @@ export default {
   margin-right: 8px;
 }
 
+/* 媒体查询响应式样式 */
 @media screen and (max-width: 768px) {
   .garden-plants-row {
     flex-direction: column;
@@ -890,5 +1116,236 @@ export default {
     font-size: 14px;
     padding: 12px;
   }
+  
+  .plant-thought-bubble {
+    padding: 12px;
+    margin-top: 10px;
+  }
+  
+  .thought-content {
+    font-size: 13px;
+  }
+  
+  .custom-btn {
+    padding: 8px 12px;
+  }
+  
+  .plant-introduction {
+    padding: 10px;
+  }
+  
+  .intro-text {
+    font-size: 12px;
+  }
+}
+
+/* 自定义按钮样式 */
+.custom-btn {
+  border: none;
+  padding: 12px 18px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  margin-bottom: 12px;
+  letter-spacing: 1px;
+}
+
+.custom-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.custom-btn:active {
+  transform: translateY(-1px);
+}
+
+.custom-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.4), rgba(255,255,255,0.1));
+  transition: all 0.5s ease;
+}
+
+.custom-btn:hover::before {
+  left: 100%;
+}
+
+.listen-btn {
+  background: linear-gradient(135deg, #42b983 0%, #36a174 100%);
+  color: white;
+}
+
+.listen-btn:hover {
+  background: linear-gradient(135deg, #4bc990 0%, #3cac7e 100%);
+}
+
+.main-btn {
+  background: linear-gradient(135deg, #ffd54f 0%, #ffb300 100%);
+  color: #704214;
+}
+
+.main-btn:hover {
+  background: linear-gradient(135deg, #ffe082 0%, #ffca28 100%);
+}
+
+.main-btn.disabled {
+  background: linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%);
+  color: #757575;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.main-btn.disabled::before {
+  display: none;
+}
+
+.btn-icon {
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+.btn-text {
+  letter-spacing: 0.5px;
+}
+
+/* 植物心声气泡样式调整 */
+.plant-thought-bubble {
+  margin-top: 15px;
+  padding: 15px;
+  background: linear-gradient(to right, #f0f8ff, #f5fff7);
+  border-radius: 18px;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  max-width: 100%;
+  animation: pulse 3s ease-in-out infinite, bubble-appear 0.8s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  min-height: 60px;
+}
+
+@keyframes bubble-appear {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+  }
+  70% {
+    transform: scale(1.05) translateY(-5px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+  50% { box-shadow: 0 6px 18px rgba(66, 185, 131, 0.15); }
+  100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+}
+
+.thought-bubble-pointer {
+  position: absolute;
+  top: -12px;
+  left: 25px;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #f0f8ff, #f5fff7);
+  transform: rotate(45deg);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+
+.thought-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #2e7d32;
+  font-style: italic;
+  position: relative;
+  z-index: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.thought-content::before {
+  content: '"';
+  font-size: 24px;
+  color: #42b983;
+  margin-right: 2px;
+  vertical-align: sub;
+}
+
+.thought-content::after {
+  content: '"';
+  font-size: 24px;
+  color: #42b983;
+  margin-left: 2px;
+  vertical-align: middle;
+}
+
+.thought-time {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #999;
+  text-align: right;
+}
+
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background-color: #666;
+  margin-left: 2px;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.message-segment {
+  display: block;
+  margin-bottom: 0.5em;
+}
+
+.typing-segment {
+  display: inline;
+}
+
+/* 植物介绍样式 */
+.plant-introduction {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  border-left: 3px solid #42b983;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.intro-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #42b983;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.intro-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #555;
+  font-style: italic;
 }
 </style> 

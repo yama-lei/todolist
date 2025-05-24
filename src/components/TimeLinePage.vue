@@ -295,12 +295,13 @@ const editPost = (story) => {
   border-radius: 8px;
   overflow: hidden;
   width: fit-content;
+  max-width: 100%;
 }
 
 .content-image {
-  width: 240px;
-  height: 160px;
-  object-fit: cover;
+  width: 100%;
+  max-width: 240px;
+  object-fit: contain;
   border-radius: 8px;
 }
 

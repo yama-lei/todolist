@@ -14,10 +14,10 @@
       </div>
       
       <div class="action-bar card">
-        <el-button type="primary" @click="generateThought" class="generate-btn" :loading="loading">
-          <el-icon><ChatLineRound /></el-icon>
-          生成新的植物心声
-        </el-button>
+        <button type="button" @click="generateThought" class="custom-btn generate-btn" :class="{ 'loading': loading }">
+          <span class="btn-icon"><ChatLineRound /></span>
+          <span class="btn-text">生成新的植物心声</span>
+        </button>
         <el-select v-model="plantMood" placeholder="选择植物心情" @change="updateMood" class="mood-select">
           <el-option label="开心" value="happy">
             <div class="mood-option">
@@ -40,9 +40,10 @@
       <div class="thoughts-list">
         <div v-if="!plantStore.thoughts || plantStore.thoughts.length === 0" class="empty-thoughts card">
           <el-empty description="还没有植物心声，点击上方按钮生成吧！">
-            <el-button type="primary" @click="generateThought" class="empty-btn" :loading="loading">
-              <el-icon><ChatLineRound /></el-icon> 生成第一条心声
-            </el-button>
+            <button type="button" @click="generateThought" class="custom-btn generate-btn empty-btn" :class="{ 'loading': loading }">
+              <span class="btn-icon"><ChatLineRound /></span> 
+              <span class="btn-text">生成第一条心声</span>
+            </button>
           </el-empty>
         </div>
         
@@ -57,15 +58,15 @@
               <div class="thought-date">{{ formatDate(thought.timestamp) }}</div>
               <div class="thought-content">{{ thought.content }}</div>
               <div class="thought-footer">
-                <el-button 
-                  type="text" 
-                  size="small" 
+                <button 
+                  type="button"
                   @click="toggleLikeThought(thought)" 
-                  class="like-btn"
+                  class="custom-btn like-btn"
                   :class="{ 'liked': thought.liked }"
                 >
-                  <el-icon><Star /></el-icon> {{ thought.liked ? '已收藏' : '收藏' }}
-                </el-button>
+                  <span class="btn-icon"><Star /></span>
+                  <span class="btn-text">{{ thought.liked ? '已收藏' : '收藏' }}</span>
+                </button>
               </div>
             </div>
           </transition-group>
@@ -410,37 +411,76 @@ export default {
   margin-bottom: 24px;
 }
 
+/* 自定义按钮样式 */
+.custom-btn {
+  border: none;
+  padding: 10px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.custom-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.custom-btn:active {
+  transform: translateY(-1px);
+}
+
+.custom-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.4), rgba(255,255,255,0.1));
+  transition: all 0.5s ease;
+}
+
+.custom-btn:hover::before {
+  left: 100%;
+}
+
 .generate-btn {
+  background: linear-gradient(135deg, #42b983 0%, #36a174 100%);
+  color: white;
   padding: 12px 20px;
   font-weight: 500;
-  background: linear-gradient(135deg, #42b983 0%, #36a174 100%);
-  border: none;
-  box-shadow: 0 4px 8px rgba(66, 185, 131, 0.3);
-  transition: all 0.3s ease;
 }
 
 .generate-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 10px rgba(66, 185, 131, 0.4);
   background: linear-gradient(135deg, #4bc990 0%, #3cac7e 100%);
 }
 
-.generate-btn:active {
-  transform: translateY(0);
+.generate-btn.loading {
+  opacity: 0.8;
+  cursor: wait;
 }
 
-.mood-select {
-  width: 150px;
-}
-
-.mood-option {
+.btn-icon {
+  margin-right: 8px;
+  font-size: 16px;
   display: flex;
   align-items: center;
 }
 
-.mood-emoji {
-  font-size: 1.2rem;
-  margin-right: 6px;
+.btn-text {
+  letter-spacing: 0.5px;
+}
+
+.empty-btn {
+  margin-top: 15px;
 }
 
 .thoughts-list {
@@ -450,10 +490,6 @@ export default {
 .empty-thoughts {
   padding: 50px 0;
   text-align: center;
-}
-
-.empty-btn {
-  margin-top: 15px;
 }
 
 .thought-card {
@@ -511,17 +547,25 @@ export default {
 
 .like-btn {
   color: #42b983;
-  padding: 6px 10px;
-  border-radius: 20px;
+  background-color: rgba(66, 185, 131, 0.05);
+  padding: 6px 14px;
+  box-shadow: none;
 }
 
 .like-btn:hover {
   background-color: rgba(66, 185, 131, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(66, 185, 131, 0.2);
 }
 
 .like-btn.liked {
   color: #ff9800;
   background-color: rgba(255, 152, 0, 0.1);
+}
+
+.like-btn.liked:hover {
+  background-color: rgba(255, 152, 0, 0.15);
+  box-shadow: 0 3px 8px rgba(255, 152, 0, 0.2);
 }
 
 .thought-fade-enter-active, .thought-fade-leave-active {
@@ -551,6 +595,10 @@ export default {
   
   .mood-select {
     width: 100%;
+  }
+  
+  .custom-btn {
+    padding: 8px 12px;
   }
 }
 </style> 
