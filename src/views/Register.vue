@@ -58,7 +58,6 @@
             />
           </el-form-item>
 
-
           <el-form-item>
             <el-button
               type="primary"
@@ -107,8 +106,7 @@ export default {
       username: '',
       email: '',
       password: '',
-      confirmPassword: '',
-      agreement: false
+      confirmPassword: ''
     })
 
     // 验证两次密码是否一致
@@ -117,15 +115,6 @@ export default {
         callback(new Error('请再次输入密码'))
       } else if (value !== registerForm.password) {
         callback(new Error('两次输入密码不一致'))
-      } else {
-        callback()
-      }
-    }
-
-    // 验证协议是否勾选
-    const validateAgreement = (rule, value, callback) => {
-      if (!value) {
-        callback(new Error('请阅读并同意服务条款和隐私政策'))
       } else {
         callback()
       }
@@ -147,9 +136,6 @@ export default {
       ],
       confirmPassword: [
         { required: true, validator: validatePass2, trigger: 'blur' }
-      ],
-      agreement: [
-        { validator: validateAgreement, trigger: 'change' }
       ]
     }
 
@@ -257,7 +243,6 @@ export default {
   background: linear-gradient(135deg, #4caf50, #2e7d32);
   border: none;
 }
-
 
 .terms-link:hover {
   text-decoration: underline;
