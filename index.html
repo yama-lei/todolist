@@ -1,1 +1,20 @@
-<!doctype html><html lang=""><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.ico"><title>zhiyuxinsheng</title><script defer="defer" src="/js/chunk-vendors.be70197a.js"></script><script defer="defer" src="/js/app.6a3cf195.js"></script><link href="/css/chunk-vendors.19f233b8.css" rel="stylesheet"><link href="/css/app.a9b33222.css" rel="stylesheet"></head><body><noscript><strong>We're sorry but zhiyuxinsheng doesn't work properly without JavaScript enabled. Please enable it to continue.</strong></noscript><div id="app"></div></body></html>
+<!doctype html><html lang=""><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="favicon.ico"><title>zhiyuxinsheng</title><script defer="defer" src="js/chunk-vendors.0ede1820.js"></script><script defer="defer" src="js/app.af2deb57.js"></script><link href="css/chunk-vendors.19f233b8.css" rel="stylesheet"><link href="css/app.a9b33222.css" rel="stylesheet"></head><body><noscript><strong>We're sorry but zhiyuxinsheng doesn't work properly without JavaScript enabled. Please enable it to continue.</strong></noscript><div id="app"></div><script>// 处理从404.html传递过来的URL参数
+      (function() {
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect != location.href) {
+          history.replaceState(null, null, redirect);
+        }
+
+        // 检查是否有来自404.html的重定向
+        var searchParams = new URLSearchParams(window.location.search);
+        if (searchParams.has('p')) {
+          var pathname = searchParams.get('p');
+          var search = searchParams.get('q') || '';
+          var hash = searchParams.get('h') || '';
+          var newUrl = pathname + (search ? '?' + search : '') + (hash ? '#' + hash : '');
+          
+          // 在历史记录中替换当前页面，不进行实际跳转
+          window.history.replaceState(null, null, newUrl);
+        }
+      })();</script></body></html>
