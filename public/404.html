@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>植语心声 - 重定向中...</title>
+  <script>
+    // 单页应用的GitHub Pages 404解决方案
+    // 获取当前完整URL，不包括协议和域名
+    var pathSegmentsToKeep = 0;
+    var l = window.location;
+    var redirectUrl = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '');
+    
+    // 根据实际部署情况，可能需要修改为你的GitHub Pages项目名
+    // 例如 https://username.github.io/repo-name/
+    // 此时pathSegmentsToKeep应该设为1，表示保留repo-name
+    
+    // 获取当前路径
+    var path = l.pathname.split('/');
+    
+    // 保留pathSegmentsToKeep个路径段
+    path = path.slice(0, 1 + pathSegmentsToKeep);
+    
+    // 重定向到index.html，同时将当前URL参数传递过去
+    redirectUrl += path.join('/') + '/?p=' + 
+      encodeURIComponent(l.pathname.slice(1 + path.length)) +
+      (l.search ? '&q=' + encodeURIComponent(l.search.slice(1)) : '') +
+      (l.hash ? '&h=' + encodeURIComponent(l.hash.slice(1)) : '');
+      
+    document.write('正在重定向到首页...');
+    window.location.replace(redirectUrl);
+  </script>
+</head>
+<body>
+  <h1>正在重定向...</h1>
+  <p>如果页面没有自动跳转，请<a id="redirect-link" href="/">点击这里</a>返回首页。</p>
+  <script>
+    document.getElementById('redirect-link').setAttribute('href', window.location.origin);
+  </script>
+</body>
+</html> 

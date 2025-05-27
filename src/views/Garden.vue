@@ -375,38 +375,9 @@ export default {
       return plantTypeImages[clampLevel] || plant1Level1 // 如果找不到对应等级的图片，返回默认图片
     }
     
-    // 所有植物列表 (已解锁)
-    const allPlants = reactive([
-      { id: 'plant1', name: '绯色絮语', type: '玫瑰', emoji: '🌹', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
-      { id: 'plant2', name: '沙屿星芒', type: '仙人掌', emoji: '🌵', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
-      { id: 'plant3', name: '冰爵士', type: '郁金香', emoji: '🌸', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
-      { id: 'plant4', name: '云归处', type: '白百何', emoji: '🌲', level: 1, experience: 0, weather: 'sunny', isMainPlant: false },
-      { id: 'plant5', name: '日轮礼赞', type: '向日葵', emoji: '🌻', level: 1, experience: 0, weather: 'sunny', isMainPlant: false }
-    ])
-    
     // 加载植物列表
     onMounted(async () => {
       await plantStore.fetchPlants()
-      
-      // 初始化植物数据
-      for (const plant of allPlants) {
-        // 检查是否已存在该类型的植物
-        const existingPlant = plantStore.plants.find(p => p.type === plant.type)
-        if (!existingPlant) {
-          try {
-            const newPlant = await plantStore.createPlant({
-              name: plant.name,
-              type: plant.type,
-              emoji: plant.emoji,
-              isMainPlant: plant.isMainPlant
-            })
-            console.log('创建新植物成功:', newPlant)
-          } catch (error) {
-            console.error('创建植物失败:', error)
-            ElMessage.error('创建植物失败')
-          }
-        }
-      }
       
       // 如果没有主植物，将第一个设为主植物
       const mainPlant = plantStore.plants.find(p => p.isMainPlant)

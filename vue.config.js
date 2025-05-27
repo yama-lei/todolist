@@ -3,6 +3,7 @@ module.exports = defineConfig({
   lintOnSave: false,
   transpileDependencies: true,
   outputDir: 'docs',
+  publicPath: './',
   pluginOptions: {
     electronBuilder: {
       builderOptions: {

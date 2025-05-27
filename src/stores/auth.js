@@ -70,6 +70,35 @@ export const useAuthStore = defineStore('auth', () => {
     
     try {
       const response = await axios.post(`${API_URL}/auth/register`, userData)
+      
+      // 用户注册成功后，自动创建5种默认植物
+      try {
+        // 获取token
+        const registrationToken = response.data.token
+        
+        // 设置axios默认请求头
+        axios.defaults.headers.common['Authorization'] = `Bearer ${registrationToken}`
+        
+        // 创建5种默认植物
+        const defaultPlants = [
+          { name: '绯色絮语', type: '玫瑰', emoji: '🌹', isMainPlant: true },
+          { name: '沙屿星芒', type: '仙人掌', emoji: '🌵', isMainPlant: false },
+          { name: '冰爵士', type: '郁金香', emoji: '🌸', isMainPlant: false },
+          { name: '云归处', type: '白百何', emoji: '🌲', isMainPlant: false },
+          { name: '日轮礼赞', type: '向日葵', emoji: '🌻', isMainPlant: false }
+        ]
+        
+        // 依次创建每个植物
+        for (const plant of defaultPlants) {
+          await axios.post(`${API_URL}/plants`, plant)
+        }
+        
+        console.log('已成功为新用户创建5个默认植物')
+      } catch (plantError) {
+        console.error('为新用户创建植物失败:', plantError)
+        // 不阻止注册流程，即使植物创建失败
+      }
+      
       ElMessage.success('注册成功！请登录您的账号。')
       return response.data
     } catch (err) {

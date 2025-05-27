@@ -13,5 +13,27 @@
     </noscript>
     <div id="app"></div>
     <!-- built files will be auto injected -->
+    <script>
+      // 处理从404.html传递过来的URL参数
+      (function() {
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect != location.href) {
+          history.replaceState(null, null, redirect);
+        }
+
+        // 检查是否有来自404.html的重定向
+        var searchParams = new URLSearchParams(window.location.search);
+        if (searchParams.has('p')) {
+          var pathname = searchParams.get('p');
+          var search = searchParams.get('q') || '';
+          var hash = searchParams.get('h') || '';
+          var newUrl = pathname + (search ? '?' + search : '') + (hash ? '#' + hash : '');
+          
+          // 在历史记录中替换当前页面，不进行实际跳转
+          window.history.replaceState(null, null, newUrl);
+        }
+      })();
+    </script>
   </body>
 </html>
