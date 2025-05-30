@@ -579,6 +579,7 @@ import { ref, reactive, computed, onMounted, nextTick, watch, onUnmounted } from
 import { useRouter } from 'vue-router'
 import { useTaskStore } from '../stores/task'
 import { usePlantStore } from '../stores/plant'
+import { useAuthStore } from '../stores/auth'
 import { format, formatDistance } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { Plus, Delete, Magic, ChatDotRound, Refresh, ArrowDown, Star, Clock, Menu, Close, DataAnalysis, Trophy, Lightning, Connection, ChatLineRound, Check } from '@element-plus/icons-vue'
@@ -633,6 +634,7 @@ export default {
     const router = useRouter()
     const taskStore = useTaskStore()
     const plantStore = usePlantStore()
+    const authStore = useAuthStore()
     
     // 添加今日完成任务数量的状态
     const todayCompletedTasksCount = ref(0)
@@ -697,13 +699,29 @@ export default {
       try {
         await Promise.all([
           taskStore.fetchTasks(),
-          taskStore.fetchSystemTasks()
+          taskStore.fetchSystemTasks(),
+          plantStore.fetchPlants(), // 添加获取植物数据
+          authStore.fetchUserInfo() // 添加获取用户信息
         ])
         // 计算今日完成的任务数量
         calculateTodayCompletedTasks()
-        console.log('首页任务数据加载成功')
+        
+        // 如果有主植物，加载植物心语
+        if (plantStore.mainPlant) {
+          const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
+          if (plantId) {
+            const thoughts = await plantStore.fetchPlantThoughts(plantId)
+            plantStore.thoughts = thoughts.map(thought => ({
+              type: 'plant', 
+              content: thought.content,
+              timestamp: thought.timestamp
+            }))
+          }
+        }
+        
+        console.log('首页数据加载成功（任务、植物和用户信息）')
       } catch (error) {
-        console.error('加载任务数据失败:', error)
+        console.error('加载数据失败:', error)
       }
     })
     
@@ -935,32 +953,6 @@ export default {
         weather.value = newMainPlant.weather || 'sunny'
       }
     }, { immediate: true, deep: true })
-    
-    // 初始化时，加载植物心语
-    onMounted(async () => {
-      try {
-        await Promise.all([
-          taskStore.fetchTasks(),
-          taskStore.fetchSystemTasks()
-        ])
-        console.log('首页任务数据加载成功')
-        
-        // 加载植物心语
-        if (plantStore.mainPlant) {
-          const plantId = plantStore.mainPlant._id || plantStore.mainPlant.id
-          if (plantId) {
-            const thoughts = await plantStore.fetchPlantThoughts(plantId)
-            plantStore.thoughts = thoughts.map(thought => ({
-              type: 'plant', 
-              content: thought.content,
-              timestamp: thought.timestamp
-            }))
-          }
-        }
-      } catch (error) {
-        console.error('加载任务数据失败:', error)
-      }
-    })
     
     // 完成任务
     const completeTask = async (id) => {

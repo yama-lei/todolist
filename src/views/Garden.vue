@@ -377,7 +377,10 @@ export default {
     
     // 加载植物列表
     onMounted(async () => {
-      await plantStore.fetchPlants()
+      // 只有当植物列表为空时才重新获取，避免重复请求
+      if (plantStore.plants.length === 0) {
+        await plantStore.fetchPlants()
+      }
       
       // 如果没有主植物，将第一个设为主植物
       const mainPlant = plantStore.plants.find(p => p.isMainPlant)
@@ -395,7 +398,10 @@ export default {
         }
       }
       
-      await taskStore.fetchTasks()
+      // 只有当任务列表为空时才重新获取
+      if (taskStore.completedTasks.length === 0) {
+        await taskStore.fetchTasks()
+      }
     })
     
     // 计算植物经验百分比

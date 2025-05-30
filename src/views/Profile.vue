@@ -374,8 +374,10 @@ const handleAvatarChange = async (file) => {
 // 加载用户数据
 onMounted(async () => {
   try {
-    // 强制刷新用户信息
-    await authStore.fetchUserInfo()
+    // 强制刷新用户信息，只有当用户信息不存在时才重新获取
+    if (!authStore.userInfo.username) {
+      await authStore.fetchUserInfo()
+    }
     
     // 更新本地编辑数据
     editedProfile.value = {
@@ -387,6 +389,11 @@ onMounted(async () => {
       birthday: authStore.userInfo.birthday || '',
       location: authStore.userInfo.location || '',
       signature: authStore.userInfo.signature || ''
+    }
+    
+    // 只有当植物列表为空时才重新获取
+    if (plantStore.plants.length === 0) {
+      await plantStore.fetchPlants()
     }
     
     console.log('用户头像URL:', authStore.userInfo.avatar)
